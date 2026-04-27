@@ -1,7 +1,11 @@
 import type { Metadata } from "next"
+import Link from "next/link"
 import { redirect, notFound } from "next/navigation"
 import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
+import { checkCourseAccess } from "@/lib/access"
+import { Button } from "@/components/ui/button"
+import { Lock } from "lucide-react"
 import { LectureViewer } from "./lecture-viewer"
 
 interface LecturePageProps {
@@ -116,6 +120,40 @@ export default async function LecturePage({ params }: LecturePageProps) {
 
   if (!data) {
     notFound()
+  }
+
+  // Spec §9 — content is locked once the AccessGrant expires. The progress
+  // API returns 410 either way, but the page itself must stop revealing
+  // lecture URLs/text to a learner whose window has closed.
+  const access = await checkCourseAccess(session.user.id, courseId)
+  if (!access.allowed) {
+    return (
+      <div className="container max-w-2xl py-16">
+        <div className="rounded-lg border bg-card p-8 text-center space-y-4">
+          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-muted">
+            <Lock className="h-5 w-5 text-muted-foreground" />
+          </div>
+          <h1 className="text-2xl font-semibold">
+            {access.reason === "EXPIRED"
+              ? "Your access window has ended"
+              : "You don't have access to this content"}
+          </h1>
+          <p className="text-sm text-muted-foreground">
+            {access.reason === "EXPIRED"
+              ? "Your 90-day access to this course has expired. Your certificate (if issued) remains available on your dashboard."
+              : "Please contact the academy administrator if you believe this is in error."}
+          </p>
+          <div className="flex flex-wrap justify-center gap-2 pt-2">
+            <Button asChild variant="outline">
+              <Link href={`/my-courses/${courseId}`}>Back to course</Link>
+            </Button>
+            <Button asChild>
+              <Link href="/certificates">My certificates</Link>
+            </Button>
+          </div>
+        </div>
+      </div>
+    )
   }
 
   return (
