@@ -54,6 +54,12 @@ export function CourseCard({
             {course.title}
           </Link>
         </h3>
+        {/* Spec §1 step 2 — short description on every card. */}
+        {course.subtitle && (
+          <p className="text-xs text-muted-foreground line-clamp-2 mb-2">
+            {course.subtitle}
+          </p>
+        )}
         {/* Phase 2: Partner name (spec §4.2 card field) */}
         {course.partnerName ? (
           <div className="text-xs text-muted-foreground mb-2">
