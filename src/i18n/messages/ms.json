@@ -1,0 +1,56 @@
+{
+  "$meta": {
+    "locale": "ms",
+    "displayName": "Bahasa Melayu",
+    "direction": "ltr"
+  },
+  "common": {
+    "save": "Simpan",
+    "cancel": "Batal",
+    "delete": "Padam",
+    "edit": "Sunting",
+    "confirm": "Sahkan",
+    "close": "Tutup",
+    "loading": "Memuat…",
+    "error": "Ada sesuatu yang tidak kena",
+    "required": "Wajib"
+  },
+  "auth": {
+    "login": "Log masuk",
+    "register": "Daftar",
+    "logout": "Log keluar",
+    "email": "E-mel",
+    "password": "Kata laluan",
+    "forgotPassword": "Lupa kata laluan?",
+    "tooManyAttempts": "Terlalu banyak percubaan — cuba lagi sebentar."
+  },
+  "nav": {
+    "home": "Laman utama",
+    "courses": "Kursus",
+    "programmes": "Program",
+    "myCourses": "Kursus saya",
+    "certificates": "Sijil",
+    "profile": "Profil",
+    "privacy": "Privasi & data"
+  },
+  "learner": {
+    "welcomeBack": "Selamat kembali, {name}",
+    "continueLearning": "Sambung pembelajaran",
+    "unlockCert": "Beri maklum balas & buka sijil",
+    "accessExpired": "Akses anda kepada kursus ini telah tamat tempoh.",
+    "accessExpiresIn": "Akses tamat dalam {days} hari"
+  },
+  "checkout": {
+    "subtotal": "Subjumlah",
+    "discount": "Diskaun",
+    "tax": "{label}",
+    "total": "Jumlah",
+    "payNow": "Bayar sekarang"
+  },
+  "privacy": {
+    "downloadExport": "Muat turun eksport JSON",
+    "deactivateAccount": "Nyahaktifkan akaun",
+    "confirmEmail": "Taip e-mel anda untuk sahkan: {email}",
+    "deactivateWarning": "Anda tidak lagi boleh log masuk. Rekod dikekalkan seperti spec §17."
+  }
+}

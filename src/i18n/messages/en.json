@@ -1,0 +1,56 @@
+{
+  "$meta": {
+    "locale": "en",
+    "displayName": "English",
+    "direction": "ltr"
+  },
+  "common": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "confirm": "Confirm",
+    "close": "Close",
+    "loading": "Loading…",
+    "error": "Something went wrong",
+    "required": "Required"
+  },
+  "auth": {
+    "login": "Log in",
+    "register": "Sign up",
+    "logout": "Log out",
+    "email": "Email",
+    "password": "Password",
+    "forgotPassword": "Forgot password?",
+    "tooManyAttempts": "Too many attempts — try again shortly."
+  },
+  "nav": {
+    "home": "Home",
+    "courses": "Courses",
+    "programmes": "Programmes",
+    "myCourses": "My Courses",
+    "certificates": "Certificates",
+    "profile": "Profile",
+    "privacy": "Privacy & data"
+  },
+  "learner": {
+    "welcomeBack": "Welcome back, {name}",
+    "continueLearning": "Continue learning",
+    "unlockCert": "Leave feedback & unlock certificate",
+    "accessExpired": "Your access to this course has expired.",
+    "accessExpiresIn": "Access expires in {days} days"
+  },
+  "checkout": {
+    "subtotal": "Subtotal",
+    "discount": "Discount",
+    "tax": "{label}",
+    "total": "Total",
+    "payNow": "Pay now"
+  },
+  "privacy": {
+    "downloadExport": "Download JSON export",
+    "deactivateAccount": "Deactivate account",
+    "confirmEmail": "Type your email to confirm: {email}",
+    "deactivateWarning": "You will no longer be able to sign in. Records are preserved per spec §17."
+  }
+}

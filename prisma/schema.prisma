@@ -1,0 +1,1288 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ==================== USER & AUTH ====================
+
+enum UserRole {
+  STUDENT
+  INSTRUCTOR
+  ADMIN
+}
+
+// Phase 1: IESA LMS 6-role model.
+// Platform-wide roles live on User.platformRole. Tenant-scoped roles live on
+// AcademyMembership.role so a user can be a learner in Academy A and a
+// course developer in Academy B.
+enum PlatformRole {
+  NONE
+  PLATFORM_OWNER
+  PLATFORM_SUPPORT
+}
+
+enum AcademyRole {
+  LEARNER
+  COURSE_DEVELOPER
+  ACADEMY_ADMIN
+  MARKETER
+}
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  username      String?   @unique
+  emailVerified DateTime?
+  password      String?
+  name          String?
+  image         String?
+  bio           String?   @db.Text
+  headline      String?
+  role          UserRole  @default(STUDENT)
+
+  // Phase 1 additions. platformRole gates global /platform routes.
+  // nameToBeCalled is shown throughout the LMS and on certificates (spec §3.1).
+  // certificateName is what we print on PDFs; certificateIdNumber is optional per §3.1.
+  platformRole        PlatformRole @default(NONE)
+  nameToBeCalled      String?
+  certificateName     String?
+  certificateIdNumber String?
+  isActive            Boolean      @default(true)
+  deactivatedAt       DateTime?
+
+  website  String?
+  twitter  String?
+  linkedin String?
+  youtube  String?
+
+  onboardingData Json?
+
+  stripeCustomerId       String? @unique
+  stripeConnectAccountId String? @unique
+  stripeConnectOnboarded Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  accounts     Account[]
+  sessions     Session[]
+  courses      Course[]
+  earnings     Earning[]
+  enrollments  Enrollment[]
+  progress     LectureProgress[]
+  reviews      Review[]
+  wishlist     Wishlist[]
+  cartItems    CartItem[]
+  purchases    Purchase[]
+  certificates Certificate[]
+
+  academyMemberships AcademyMembership[]
+
+  // Phase 3
+  accessGrants    AccessGrant[]
+  surveyResponses SurveyResponse[]
+
+  // Phase 5
+  assessmentAttempts AssessmentAttempt[]
+
+  // Phase 4
+  marketerPromoCodes PromoCode[] @relation("MarketerPromoCodes")
+
+  // Phase 6
+  publishedCourseVersions CourseVersion[] @relation("CourseVersionPublisher")
+
+  // Phase 7
+  aiInteractions AiInteraction[]
+
+  instructorApplications InstructorApplication[]
+  reviewedApplications   InstructorApplication[] @relation("ReviewedApplications")
+
+  @@index([email])
+  @@index([username])
+  @@index([role])
+  @@index([platformRole])
+  @@index([isActive])
+}
+
+// Phase 1: Academy / tenant. Every tenant-scoped entity (courses, programmes,
+// ledger, promo codes) eventually gets an academyId FK. Courses will be
+// backfilled in scripts/migrate-phase-1.ts.
+model Academy {
+  id               String  @id @default(cuid())
+  name             String
+  slug             String  @unique
+  brandingLogoUrl  String?
+  secondaryLogoUrl String?
+  primaryCurrency  String  @default("USD")
+  taxJurisdiction  String?
+  // Phase 9 — Spec §18 jurisdiction-aware invoices. Printed on every
+  // invoice alongside the TaxRate's label (GST/VAT/Sales Tax).
+  taxRegistrationNumber String?
+  aiEnabled        Boolean @default(false)
+  isActive         Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  memberships AcademyMembership[]
+  courses     Course[]
+  sectors     Sector[]
+  cpdCatalog  CpdCatalog[]
+  banners     Banner[]
+  programmes  Programme[]
+
+  // Phase 5
+  certificateRules     CertificateRule[]
+  certificateTemplates CertificateTemplate[]
+
+  // Phase 4
+  ledgerEntries LedgerEntry[]
+  payoutBatches PayoutBatch[]
+  invoices      Invoice[]
+  taxRates      TaxRate[]
+  promoCodes    PromoCode[]
+
+  // Phase 7
+  aiInteractions AiInteraction[]
+
+  @@index([slug])
+  @@index([isActive])
+}
+
+// Join table — one row per (user, academy) with the tenant-scoped role.
+// A user can be LEARNER in Academy A and COURSE_DEVELOPER in Academy B.
+model AcademyMembership {
+  id        String      @id @default(cuid())
+  userId    String
+  academyId String
+  role      AcademyRole
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  academy Academy @relation(fields: [academyId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, academyId])
+  @@index([userId])
+  @@index([academyId])
+  @@index([role])
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  email     String
+  token     String   @unique
+  expires   DateTime
+  createdAt DateTime @default(now())
+
+  @@index([email])
+}
+
+// ==================== INSTRUCTOR APPLICATIONS ====================
+
+enum ApplicationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model InstructorApplication {
+  id        String            @id @default(cuid())
+  headline  String
+  bio       String            @db.Text
+  status    ApplicationStatus @default(PENDING)
+  adminNote String?           @db.Text
+
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  reviewedAt DateTime?
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  reviewedById String?
+  reviewedBy   User?  @relation("ReviewedApplications", fields: [reviewedById], references: [id])
+
+  @@index([userId])
+  @@index([status])
+}
+
+// ==================== COURSE STRUCTURE ====================
+
+enum CourseLevel {
+  BEGINNER
+  INTERMEDIATE
+  ADVANCED
+  ALL_LEVELS
+}
+
+enum CourseStatus {
+  DRAFT
+  PENDING_REVIEW
+  PUBLISHED
+  REJECTED
+  ARCHIVED
+}
+
+model Category {
+  id          String  @id @default(cuid())
+  name        String  @unique
+  slug        String  @unique
+  description String?
+  icon        String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  courses Course[]
+
+  @@index([slug])
+}
+
+// Phase 2: public catalogue filters per IESA LMS spec §4.3 — Sector.
+// Sector is tenant-scoped; seeds per academy control what a learner filters
+// on. Unique per academy (not globally).
+model Sector {
+  id        String  @id @default(cuid())
+  academyId String
+  name      String
+  slug      String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  courses Course[]
+  academy Academy  @relation(fields: [academyId], references: [id], onDelete: Cascade)
+
+  @@unique([academyId, slug])
+  @@index([academyId])
+}
+
+// Phase 2: CPD (Continuing Professional Development) metadata per spec §4.2
+// (CPD badge) and §4.4 (CPD info on detail page). Academy-scoped catalog so
+// each tenant maintains their own CPD naming/points.
+model CpdCatalog {
+  id         String  @id @default(cuid())
+  academyId  String
+  name       String
+  points     Decimal @default(0) @db.Decimal(5, 2)
+  badgeUrl   String?
+  sortOrder  Int     @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  courses Course[]
+  academy Academy  @relation(fields: [academyId], references: [id], onDelete: Cascade)
+
+  @@index([academyId])
+  @@index([academyId, sortOrder])
+}
+
+// Phase 2: branding + advertising carousel per spec §4.1. Up to 10 active
+// banners per academy; `rotationWeight` controls visibility frequency and
+// `startsAt` / `endsAt` allow scheduled campaigns.
+enum BannerPlacement {
+  CAROUSEL_TOP
+  SIDEBAR
+  FOOTER
+}
+
+model Banner {
+  id              String          @id @default(cuid())
+  academyId       String
+  imageUrl        String
+  title           String?
+  targetUrl       String?
+  placement       BannerPlacement @default(CAROUSEL_TOP)
+  position        Int             @default(0)
+  rotationWeight  Int             @default(1)
+  startsAt        DateTime?
+  endsAt          DateTime?
+  isActive        Boolean         @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  academy Academy @relation(fields: [academyId], references: [id], onDelete: Cascade)
+
+  @@index([academyId])
+  @@index([academyId, placement, isActive])
+  @@index([position])
+}
+
+model Course {
+  id          String  @id @default(cuid())
+  title       String
+  slug        String  @unique
+  subtitle    String?
+  description String? @db.Text
+
+  thumbnail       String?
+  previewVideoUrl String?
+
+  price         Decimal  @default(0) @db.Decimal(10, 2)
+  discountPrice Decimal? @db.Decimal(10, 2)
+  isFree        Boolean  @default(false)
+  // Phase 9 — Spec §18 multi-currency. Stored as ISO 4217 code; default
+  // falls back to the academy's primaryCurrency at checkout when unset.
+  currency      String   @default("USD")
+
+  level    CourseLevel @default(ALL_LEVELS)
+  language String      @default("English")
+
+  learningOutcomes String[]
+  requirements     String[]
+  targetAudience   String[]
+
+  status          CourseStatus @default(DRAFT)
+  publishedAt     DateTime?
+  rejectionReason String?
+
+  totalDuration Int     @default(0)
+  totalLectures Int     @default(0)
+  totalStudents Int     @default(0)
+  averageRating Decimal @default(0) @db.Decimal(2, 1)
+  totalReviews  Int     @default(0)
+
+  isFeatured    Boolean @default(false)
+  featuredOrder Int?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  instructorId String
+  instructor   User   @relation(fields: [instructorId], references: [id], onDelete: Cascade)
+
+  categoryId String
+  category   Category @relation(fields: [categoryId], references: [id])
+
+  // Phase 1: nullable during the backfill window. migrate-phase-1.ts sets
+  // academyId for every existing row; subsequent phases will make this required.
+  academyId String?
+  academy   Academy? @relation(fields: [academyId], references: [id])
+
+  // Phase 2: catalogue discovery metadata per IESA LMS spec §4.2 – §4.4.
+  sectorId        String?
+  sector          Sector?     @relation(fields: [sectorId], references: [id])
+  cpdCatalogId    String?
+  cpdCatalog      CpdCatalog? @relation(fields: [cpdCatalogId], references: [id])
+  partnerName     String?
+  partnerLogoUrl  String?
+
+  sections    Section[]
+  enrollments Enrollment[]
+  reviews     Review[]
+  wishlist    Wishlist[]
+  cartItems   CartItem[]
+  purchases   Purchase[]
+
+  // Phase 3
+  accessGrants     AccessGrant[]
+  programmeCourses ProgrammeCourse[]
+  survey           Survey?
+
+  // Phase 6
+  versions CourseVersion[]
+
+  // Phase 3: configurable per-course access window (default 90 days per
+  // spec §11.1). Programmes override this with their own value at the
+  // programme level so the whole bundle uses one shared window.
+  accessDurationDays Int @default(90)
+
+  // Phase 5: assessment configuration per spec §7.3.
+  // retakesAllowed: -1 = unlimited (spec §7.3 default "no limit"), 0 = none.
+  assessmentPassMark Int @default(80)
+  retakesAllowed     Int @default(-1)
+
+  @@index([slug])
+  @@index([instructorId])
+  @@index([categoryId])
+  @@index([academyId])
+  @@index([sectorId])
+  @@index([cpdCatalogId])
+  @@index([partnerName])
+  @@index([status])
+  @@index([isFeatured])
+  @@index([averageRating])
+  @@index([totalStudents])
+}
+
+model Section {
+  id          String  @id @default(cuid())
+  title       String
+  description String?
+  position    Int
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  courseId String
+  course   Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  lectures Lecture[]
+
+  @@index([courseId])
+  @@index([position])
+}
+
+enum LectureType {
+  VIDEO
+  TEXT
+  QUIZ
+  // Phase 6 — Spec §7.1 content types
+  PDF
+  SCORM
+  XAPI
+  VOICE_OVER_SLIDES
+  DOWNLOADABLE
+}
+
+model Lecture {
+  id          String      @id @default(cuid())
+  title       String
+  description String?     @db.Text
+  type        LectureType @default(VIDEO)
+  position    Int
+
+  videoUrl      String?
+  videoDuration Int?
+  videoPublicId String?
+
+  content String? @db.Text
+
+  // Phase 6 — Polymorphic per-type content payload. Shape varies by
+  // LectureType:
+  //   SCORM             → { packageUrl, entryPoint?, manifest? }
+  //   XAPI              → { launchUrl, activityId }
+  //   VOICE_OVER_SLIDES → { pdfUrl, slides: [{ page, voText }] }
+  //   PDF               → { pdfUrl }
+  //   DOWNLOADABLE      → { files: [{ name, url, sizeBytes? }] }
+  // VIDEO/TEXT/QUIZ keep using `content` + `videoUrl` as before.
+  contentPayloadJson Json?
+
+  isFreePreview Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  sectionId String
+  section   Section @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+
+  resources Resource[]
+  progress  LectureProgress[]
+
+  // Phase 5: graded quiz attempts per lecture (quiz lectures only).
+  assessmentAttempts AssessmentAttempt[]
+
+  @@index([sectionId])
+  @@index([position])
+}
+
+model Resource {
+  id   String  @id @default(cuid())
+  name String
+  type String
+  url  String
+  size Int?
+
+  // Spec §8.2 — asset licence metadata. Populated by the AI media
+  // curator when the asset comes from Openverse / Unsplash / Wikimedia.
+  // Kept optional so author-uploaded originals don't require these
+  // fields; set them explicitly when curating from a public source.
+  license       String? // e.g. "cc-by", "cc0", "pdm"
+  licenseUrl    String?
+  attribution   String?
+  sourceUrl     String?
+  sourceProvider String? // "openverse" / "unsplash" / "wikimedia"
+
+  createdAt DateTime @default(now())
+
+  lectureId String
+  lecture   Lecture @relation(fields: [lectureId], references: [id], onDelete: Cascade)
+
+  @@index([lectureId])
+  @@index([license])
+}
+
+// ==================== ENROLLMENT & PROGRESS ====================
+
+model Enrollment {
+  id String @id @default(cuid())
+
+  progress       Int       @default(0)
+  completedAt    DateTime?
+  lastAccessedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  courseId String
+  course   Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, courseId])
+  @@index([userId])
+  @@index([courseId])
+}
+
+model LectureProgress {
+  id              String  @id @default(cuid())
+  isCompleted     Boolean @default(false)
+  watchedDuration Int     @default(0)
+  lastPosition    Int     @default(0)
+
+  completedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  lectureId String
+  lecture   Lecture @relation(fields: [lectureId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, lectureId])
+  @@index([userId])
+  @@index([lectureId])
+}
+
+// Phase 5: IESA LMS spec §13 certificate fields — Name to Be Called,
+// course title, completion date, CPD name & value, optional ID number,
+// and a QR/reference code. layoutJson carries the template used when issued
+// so historical certificates don't change if the academy retemplates.
+model Certificate {
+  id            String   @id @default(cuid())
+  certificateId String   @unique
+  issuedAt      DateTime @default(now())
+  revokedAt     DateTime?
+  revokedReason String?
+
+  // Snapshot of the info at issue-time (spec §17 permanent retention).
+  courseName       String
+  instructorName   String
+  nameToBeCalled   String?
+  certificateName  String?
+  certificateIdNumber String?
+  cpdName          String?
+  cpdPoints        Decimal? @db.Decimal(5, 2)
+  completionDate   DateTime @default(now())
+  templateSnapshot Json?
+
+  // Computed metrics from the issuing run.
+  contentCompletionPct Int?
+  assessmentScorePct   Int?
+
+  userId   String
+  user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  courseId String
+
+  templateId String?
+  template   CertificateTemplate? @relation(fields: [templateId], references: [id])
+
+  @@index([userId])
+  @@index([courseId])
+  @@index([certificateId])
+  @@index([issuedAt])
+}
+
+// Phase 5: graded attempt at a quiz-type Lecture. Each attempt is immutable;
+// retakes create new rows. The certification engine uses the highest
+// passing attempt per quiz.
+model AssessmentAttempt {
+  id            String   @id @default(cuid())
+  lectureId     String
+  userId        String
+  attemptNumber Int
+  scorePct      Decimal  @db.Decimal(5, 2)
+  pointsEarned  Decimal  @db.Decimal(8, 2)
+  maxPoints     Decimal  @db.Decimal(8, 2)
+  passed        Boolean
+  answersJson   Json
+  submittedAt   DateTime @default(now())
+
+  lecture Lecture @relation(fields: [lectureId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, lectureId])
+  @@index([lectureId])
+  @@index([passed])
+}
+
+// Phase 5: per-academy customisable cert thresholds (spec §12). Defaults
+// are the spec's locked-in defaults: 50% content, 80% assessment, survey
+// required, before-expiry required.
+model CertificateRule {
+  id                 String  @id @default(cuid())
+  academyId          String
+  minContentPct      Int     @default(50)
+  minAssessmentPct   Int     @default(80)
+  requiresSurvey     Boolean @default(true)
+  mustBeBeforeExpiry Boolean @default(true)
+  isActive           Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  academy Academy @relation(fields: [academyId], references: [id], onDelete: Cascade)
+
+  @@index([academyId, isActive])
+}
+
+// Phase 5: customisable cert layout per spec §13 (up to 2 logos, CPD, QR).
+// layoutJson holds theme/font overrides; actual rendering is HTML/CSS (see
+// src/lib/certificate-html.ts) so academies can iterate without us
+// shipping new PDF libraries.
+model CertificateTemplate {
+  id               String  @id @default(cuid())
+  academyId        String
+  name             String
+  primaryLogoUrl   String?
+  secondaryLogoUrl String?
+  signatoryName    String?
+  signatoryTitle   String?
+  layoutJson       Json?
+  isDefault        Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  academy      Academy      @relation(fields: [academyId], references: [id], onDelete: Cascade)
+  certificates Certificate[]
+
+  @@index([academyId])
+  @@index([academyId, isDefault])
+}
+
+// ==================== REVIEWS & RATINGS ====================
+
+model Review {
+  id      String  @id @default(cuid())
+  rating  Int
+  comment String? @db.Text
+
+  response    String?   @db.Text
+  respondedAt DateTime?
+
+  isApproved Boolean @default(true)
+  isFeatured Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  courseId String
+  course   Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, courseId])
+  @@index([courseId])
+  @@index([rating])
+}
+
+// ==================== WISHLIST ====================
+
+model Wishlist {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  courseId String
+  course   Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, courseId])
+  @@index([userId])
+}
+
+// ==================== CART ====================
+
+model CartItem {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  courseId String
+  course   Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, courseId])
+  @@index([userId])
+}
+
+// ==================== PAYMENTS & EARNINGS ====================
+
+enum PurchaseStatus {
+  PENDING
+  COMPLETED
+  REFUNDED
+  FAILED
+}
+
+model Purchase {
+  id String @id @default(cuid())
+
+  amount            Int
+  platformFee       Int
+  instructorEarning Int
+
+  stripePaymentIntentId String? @unique
+  stripeSessionId       String?
+
+  status PurchaseStatus @default(PENDING)
+
+  courseName  String
+  coursePrice Decimal @db.Decimal(10, 2)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  courseId String
+  course   Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([courseId])
+  @@index([stripePaymentIntentId])
+  @@index([status])
+}
+
+enum PayoutStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+model Earning {
+  id     String @id @default(cuid())
+  amount Int
+
+  periodStart DateTime
+  periodEnd   DateTime
+
+  payoutStatus     PayoutStatus @default(PENDING)
+  stripeTransferId String?
+  paidAt           DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([payoutStatus])
+}
+
+// ==================== PLATFORM SETTINGS ====================
+
+model PlatformSettings {
+  id                 String  @id @default(cuid())
+  platformFeePercent Int     @default(30)
+  minCoursePrice     Decimal @default(0) @db.Decimal(10, 2)
+  maxCoursePrice     Decimal @default(999.99) @db.Decimal(10, 2)
+
+  // Phase 4: IESA LMS spec §15 distribution levers. bps = basis points
+  // (100 bps = 1%), amounts stored as minor units (cents) to avoid float math.
+  platformSupportFixedFeeMinor Int @default(50)   // 50¢ per txn default
+  defaultMarketerCommissionBps Int @default(1000) // 10% default
+  defaultDeveloperSplitBps     Int @default(5000) // 50% to developer
+
+  updatedAt DateTime @updatedAt
+}
+
+// ==================== FEATURE FLAGS ====================
+// Phase 0 scaffolding. academyId is nullable so a flag can be set globally
+// (null) or scoped to a specific tenant once Phase 1 lands Academy.
+model FeatureFlag {
+  id          String  @id @default(cuid())
+  key         String
+  academyId   String?
+  enabled     Boolean @default(false)
+  description String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([key, academyId])
+  @@index([key])
+  @@index([academyId])
+}
+
+// ==================== AUDIT LOG ====================
+// Append-only. Required for GDPR/PDPA readiness (spec §18) and compliance
+// oversight (spec §6 Platform Owner, §7 Platform Support). Every write path
+// in later phases should call audit() in src/lib/audit.ts.
+model AuditLog {
+  id           String   @id @default(cuid())
+  userId       String?
+  academyId    String?
+  action       String
+  resourceType String
+  resourceId   String?
+  metadata     Json?
+  ipHash       String?
+  userAgent    String?
+  createdAt    DateTime @default(now())
+
+  @@index([userId])
+  @@index([academyId])
+  @@index([resourceType, resourceId])
+  @@index([action])
+  @@index([createdAt])
+}
+
+// ==================== PHASE 3: PROGRAMMES & ACCESS ====================
+
+// Spec §6: three content types. COMPLIMENTARY is free, no cert, no expiry.
+enum ProductType {
+  COURSE
+  PROGRAMME
+  COMPLIMENTARY
+}
+
+enum ProgrammeStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+// Spec §6.3: a programme bundles ≥2 courses, sold for one price with a
+// single shared 90-day access window covering every included course.
+model Programme {
+  id          String          @id @default(cuid())
+  academyId   String
+  title       String
+  slug        String          @unique
+  subtitle    String?
+  description String?         @db.Text
+  thumbnail   String?
+  price       Decimal         @default(0) @db.Decimal(10, 2)
+  currency    String          @default("USD")
+  isFree      Boolean         @default(false)
+  status      ProgrammeStatus @default(DRAFT)
+  publishedAt DateTime?
+
+  accessDurationDays Int @default(90)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  academy Academy @relation(fields: [academyId], references: [id], onDelete: Cascade)
+
+  courses      ProgrammeCourse[]
+  accessGrants AccessGrant[]
+
+  @@index([academyId])
+  @@index([status])
+  @@index([slug])
+}
+
+model ProgrammeCourse {
+  id          String @id @default(cuid())
+  programmeId String
+  courseId    String
+  position    Int
+
+  programme Programme @relation(fields: [programmeId], references: [id], onDelete: Cascade)
+  course    Course    @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@unique([programmeId, courseId])
+  @@index([programmeId])
+  @@index([courseId])
+}
+
+// Spec §11.1 (LOCKED 90-day access) + §6.3 (programme shared window).
+// Replaces the lifetime Enrollment model. An AccessGrant carries grantedAt +
+// expiresAt and ties a user to either a Course or a Programme. During the
+// Phase 3 migration we create one AccessGrant per existing Enrollment with
+// a 90-day window from createdAt.
+enum AccessGrantSource {
+  PURCHASE
+  COMPLIMENTARY
+  ADMIN
+  MIGRATION
+}
+
+model AccessGrant {
+  id          String            @id @default(cuid())
+  userId      String
+  productType ProductType
+  courseId    String?
+  programmeId String?
+  source      AccessGrantSource @default(PURCHASE)
+  grantedAt   DateTime          @default(now())
+  expiresAt   DateTime
+  isActive    Boolean           @default(true)
+  revokedAt   DateTime?
+  revokedReason String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  course    Course?    @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  programme Programme? @relation(fields: [programmeId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, courseId])
+  @@unique([userId, programmeId])
+  @@index([userId])
+  @@index([courseId])
+  @@index([programmeId])
+  @@index([expiresAt])
+  @@index([isActive, expiresAt])
+}
+
+// Spec §7.4: mandatory completion-based survey that gates certification.
+// Distinct from Review (public 1-5 star rating).
+model Survey {
+  id            String  @id @default(cuid())
+  courseId      String  @unique
+  title         String  @default("Course survey")
+  description   String? @db.Text
+  questionsJson Json
+  isMandatoryForCert Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  course    Course           @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  responses SurveyResponse[]
+}
+
+model SurveyResponse {
+  id          String   @id @default(cuid())
+  surveyId    String
+  userId      String
+  starRating  Int
+  answersJson Json
+  submittedAt DateTime @default(now())
+
+  survey Survey @relation(fields: [surveyId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([surveyId, userId])
+  @@index([surveyId])
+  @@index([userId])
+  @@index([starRating])
+}
+
+// ==================== PHASE 4: LEDGER, PROMO, PAYOUTS, INVOICES, TAX ====================
+
+enum LedgerEntryType {
+  CHARGE            // Gross amount learner paid (+)
+  DISCOUNT          // Promo code discount applied (−)
+  MARKETER          // Marketer commission (−)
+  PLATFORM_SUPPORT  // Fixed platform support fee (−)
+  TAX               // VAT / GST (−, collected by Academy)
+  ACADEMY           // Academy share (+)
+  DEVELOPER         // Course developer share (+)
+  REFUND_CHARGE     // Reversal of CHARGE on refund (−)
+  REFUND_DISCOUNT   // Reversal of DISCOUNT (+)
+  REFUND_ACADEMY    // Reversal of ACADEMY (−)
+  REFUND_DEVELOPER  // Reversal of DEVELOPER (−)
+  REFUND_MARKETER   // Reversal of MARKETER (+)
+  REFUND_PLATFORM   // Reversal of PLATFORM_SUPPORT (+)
+  REFUND_TAX        // Reversal of TAX (+)
+}
+
+enum PayoutGroup {
+  ACADEMY
+  DEVELOPER
+  MARKETER
+  PLATFORM_SUPPORT
+}
+
+enum PayoutBatchStatus {
+  DRAFT
+  APPROVED
+  PAID
+  CANCELLED
+}
+
+// Spec §16: immutable double-entry ledger. Every money movement writes 1+
+// legs sharing a `parentTxnId`; the sum of `amountMinor` per parentTxnId
+// always equals zero for a balanced transaction, enforced by src/lib/ledger.ts
+// and a nightly invariant check (see src/app/api/cron/ledger-invariant/).
+model LedgerEntry {
+  id           String          @id @default(cuid())
+  parentTxnId  String
+  academyId    String
+  productType  ProductType
+  productId    String
+  userId       String?         // Learner (nullable for platform-only legs)
+  beneficiaryUserId String?    // Developer / marketer receiving share
+  entryType    LedgerEntryType
+  amountMinor  Int             // Positive or negative, always in minor units
+  currency     String          @default("USD")
+  payoutGroup  PayoutGroup?
+  payoutBatchId String?
+  reversalOfId String?         // Set on refund legs pointing back to the original leg
+  notes        String?
+  metadata     Json?
+  createdAt    DateTime        @default(now())
+
+  academy      Academy       @relation(fields: [academyId], references: [id])
+  payoutBatch  PayoutBatch?  @relation(fields: [payoutBatchId], references: [id])
+  reversalOf   LedgerEntry?  @relation("LedgerReversal", fields: [reversalOfId], references: [id])
+  reversals    LedgerEntry[] @relation("LedgerReversal")
+
+  @@index([parentTxnId])
+  @@index([academyId])
+  @@index([userId])
+  @@index([beneficiaryUserId])
+  @@index([entryType])
+  @@index([payoutGroup])
+  @@index([payoutBatchId])
+  @@index([createdAt])
+  @@index([productType, productId])
+}
+
+// Spec §15 step 3 + §6 marketing controls. A promo code carries both a
+// marketer commission (credited to a MARKETER leg) and a learner discount
+// (DISCOUNT leg). Either can be zero.
+model PromoCode {
+  id                     String  @id @default(cuid())
+  academyId              String
+  code                   String  @unique
+  marketerUserId         String?
+  marketerCommissionBps  Int     @default(0)   // basis points of gross
+  learnerDiscountBps     Int     @default(0)   // basis points off gross
+  validFrom              DateTime?
+  validTo                DateTime?
+  usageLimit             Int?                  // null = unlimited
+  usageCount             Int     @default(0)
+  isActive               Boolean @default(true)
+  notes                  String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  academy        Academy @relation(fields: [academyId], references: [id], onDelete: Cascade)
+  marketer       User?   @relation("MarketerPromoCodes", fields: [marketerUserId], references: [id])
+
+  @@index([academyId])
+  @@index([marketerUserId])
+  @@index([isActive])
+}
+
+// Spec §15 grouped payouts: Academy → org, Developer → partner-grouped,
+// Marketer → marketer account, Platform Support → aggregated fixed fees.
+model PayoutBatch {
+  id            String            @id @default(cuid())
+  academyId     String
+  payoutGroup   PayoutGroup
+  periodStart   DateTime
+  periodEnd     DateTime
+  status        PayoutBatchStatus @default(DRAFT)
+  totalMinor    Int               @default(0)
+  currency      String            @default("USD")
+  processorRef  String?           // Stripe transfer id / ACH ref
+  approvedAt    DateTime?
+  paidAt        DateTime?
+  notes         String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  academy Academy       @relation(fields: [academyId], references: [id], onDelete: Cascade)
+  entries LedgerEntry[]
+
+  @@index([academyId])
+  @@index([payoutGroup])
+  @@index([status])
+  @@index([periodEnd])
+}
+
+// Spec §10.2: invoice generated only after successful payment. We persist
+// a row per purchase and render the PDF on demand from this data + the
+// ledger entries (so invoices never drift from money truth).
+model Invoice {
+  id             String   @id @default(cuid())
+  invoiceNumber  String   @unique
+  academyId      String
+  userId         String
+  purchaseId     String?  @unique
+  productType    ProductType
+  productId      String
+  grossMinor     Int
+  discountMinor  Int      @default(0)
+  taxMinor       Int      @default(0)
+  netMinor       Int
+  currency       String   @default("USD")
+  taxJurisdiction String?
+  issuedAt       DateTime @default(now())
+  recipientName  String?
+  recipientEmail String?
+
+  academy Academy @relation(fields: [academyId], references: [id])
+
+  @@index([academyId])
+  @@index([userId])
+  @@index([purchaseId])
+  @@index([issuedAt])
+}
+
+// Spec §18 Tax & Finance: per-jurisdiction VAT/GST rates.
+model TaxRate {
+  id             String   @id @default(cuid())
+  academyId      String
+  jurisdiction   String   // e.g. "SG", "EU-DE", "US-CA"
+  label          String?  // "GST", "VAT", "Sales Tax"
+  rateBps        Int      // 800 = 8%
+  appliesFrom    DateTime @default(now())
+  isActive       Boolean  @default(true)
+
+  academy Academy @relation(fields: [academyId], references: [id], onDelete: Cascade)
+
+  @@index([academyId, jurisdiction])
+  @@index([isActive])
+}
+
+// ==================== PHASE 7: GEN-AI ASSISTED AUTHORING ====================
+
+// Spec §8.1 — capabilities the AI assist layer exposes. Each `/api/ai/*`
+// route writes one row per call so all drafts are auditable per §8.3.
+enum AiCapability {
+  OUTLINE      // course scoping & outlines
+  OBJECTIVES   // learning objectives
+  VOICE_OVER   // per-slide voice-over text
+  QUIZ         // quiz question drafts
+  METADATA     // title / description / tags optimisation
+  SUMMARISE    // content summarisation
+}
+
+// Spec §8.3 governance: AI usage is logged for audit, never trains external
+// models, author approval is required before drafts ship.
+model AiInteraction {
+  id             String       @id @default(cuid())
+  academyId      String
+  userId         String
+  capability     AiCapability
+  // Hashes keep the log compact and non-PII. Full payload can be
+  // reconstructed from the prompt template + input hash if ever needed.
+  promptHash     String
+  outputHash     String
+  inputTokens    Int          @default(0)
+  outputTokens   Int          @default(0)
+  cachedTokens   Int          @default(0)
+  model          String
+  // Set to true once the author clicks "Approve" on the draft in the UI.
+  // Unapproved drafts can still be read back but must not be surfaced as
+  // canonical course content.
+  approved       Boolean      @default(false)
+  approvedAt     DateTime?
+  // Freeform metadata — courseId / lectureId the draft targets, stop reason,
+  // etc. Typed loosely since capabilities vary.
+  contextJson    Json?
+  createdAt      DateTime     @default(now())
+
+  academy Academy @relation(fields: [academyId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([academyId])
+  @@index([userId])
+  @@index([capability])
+  @@index([approved])
+  @@index([createdAt])
+}
+
+// ==================== PHASE 6: AUTHORING — VERSIONS, XAPI LRS ====================
+
+// Spec §7.2 drafts & version control. On every publish we freeze a snapshot
+// of the course + sections + lectures into `snapshotJson`, so enrolled
+// learners can always be shown the content they originally purchased even
+// after the author edits a new draft.
+model CourseVersion {
+  id            String   @id @default(cuid())
+  courseId      String
+  versionNumber Int
+  snapshotJson  Json
+  publishedAt   DateTime @default(now())
+  publishedById String?
+
+  course      Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  publishedBy User?  @relation("CourseVersionPublisher", fields: [publishedById], references: [id])
+
+  @@unique([courseId, versionNumber])
+  @@index([courseId])
+  @@index([publishedAt])
+}
+
+// Spec §7.1 xAPI ingest. A minimal LRS: accepts statements, validates
+// actor/verb/object/timestamp, persists raw JSON for downstream analytics.
+// No query API — this is write-only ingest until reporting lands in a
+// later phase.
+model XapiStatement {
+  id          String   @id @default(cuid())
+  statementId String   @unique      // xAPI statement id supplied by client
+  actorIri    String                 // actor.mbox / account.name / openid
+  verbIri     String                 // verb.id (IRI)
+  objectIri   String                 // object.id (IRI)
+  activityId  String?                // for convenience filtering (same as objectIri for Activity objects)
+  courseId    String?
+  lectureId   String?
+  userId      String?
+  statement   Json                   // full xAPI 1.0.3 statement
+  timestamp   DateTime
+  receivedAt  DateTime @default(now())
+
+  @@index([actorIri])
+  @@index([verbIri])
+  @@index([activityId])
+  @@index([courseId])
+  @@index([lectureId])
+  @@index([userId])
+  @@index([timestamp])
+}
