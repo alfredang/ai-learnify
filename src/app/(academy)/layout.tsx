@@ -21,7 +21,6 @@ export default async function AcademyLayout({
     { href: "/academy/courses", iconName: "BookOpen", label: "Catalogue" },
     { href: "/academy/learners", iconName: "Users", label: "Learners" },
     { href: "/academy/marketers", iconName: "Megaphone", label: "Marketers" },
-    { href: "/academy/finance", iconName: "Receipt", label: "Finance" },
     { href: "/academy/audit", iconName: "ScrollText", label: "Audit Log" },
     { href: "/academy/settings", iconName: "Settings", label: "Settings" },
   ]

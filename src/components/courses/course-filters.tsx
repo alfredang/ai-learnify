@@ -12,7 +12,6 @@ import { Button } from "@/components/ui/button"
 import { X } from "lucide-react"
 import {
   COURSE_LEVELS,
-  PRICE_FILTERS,
   PRODUCT_TYPE_FILTERS,
   RATING_FILTERS,
   SORT_OPTIONS,
@@ -48,7 +47,6 @@ export function CourseFilters({
   const currentPartner = searchParams.get("partner") || "all"
   const currentProductType = searchParams.get("productType") || "all"
   const currentLevel = searchParams.get("level") || "all"
-  const currentPrice = searchParams.get("price") || "all"
   const currentRating = searchParams.get("rating") || "all"
   const currentSort = searchParams.get("sort") || "popular"
 
@@ -74,7 +72,6 @@ export function CourseFilters({
     (currentPartner && currentPartner !== "all") ||
     (currentProductType && currentProductType !== "all") ||
     (currentLevel && currentLevel !== "all") ||
-    (currentPrice && currentPrice !== "all") ||
     (currentRating && currentRating !== "all")
 
   return (
@@ -174,22 +171,6 @@ export function CourseFilters({
           {COURSE_LEVELS.map((level) => (
             <SelectItem key={level.value} value={level.value}>
               {level.label}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-
-      <Select
-        value={currentPrice}
-        onValueChange={(value) => updateFilter("price", value)}
-      >
-        <SelectTrigger className="w-[140px]">
-          <SelectValue placeholder="Price" />
-        </SelectTrigger>
-        <SelectContent>
-          {PRICE_FILTERS.map((filter) => (
-            <SelectItem key={filter.value} value={filter.value}>
-              {filter.label}
             </SelectItem>
           ))}
         </SelectContent>

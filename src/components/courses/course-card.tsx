@@ -5,9 +5,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { StarRating } from "@/components/shared/star-rating"
 import { Users, BookOpen } from "lucide-react"
-import { formatPrice } from "@/lib/stripe"
 import { FavouriteButton } from "@/components/courses/favourite-button"
-import { AddToCartButton } from "@/components/courses/add-to-cart-button"
 import type { CourseWithInstructor } from "@/types"
 
 interface CourseCardProps {
@@ -23,14 +21,10 @@ interface CourseCardProps {
 export function CourseCard({
   course,
   isFavourited,
-  isInCart,
   isOwned,
   progress = 0,
   showFavourite = true,
-  showCartButton = true,
 }: CourseCardProps) {
-  const price = Number(course.price)
-  const discountPrice = course.discountPrice ? Number(course.discountPrice) : null
   const rating = Number(course.averageRating)
 
   return (
@@ -43,9 +37,6 @@ export function CourseCard({
           className="object-cover"
           sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
         />
-        {course.isFree && (
-          <Badge className="absolute top-2 left-2 bg-green-500">Free</Badge>
-        )}
         {course.isFeatured && (
           <Badge className="absolute bottom-2 left-2 bg-yellow-500">
             Bestseller
@@ -96,10 +87,10 @@ export function CourseCard({
         )}
       </CardContent>
       <CardFooter className="p-4 pt-0">
-        <div className="flex items-center justify-between w-full">
+        <div className="flex items-center justify-end w-full">
           {isOwned ? (
             <>
-              <Badge variant="secondary" className="font-semibold">Owned</Badge>
+              <Badge variant="secondary" className="font-semibold mr-auto">Owned</Badge>
               <Button size="sm" className="relative z-10 rounded-full text-xs min-w-[9rem] justify-center bg-emerald-600 text-white hover:bg-emerald-500 hover:text-white transition-transform hover:scale-105" asChild>
                 <Link href={`/my-courses/${course.id}`}>
                   <BookOpen className="mr-1 h-3.5 w-3.5" />
@@ -108,29 +99,9 @@ export function CourseCard({
               </Button>
             </>
           ) : (
-            <>
-              <div className="flex items-center gap-2">
-                {course.isFree ? (
-                  <span className="font-bold text-lg">Free</span>
-                ) : (
-                  <>
-                    <span className="font-bold text-lg">
-                      {formatPrice(discountPrice ?? price)}
-                    </span>
-                    {discountPrice && (
-                      <span className="text-sm text-muted-foreground line-through">
-                        {formatPrice(price)}
-                      </span>
-                    )}
-                  </>
-                )}
-              </div>
-              {showCartButton && !course.isFree && (
-                <div className="relative z-10">
-                  <AddToCartButton courseId={course.id} initialInCart={isInCart} variant="full" size="sm" className="rounded-full text-xs min-w-[9rem] w-auto" />
-                </div>
-              )}
-            </>
+            <Button size="sm" className="relative z-10 rounded-full text-xs min-w-[9rem] justify-center" asChild>
+              <Link href={`/courses/${course.slug}`}>View course</Link>
+            </Button>
           )}
         </div>
       </CardFooter>

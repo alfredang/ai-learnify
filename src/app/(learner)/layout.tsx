@@ -23,7 +23,6 @@ export default async function LearnerLayout({
     { href: "/my-courses", iconName: "BookOpen", label: "My Courses" },
     { href: "/learner/programmes", iconName: "Layers", label: "My Programmes" },
     { href: "/certificates", iconName: "Award", label: "Certificates" },
-    { href: "/account/purchases", iconName: "Receipt", label: "Invoices & Receipts" },
     { href: "/learner/profile", iconName: "UserCircle", label: "Profile" },
   ]
 

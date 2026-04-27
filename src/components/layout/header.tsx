@@ -8,7 +8,6 @@ import { Input } from "@/components/ui/input"
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
 import { UserMenu } from "./user-menu"
 import { MobileNav } from "./mobile-nav"
-import { CartDropdown } from "./cart-dropdown"
 import { useAuth } from "@/hooks/use-auth"
 import { cn } from "@/lib/utils"
 import { useState } from "react"
@@ -128,7 +127,6 @@ export function Header() {
                   <span className="sr-only">Favourites</span>
                 </Link>
               </Button>
-              <CartDropdown />
               <UserMenu user={user} />
             </>
           ) : (

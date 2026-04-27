@@ -195,24 +195,6 @@ export function UserMenu({ user }: UserMenuProps) {
               <span>Account Settings</span>
             </Link>
           </DropdownMenuItem>
-          <DropdownMenuItem asChild>
-            <Link href="/account/billing" className="cursor-pointer py-3">
-              <CreditCard className="mr-3 h-4 w-4" />
-              <span>Payment Methods</span>
-            </Link>
-          </DropdownMenuItem>
-          <DropdownMenuItem asChild>
-            <Link href="/account/purchases" className="cursor-pointer py-3">
-              <Receipt className="mr-3 h-4 w-4" />
-              <span>Purchase History</span>
-            </Link>
-          </DropdownMenuItem>
-          <DropdownMenuItem asChild>
-            <Link href="/account/invoices" className="cursor-pointer py-3">
-              <FileText className="mr-3 h-4 w-4" />
-              <span>Invoices</span>
-            </Link>
-          </DropdownMenuItem>
         </DropdownMenuGroup>
 
         <DropdownMenuSeparator />

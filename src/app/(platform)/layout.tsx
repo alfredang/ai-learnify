@@ -24,7 +24,6 @@ export default async function PlatformLayout({
     ? [
         { href: "/platform", iconName: "LayoutDashboard", label: "Dashboard", matchExact: true },
         { href: "/platform/audit", iconName: "ScrollText", label: "Audit log" },
-        { href: "/platform/policy", iconName: "Sliders", label: "Policy" },
         { href: "/platform/ops", iconName: "Activity", label: "Operations" },
       ]
     : [

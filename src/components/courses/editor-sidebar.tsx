@@ -33,7 +33,6 @@ const SECTIONS: ChecklistSection[] = [
     title: "Publish your course",
     items: [
       { id: "landing-page", label: "Course landing page" },
-      { id: "pricing", label: "Pricing" },
       { id: "survey", label: "Survey" },
     ],
   },

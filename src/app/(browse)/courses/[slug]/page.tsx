@@ -4,7 +4,6 @@ import Link from "next/link"
 import { notFound } from "next/navigation"
 import { prisma } from "@/lib/prisma"
 import { auth } from "@/lib/auth"
-import { formatPrice } from "@/lib/stripe"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
@@ -13,7 +12,6 @@ import { Separator } from "@/components/ui/separator"
 import { StarRating } from "@/components/shared/star-rating"
 import { MobileBottomBar } from "@/components/courses/mobile-bottom-bar"
 import { FavouriteButton } from "@/components/courses/favourite-button"
-import { AddToCartButton } from "@/components/courses/add-to-cart-button"
 import { BuyNowButton } from "@/components/courses/buy-now-button"
 import { CourseReviewsSection } from "@/components/courses/course-reviews-section"
 import { ITEMS_PER_PAGE } from "@/lib/constants"
@@ -150,20 +148,6 @@ async function checkFavourite(courseId: string, userId?: string) {
   }
 }
 
-async function checkCart(courseId: string, userId?: string) {
-  if (!userId) return false
-  try {
-    const item = await prisma.cartItem.findUnique({
-      where: {
-        userId_courseId: { userId, courseId },
-      },
-    })
-    return !!item
-  } catch {
-    return false
-  }
-}
-
 async function getCourseReviews(courseId: string) {
   const [reviews, distribution, total] = await Promise.all([
     prisma.review.findMany({
@@ -239,20 +223,15 @@ export default async function CoursePage({ params, searchParams }: CoursePagePro
 
   const isOwnerPreview = course.status !== "PUBLISHED" && course.instructorId === session?.user?.id
 
-  const [isEnrolled, isFavourited, isInCart, reviewData, userReview] =
+  const [isEnrolled, isFavourited, reviewData, userReview] =
     await Promise.all([
       checkEnrollment(course.id, session?.user?.id),
       checkFavourite(course.id, session?.user?.id),
-      checkCart(course.id, session?.user?.id),
       getCourseReviews(course.id),
       getUserReview(course.id, session?.user?.id),
     ])
   const isOwner = session?.user?.id === course.instructorId
 
-  const price = Number(course.price)
-  const discountPrice = course.discountPrice
-    ? Number(course.discountPrice)
-    : null
   const rating = Number(course.averageRating)
 
   const totalLectures = course.sections.reduce(
@@ -291,24 +270,11 @@ export default async function CoursePage({ params, searchParams }: CoursePagePro
         )}
       </div>
       <CardContent className="p-6 space-y-4">
-        <div className="flex items-baseline gap-2">
-          {isEnrolled ? (
+        {isEnrolled && (
+          <div className="flex items-baseline gap-2">
             <Badge variant="secondary" className="font-semibold text-sm px-3 py-1">Owned</Badge>
-          ) : course.isFree ? (
-            <span className="text-3xl font-bold">Free</span>
-          ) : (
-            <>
-              <span className="text-3xl font-bold">
-                {formatPrice(discountPrice ?? price)}
-              </span>
-              {discountPrice && (
-                <span className="text-lg text-muted-foreground line-through">
-                  {formatPrice(price)}
-                </span>
-              )}
-            </>
-          )}
-        </div>
+          </div>
+        )}
 
         {isEnrolled ? (
           <Button className="w-full" size="lg" asChild>
@@ -322,17 +288,8 @@ export default async function CoursePage({ params, searchParams }: CoursePagePro
               Edit Course
             </Link>
           </Button>
-        ) : course.isFree ? (
-          <BuyNowButton courseId={course.id} isFree={true} />
         ) : (
-          <>
-            <AddToCartButton
-              courseId={course.id}
-              initialInCart={isInCart}
-              variant="full"
-            />
-            <BuyNowButton courseId={course.id} isFree={false} expectedPrice={discountPrice ?? price} />
-          </>
+          <BuyNowButton courseId={course.id} isFree={true} />
         )}
 
         {!isEnrolled && !isOwner && (
@@ -341,12 +298,6 @@ export default async function CoursePage({ params, searchParams }: CoursePagePro
             initialFavourited={isFavourited}
             variant="full"
           />
-        )}
-
-        {!isEnrolled && !isOwner && !course.isFree && (
-          <p className="text-xs text-center text-muted-foreground">
-            30-Day Money-Back Guarantee
-          </p>
         )}
 
         <Separator />
@@ -667,13 +618,7 @@ export default async function CoursePage({ params, searchParams }: CoursePagePro
 
       {/* Mobile Fixed Bottom Bar */}
       {!isEnrolled && !isOwner && (
-        <MobileBottomBar
-          courseId={course.id}
-          price={price}
-          discountPrice={discountPrice}
-          isFree={course.isFree}
-          isInCart={isInCart}
-        />
+        <MobileBottomBar courseId={course.id} />
       )}
     </div>
   )
