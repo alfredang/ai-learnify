@@ -40,3 +40,40 @@ Interpret creatively and make unexpected choices that feel genuinely designed fo
 **IMPORTANT**: Match implementation complexity to the aesthetic vision. Maximalist designs need elaborate code with extensive animations and effects. Minimalist or refined designs need restraint, precision, and careful attention to spacing, typography, and subtle details. Elegance comes from executing the vision well.
 
 Remember: Claude is capable of extraordinary creative work. Don't hold back, show what can truly be created when thinking outside the box and committing fully to a distinctive vision.
+
+## IES Digital Academy — Project Design System
+
+This project uses a **white/light theme only**. No dark mode. All design work must adhere to the following:
+
+### Theme
+- **Background**: Pure white (`oklch(1 0 0)`) — no dark mode, no theme toggle
+- **Foreground**: Near-black (`oklch(0.145 0 0)`)
+- **Primary**: Black (`oklch(0.205 0 0)`) with white foreground
+- **Accent/Muted**: Light gray (`oklch(0.97 0 0)`)
+- **Destructive**: Red (`oklch(0.577 0.245 27.325)`)
+- **Borders**: Light gray (`oklch(0.922 0 0)`)
+
+### Typography
+- **Font**: Inter (via `next/font/google`) — this is the project standard, do not change
+- **Headings**: Bold, clear hierarchy with `text-xl` to `text-4xl`
+- **Body**: `text-sm` to `text-base`, muted-foreground for secondary text
+
+### Components
+- **UI Library**: shadcn/ui (Radix-based) — always use existing components from `src/components/ui/`
+- **Class merging**: Always use `cn()` from `@/lib/utils`
+- **Icons**: Lucide React — do not use other icon libraries
+- **Toasts**: Sonner — do not use other notification libraries
+- **Forms**: React Hook Form + Zod resolver
+
+### Layout
+- **Clean, professional, institutional** — this is an engineering academy LMS
+- **Generous whitespace** with clear section separation
+- **Cards**: White background, subtle border, rounded corners (`--radius: 0.625rem`)
+- **Responsive**: Mobile-first with Tailwind breakpoints (`sm:`, `md:`, `lg:`)
+
+### Do NOT
+- Add dark mode or theme toggles
+- Use colored/gradient backgrounds on main content areas
+- Use fonts other than Inter
+- Install additional UI or animation libraries
+- Use overly playful or casual design elements — maintain professional tone
