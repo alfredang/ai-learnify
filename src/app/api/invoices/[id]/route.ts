@@ -107,7 +107,7 @@ export async function GET(
     issuedAt: purchase.createdAt,
     recipientName: purchase.user.name,
     recipientEmail: purchase.user.email,
-    academy: academy ?? { name: "Learnify IES", primaryCurrency: "USD", taxJurisdiction: null },
+    academy: academy ?? { name: "IES Digital Academy", primaryCurrency: "USD", taxJurisdiction: null },
     productName: purchase.course.title,
     breakdown: null,
   })

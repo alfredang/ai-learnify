@@ -12,8 +12,8 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   title: {
-    default: "Learnify IES - Online Learning Platform",
-    template: "%s | Learnify IES",
+    default: "IES Digital Academy - Online Learning Platform",
+    template: "%s | IES Digital Academy",
   },
   description:
     "The leading online learning platform. Learn new skills, advance your career, and explore new hobbies with expert-led courses.",

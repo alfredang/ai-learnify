@@ -233,7 +233,7 @@ export async function finalizePurchase(input: FinalizeInput) {
     const invoiceHtml = renderInvoiceHtml({
       ...result.invoice,
       academy: {
-        name: academy?.name ?? "Learnify IES",
+        name: academy?.name ?? "IES Digital Academy",
         primaryCurrency: academy?.primaryCurrency ?? input.currency,
         taxJurisdiction: academy?.taxJurisdiction ?? null,
       },

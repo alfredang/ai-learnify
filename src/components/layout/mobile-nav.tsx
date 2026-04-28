@@ -39,7 +39,7 @@ export function MobileNav() {
     <div className="flex flex-col space-y-4 py-4">
       <Link href="/" className="flex items-center gap-2 px-4">
         <img src="/images/ies-logo.svg" alt="IES Logo" width={36} height={36} className="flex-shrink-0" />
-        <span className="font-bold text-xl">Learnify IES</span>
+        <span className="font-bold text-xl">IES Digital Academy</span>
       </Link>
 
       <form onSubmit={handleSearch} className="px-4">

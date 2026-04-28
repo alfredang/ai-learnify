@@ -38,7 +38,7 @@ export function Footer() {
           <div className="col-span-2 md:col-span-1">
             <Link href="/" className="flex items-center space-x-2">
               <img src="/images/ies-logo.svg" alt="IES Logo" width={32} height={32} />
-              <span className="font-bold text-xl">Learnify IES</span>
+              <span className="font-bold text-xl">IES Digital Academy</span>
             </Link>
             <p className="mt-4 text-sm text-muted-foreground">
               The leading online learning platform. Learn new skills, advance
@@ -100,7 +100,7 @@ export function Footer() {
 
         <div className="mt-12 border-t pt-8 flex flex-col md:flex-row justify-between items-center">
           <p className="text-sm text-muted-foreground">
-            &copy; {new Date().getFullYear()} Learnify IES. All rights reserved.
+            &copy; {new Date().getFullYear()} IES Digital Academy. All rights reserved.
           </p>
           <div className="flex space-x-4 mt-4 md:mt-0">
             <Link

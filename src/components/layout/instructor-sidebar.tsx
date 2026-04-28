@@ -55,7 +55,7 @@ export function InstructorSidebar() {
             <img src="/images/ies-logo.svg" alt="IES Logo" width={28} height={28} className="shrink-0" />
             {expanded && (
               <span className="text-sm font-bold whitespace-nowrap overflow-hidden">
-                Learnify IES
+                IES Digital Academy
               </span>
             )}
           </Link>

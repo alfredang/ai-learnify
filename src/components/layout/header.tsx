@@ -56,7 +56,7 @@ export function Header() {
         {/* Logo */}
         <Link href="/" className="mr-6 flex items-center gap-2">
           <img src="/images/ies-logo.svg" alt="IES Logo" width={36} height={36} className="flex-shrink-0" />
-          <span className="font-bold text-xl">Learnify IES</span>
+          <span className="font-bold text-xl">IES Digital Academy</span>
         </Link>
 
         {/* Main nav */}
