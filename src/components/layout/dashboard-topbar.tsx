@@ -3,6 +3,7 @@
 import { RoleSwitcher } from "./role-switcher"
 import { HeaderDateTime } from "./header-datetime"
 import { UserMenu } from "./user-menu"
+import type { UserRole } from "@prisma/client"
 
 interface DashboardTopBarProps {
   user: {
@@ -10,7 +11,7 @@ interface DashboardTopBarProps {
     name?: string | null
     email?: string | null
     image?: string | null
-    role: string
+    role: UserRole
   }
   platformRole: string
   memberships: { academyId: string; role: string }[]
