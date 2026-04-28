@@ -1,6 +1,7 @@
 import Link from "next/link"
 import { redirect } from "next/navigation"
 import { auth } from "@/lib/auth"
+import { DashboardTopBar } from "@/components/layout/dashboard-topbar"
 import {
   LayoutDashboard,
   Users,
@@ -39,10 +40,12 @@ export default async function AdminLayout({
     redirect("/")
   }
 
+  const serializedUser = JSON.parse(JSON.stringify(session.user))
+
   return (
-    <div className="flex min-h-[calc(100vh-4rem)]">
+    <div className="flex min-h-screen">
       {/* Sidebar */}
-      <aside className="hidden md:flex w-64 flex-col border-r bg-muted/30">
+      <aside className="hidden md:flex w-64 flex-col border-r bg-white">
         <div className="p-4 border-b">
           <h2 className="font-semibold">Admin Panel</h2>
         </div>
@@ -58,8 +61,6 @@ export default async function AdminLayout({
             </Link>
           ))}
         </nav>
-        {/* Exit back to the public site — keeps the admin from getting
-            stranded inside the sidebar with no way out. */}
         <div className="p-4 border-t">
           <Link
             href="/"
@@ -72,7 +73,14 @@ export default async function AdminLayout({
       </aside>
 
       {/* Main content */}
-      <main className="flex-1 overflow-auto">{children}</main>
+      <div className="flex-1 flex flex-col overflow-auto">
+        <DashboardTopBar
+          user={serializedUser}
+          platformRole={serializedUser.platformRole ?? "NONE"}
+          memberships={serializedUser.memberships ?? []}
+        />
+        <main className="flex-1 overflow-auto">{children}</main>
+      </div>
     </div>
   )
 }
