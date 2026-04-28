@@ -121,7 +121,7 @@ export default async function HomePage() {
   return (
     <div className="flex flex-col">
       {/* Hero Section */}
-      <section className="relative py-8 md:py-12 bg-gradient-to-br from-primary/10 via-background to-background overflow-hidden">
+      <section className="relative py-6 md:py-8 bg-gradient-to-br from-primary/10 via-background to-background overflow-hidden">
         <div className="container">
           <div className="grid lg:grid-cols-2 gap-8 lg:gap-12 items-center">
             <div className="space-y-6 md:space-y-8 text-center lg:text-left">
@@ -182,12 +182,12 @@ export default async function HomePage() {
       </section>
 
       {/* Phase 2: Advertising Banner Carousel (spec §4.1) */}
-      <section className="container py-8">
+      <section className="container py-4">
         <AdvertisingCarousel />
       </section>
 
       {/* Stats Section */}
-      <section className="py-12 border-y bg-muted/50">
+      <section className="py-8 border-y bg-muted/50">
         <div className="container">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
             <div className="text-center">
@@ -236,7 +236,7 @@ export default async function HomePage() {
 
       {/* Categories Section */}
       {categories.length > 0 && (
-        <section className="pt-12 md:pt-16 lg:pt-24 pb-6 md:pb-8">
+        <section className="pt-8 md:pt-10 pb-4 md:pb-6">
           <div className="container">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
               <div className="text-center sm:text-left">
@@ -279,7 +279,7 @@ export default async function HomePage() {
 
       {/* Featured Courses Section */}
       {featuredCourses.length > 0 && (
-        <section className="pt-6 md:pt-8 pb-12 md:pb-16 lg:pb-24">
+        <section className="pt-4 md:pt-6 pb-8 md:pb-10">
           <div className="container">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
               <div className="text-center sm:text-left">
@@ -298,9 +298,9 @@ export default async function HomePage() {
       )}
 
       {/* CTA Section */}
-      <section className="py-16 md:py-24">
+      <section className="py-8 md:py-12">
         <div className="container">
-          <div className="relative overflow-hidden rounded-3xl bg-primary px-8 py-16 md:px-16 md:py-24">
+          <div className="relative overflow-hidden rounded-3xl bg-primary px-8 py-12 md:px-16 md:py-16">
             <div className="relative z-10 max-w-2xl">
               <h2 className="text-3xl md:text-4xl font-bold text-primary-foreground mb-4">
                 Share Your Knowledge with the World
