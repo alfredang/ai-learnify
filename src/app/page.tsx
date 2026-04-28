@@ -121,7 +121,7 @@ export default async function HomePage() {
   return (
     <div className="flex flex-col">
       {/* Hero Section */}
-      <section className="relative py-6 md:py-8 bg-gradient-to-br from-primary/10 via-background to-background overflow-hidden">
+      <section className="relative py-6 md:py-8 bg-white overflow-hidden">
         <div className="container">
           <div className="grid lg:grid-cols-2 gap-8 lg:gap-12 items-center">
             <div className="space-y-6 md:space-y-8 text-center lg:text-left">
@@ -187,7 +187,7 @@ export default async function HomePage() {
       </section>
 
       {/* Stats Section */}
-      <section className="py-8 border-y bg-muted/50">
+      <section className="py-8 border-y bg-white">
         <div className="container">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
             <div className="text-center">

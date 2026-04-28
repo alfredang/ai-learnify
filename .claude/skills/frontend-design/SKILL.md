@@ -1,79 +1,143 @@
 ---
 name: frontend-design
-description: Create distinctive, production-grade frontend interfaces with high design quality. Use this skill when the user asks to build web components, pages, artifacts, posters, or applications (examples include websites, landing pages, dashboards, React components, HTML/CSS layouts, or when styling/beautifying any web UI). Generates creative, polished code and UI design that avoids generic AI aesthetics.
+description: IES Digital Academy design system and frontend guidelines. Use when building or modifying UI components, pages, or layouts. Enforces white theme, compact spacing, professional tone, and project-specific patterns.
 license: Complete terms in LICENSE.txt
 ---
 
-This skill guides creation of distinctive, production-grade frontend interfaces that avoid generic "AI slop" aesthetics. Implement real working code with exceptional attention to aesthetic details and creative choices.
+## IES Digital Academy — Frontend Design System
 
-The user provides frontend requirements: a component, page, application, or interface to build. They may include context about the purpose, audience, or technical constraints.
+This is an engineering academy LMS. The design must be **clean, professional, institutional, and compact**. Pure white backgrounds only. No dark mode.
 
-## Design Thinking
+### Theme (LOCKED)
 
-Before coding, understand the context and commit to a BOLD aesthetic direction:
-- **Purpose**: What problem does this interface solve? Who uses it?
-- **Tone**: Pick an extreme: brutally minimal, maximalist chaos, retro-futuristic, organic/natural, luxury/refined, playful/toy-like, editorial/magazine, brutalist/raw, art deco/geometric, soft/pastel, industrial/utilitarian, etc. There are so many flavors to choose from. Use these for inspiration but design one that is true to the aesthetic direction.
-- **Constraints**: Technical requirements (framework, performance, accessibility).
-- **Differentiation**: What makes this UNFORGETTABLE? What's the one thing someone will remember?
+All colors are defined in `src/app/globals.css` as CSS custom properties using oklch. Do NOT modify theme values.
 
-**CRITICAL**: Choose a clear conceptual direction and execute it with precision. Bold maximalism and refined minimalism both work - the key is intentionality, not intensity.
+| Token | Value | Usage |
+|-------|-------|-------|
+| `--background` | `oklch(1 0 0)` — **pure white** | Page backgrounds, all sections |
+| `--foreground` | `oklch(0.145 0 0)` — near-black | Body text, headings |
+| `--primary` | `oklch(0.205 0 0)` — black | Buttons, CTAs, active states |
+| `--primary-foreground` | `oklch(0.985 0 0)` — white | Text on primary backgrounds |
+| `--muted` | `oklch(0.97 0 0)` — very light gray | Hover states on cards ONLY |
+| `--border` | `oklch(0.922 0 0)` — light gray | Borders, dividers |
+| `--destructive` | `oklch(0.577 0.245 27.325)` — red | Error states, delete actions |
 
-Then implement working code (HTML/CSS/JS, React, Vue, etc.) that is:
-- Production-grade and functional
-- Visually striking and memorable
-- Cohesive with a clear aesthetic point-of-view
-- Meticulously refined in every detail
-
-## Frontend Aesthetics Guidelines
-
-Focus on:
-- **Typography**: Choose fonts that are beautiful, unique, and interesting. Avoid generic fonts like Arial and Inter; opt instead for distinctive choices that elevate the frontend's aesthetics; unexpected, characterful font choices. Pair a distinctive display font with a refined body font.
-- **Color & Theme**: Commit to a cohesive aesthetic. Use CSS variables for consistency. Dominant colors with sharp accents outperform timid, evenly-distributed palettes.
-- **Motion**: Use animations for effects and micro-interactions. Prioritize CSS-only solutions for HTML. Use Motion library for React when available. Focus on high-impact moments: one well-orchestrated page load with staggered reveals (animation-delay) creates more delight than scattered micro-interactions. Use scroll-triggering and hover states that surprise.
-- **Spatial Composition**: Unexpected layouts. Asymmetry. Overlap. Diagonal flow. Grid-breaking elements. Generous negative space OR controlled density.
-- **Backgrounds & Visual Details**: Create atmosphere and depth rather than defaulting to solid colors. Add contextual effects and textures that match the overall aesthetic. Apply creative forms like gradient meshes, noise textures, geometric patterns, layered transparencies, dramatic shadows, decorative borders, custom cursors, and grain overlays.
-
-NEVER use generic AI-generated aesthetics like overused font families (Inter, Roboto, Arial, system fonts), cliched color schemes (particularly purple gradients on white backgrounds), predictable layouts and component patterns, and cookie-cutter design that lacks context-specific character.
-
-Interpret creatively and make unexpected choices that feel genuinely designed for the context. No design should be the same. Vary between light and dark themes, different fonts, different aesthetics. NEVER converge on common choices (Space Grotesk, for example) across generations.
-
-**IMPORTANT**: Match implementation complexity to the aesthetic vision. Maximalist designs need elaborate code with extensive animations and effects. Minimalist or refined designs need restraint, precision, and careful attention to spacing, typography, and subtle details. Elegance comes from executing the vision well.
-
-Remember: Claude is capable of extraordinary creative work. Don't hold back, show what can truly be created when thinking outside the box and committing fully to a distinctive vision.
-
-## IES Digital Academy — Project Design System
-
-This project uses a **white/light theme only**. No dark mode. All design work must adhere to the following:
-
-### Theme
-- **Background**: Pure white (`oklch(1 0 0)`) — no dark mode, no theme toggle
-- **Foreground**: Near-black (`oklch(0.145 0 0)`)
-- **Primary**: Black (`oklch(0.205 0 0)`) with white foreground
-- **Accent/Muted**: Light gray (`oklch(0.97 0 0)`)
-- **Destructive**: Red (`oklch(0.577 0.245 27.325)`)
-- **Borders**: Light gray (`oklch(0.922 0 0)`)
+**CRITICAL BACKGROUND RULES:**
+- All page sections MUST use `bg-white` or no background class (inherits white)
+- NEVER use `bg-muted`, `bg-muted/50`, `bg-gray-*`, `bg-slate-*`, `bg-gradient-*`, or `from-primary/10` on section-level containers
+- `bg-muted/50` is ONLY acceptable on card hover states (e.g., `hover:bg-muted/50`)
+- The only non-white background allowed is `bg-primary` (black) for CTA blocks
+- No gradients on content sections — pure white everywhere
 
 ### Typography
-- **Font**: Inter (via `next/font/google`) — this is the project standard, do not change
-- **Headings**: Bold, clear hierarchy with `text-xl` to `text-4xl`
-- **Body**: `text-sm` to `text-base`, muted-foreground for secondary text
 
-### Components
-- **UI Library**: shadcn/ui (Radix-based) — always use existing components from `src/components/ui/`
-- **Class merging**: Always use `cn()` from `@/lib/utils`
-- **Icons**: Lucide React — do not use other icon libraries
-- **Toasts**: Sonner — do not use other notification libraries
-- **Forms**: React Hook Form + Zod resolver
+- **Font**: Inter (loaded via `next/font/google` in root layout) — do NOT change or add fonts
+- **Headings**: `font-bold`, sizes `text-xl` through `text-4xl`
+- **Body**: `text-sm` to `text-base`
+- **Secondary text**: Use `text-muted-foreground` class
+- **No decorative or display fonts** — Inter for everything
 
-### Layout
-- **Clean, professional, institutional** — this is an engineering academy LMS
-- **Generous whitespace** with clear section separation
-- **Cards**: White background, subtle border, rounded corners (`--radius: 0.625rem`)
-- **Responsive**: Mobile-first with Tailwind breakpoints (`sm:`, `md:`, `lg:`)
+### Spacing (Compact)
+
+Sections must be tight and compact. Avoid excessive vertical padding.
+
+| Element | Recommended Spacing |
+|---------|-------------------|
+| Hero section | `py-6 md:py-8` |
+| Content sections | `py-4 md:py-6` to `py-8 md:py-10` |
+| Between sections | `pt-4 md:pt-6 pb-4 md:pb-6` |
+| CTA section | `py-8 md:py-12`, inner `py-12 md:py-16` |
+| Section headings `mb` | `mb-6` to `mb-8` |
+| Card padding | `p-6` |
+| Grid gaps | `gap-4` to `gap-8` |
+
+**NEVER** use `py-16`, `py-24`, `lg:py-24` or larger on sections — these create excessive whitespace.
+
+### Components & Libraries
+
+| What | Use | Do NOT use |
+|------|-----|-----------|
+| UI components | shadcn/ui from `src/components/ui/` | Material UI, Ant Design, Chakra, etc. |
+| Class merging | `cn()` from `@/lib/utils` | Raw string concatenation |
+| Icons | Lucide React | Font Awesome, Heroicons, etc. |
+| Toasts | Sonner | react-toastify, react-hot-toast |
+| Forms | React Hook Form + Zod resolver | Formik, uncontrolled forms |
+| Charts | Recharts | Chart.js, D3 (unless justified) |
+| Drag & Drop | dnd-kit | react-beautiful-dnd |
+| Rich text | TipTap | Quill, Draft.js |
+
+### Layout Patterns
+
+- **Cards**: White background, subtle `border`, rounded corners (`rounded-lg`), `shadow-sm` optional
+- **Grids**: Use Tailwind grid — `grid-cols-2 md:grid-cols-3 lg:grid-cols-6` for categories, `grid-cols-1 md:grid-cols-2 lg:grid-cols-3` for course cards
+- **Responsive**: Mobile-first with `sm:`, `md:`, `lg:` breakpoints
+- **Container**: Always wrap content in `<div className="container">`
+- **Section separation**: Use `border-y` or `border-t` for visual breaks, NOT background color changes
+
+### Logo & Branding
+
+- **Logo**: IES gear/atom SVG at `/public/images/ies-logo.svg`
+- **App name**: "IES Digital Academy" — displayed next to logo in header/footer
+- **Logo sizes**: Header 36px, Footer 32px, Instructor sidebar 28px
+- **Implementation**: `<img src="/images/ies-logo.svg" alt="IES Logo" width={36} height={36} />`
+
+### Image Handling
+
+- **Next.js Image**: Use `next/image` for optimized images with `fill` + `object-cover` for responsive containers
+- **Allowed hosts**: Defined in `src/lib/image-hosts.ts` — Cloudinary, Unsplash, randomuser, Google, GitHub
+- **Course thumbnails**: Use Cloudinary via `next-cloudinary`
+- **Placeholder images**: Unsplash with `?w=800` or `?w=1200&h=400&fit=crop` params
+
+### Page Structure Pattern
+
+```tsx
+<div className="flex flex-col">
+  {/* Hero */}
+  <section className="relative py-6 md:py-8 bg-white overflow-hidden">
+    <div className="container">...</div>
+  </section>
+
+  {/* Content Section */}
+  <section className="py-4 md:py-6">
+    <div className="container">
+      <h2 className="text-2xl md:text-3xl font-bold mb-6">Title</h2>
+      {/* content */}
+    </div>
+  </section>
+
+  {/* CTA (only place for non-white bg) */}
+  <section className="py-8 md:py-12">
+    <div className="container">
+      <div className="rounded-3xl bg-primary px-8 py-12 md:px-16 md:py-16">
+        {/* white text on black bg */}
+      </div>
+    </div>
+  </section>
+</div>
+```
+
+### Server vs Client Components
+
+- **Server Components by default** — pages, layouts, display components
+- **`"use client"` only when needed** — forms, interactive UI, hooks, event handlers
+- **Data fetching**: Direct Prisma calls in server components, no API layer for internal reads
+- **Client data**: React Query with 60s staleTime
+
+### Accessibility
+
+- Always include `alt` text on images
+- Use semantic HTML (`nav`, `main`, `section`, `header`, `footer`)
+- Interactive elements must have visible focus states (shadcn/ui handles this)
+- Use `sr-only` for screen-reader-only labels
 
 ### Do NOT
-- Add dark mode or theme toggles
-- Use colored/gradient backgrounds on main content areas
+
+- Add dark mode, theme toggles, or `.dark` class usage
+- Use ANY gray/gradient/colored backgrounds on content sections
+- Use `bg-muted`, `bg-muted/50`, `bg-gray-*`, `bg-slate-*` on sections (card hover only)
 - Use fonts other than Inter
-- Install additional UI or animation libraries
-- Use overly playful or casual design elements — maintain professional tone
+- Install additional UI, animation, or icon libraries
+- Use overly playful, casual, or decorative design elements
+- Add excessive vertical padding (`py-16+`) between sections
+- Use inline styles — always use Tailwind utility classes
+- Create `tailwind.config.ts` — Tailwind v4 is configured via PostCSS
