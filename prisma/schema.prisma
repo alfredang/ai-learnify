@@ -142,6 +142,9 @@ model Academy {
   // PlatformSettings.defaultDeveloperSplitBps; default 50/50.
   defaultDeveloperSplitBps Int @default(5000)
 
+  // Refund policy — editable rich-text by Academy Admin. Shown on /refund-policy.
+  refundPolicyHtml String? @db.Text
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -499,6 +502,7 @@ enum LectureType {
   XAPI
   VOICE_OVER_SLIDES
   DOWNLOADABLE
+  HTML
 }
 
 model Lecture {
@@ -596,6 +600,11 @@ model LectureProgress {
   isCompleted     Boolean @default(false)
   watchedDuration Int     @default(0)
   lastPosition    Int     @default(0)
+
+  // SCORM 1.2 / 2004 CMI runtime data committed by the SCO. Stored as
+  // a flat key/value bag (e.g. cmi.core.lesson_status, cmi.suspend_data).
+  // Null for non-SCORM lectures.
+  cmiData Json?
 
   completedAt DateTime?
   createdAt   DateTime  @default(now())
