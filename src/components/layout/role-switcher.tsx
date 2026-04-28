@@ -60,7 +60,7 @@ export function RoleSwitcher({ platformRole, memberships, legacyRole }: RoleSwit
       >
         <Eye className="h-4 w-4 text-muted-foreground flex-shrink-0" />
         <span className="hidden md:inline text-muted-foreground text-xs">View As:</span>
-        <span className="font-semibold truncate max-w-[120px]">{activeLabel}</span>
+        <span className="font-semibold truncate max-w-[180px]">{activeLabel}</span>
         <ChevronDown className={`h-4 w-4 text-muted-foreground flex-shrink-0 transition-transform ${isOpen ? "rotate-180" : ""}`} />
       </button>
 
@@ -79,7 +79,7 @@ export function RoleSwitcher({ platformRole, memberships, legacyRole }: RoleSwit
                 <button
                   key={role}
                   onClick={() => {
-                    if (!isActive) router.push(route)
+                    router.push(route)
                     setIsOpen(false)
                   }}
                   className={`w-full flex items-center gap-3 px-3 py-2.5 text-sm rounded-md transition-colors ${

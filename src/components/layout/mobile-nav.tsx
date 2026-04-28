@@ -106,7 +106,7 @@ export function MobileNav() {
               )}
             >
               <GraduationCap className="h-4 w-4" />
-              Instructor Dashboard
+              Course Developer
             </Link>
           </>
         )}
