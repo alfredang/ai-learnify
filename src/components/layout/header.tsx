@@ -15,6 +15,8 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { UserMenu } from "./user-menu"
 import { MobileNav } from "./mobile-nav"
+import { RoleSwitcher } from "./role-switcher"
+import { HeaderDateTime } from "./header-datetime"
 import { useAuth } from "@/hooks/use-auth"
 import { cn } from "@/lib/utils"
 import { useState } from "react"
@@ -105,26 +107,14 @@ export function Header() {
         <div className="flex items-center space-x-2">
           {isAuthenticated ? (
             <>
-              {isInstructor && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  asChild
-                  className="hidden sm:flex"
-                >
-                  <Link href="/instructor">Go to Instructor Dashboard</Link>
-                </Button>
-              )}
-              {isAdmin && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  asChild
-                  className="hidden sm:flex"
-                >
-                  <Link href="/admin">Admin</Link>
-                </Button>
-              )}
+              <div className="hidden md:flex items-center gap-3">
+                <RoleSwitcher
+                  platformRole={(user as Record<string, unknown>)?.platformRole as string ?? "NONE"}
+                  memberships={((user as Record<string, unknown>)?.memberships as { academyId: string; role: string }[]) ?? []}
+                  legacyRole={user?.role}
+                />
+                <HeaderDateTime />
+              </div>
               <Button variant="ghost" size="icon" asChild>
                 <Link href="/favourites">
                   <Heart className="h-5 w-5" />
