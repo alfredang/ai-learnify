@@ -2,7 +2,8 @@
 
 import { useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
-import { signIn } from "next-auth/react"
+import { signIn, getSession } from "next-auth/react"
+import { pickLandingRoute } from "@/lib/role-routing"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { toast } from "sonner"
@@ -23,7 +24,7 @@ import Link from "next/link"
 export function LoginForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const callbackUrl = searchParams.get("callbackUrl") || "/"
+  const callbackUrl = searchParams.get("callbackUrl")
   const [isLoading, setIsLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
 
@@ -53,7 +54,16 @@ export function LoginForm() {
         return
       }
 
-      router.push(callbackUrl)
+      if (callbackUrl) {
+        router.push(callbackUrl)
+      } else {
+        const session = await getSession()
+        const landing = pickLandingRoute({
+          platformRole: session?.user?.platformRole ?? "NONE",
+          memberships: session?.user?.memberships ?? [],
+        })
+        router.push(landing)
+      }
       router.refresh()
     } catch {
       toast.error("Something went wrong. Please try again.")

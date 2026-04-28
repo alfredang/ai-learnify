@@ -80,7 +80,7 @@ export function IdentityForm({ initial }: Props) {
       </div>
 
       <div className="space-y-1.5">
-        <Label className="text-xs">Name to be called</Label>
+        <Label className="text-xs">User</Label>
         <Input
           value={nameToBeCalled}
           onChange={(e) => setNameToBeCalled(e.target.value)}
@@ -92,7 +92,7 @@ export function IdentityForm({ initial }: Props) {
       </div>
 
       <div className="space-y-1.5">
-        <Label className="text-xs">Name printed on certificate</Label>
+        <Label className="text-xs">Name to Be Written into Certificate</Label>
         <Input
           value={certificateName}
           onChange={(e) => setCertificateName(e.target.value)}

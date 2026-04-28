@@ -1,14 +1,52 @@
 import type { Metadata } from "next"
-import Link from "next/link"
 import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
-import { Button } from "@/components/ui/button"
-import { Plus } from "lucide-react"
 import { InstructorCourseList } from "@/components/courses/instructor-course-list"
 
 export const metadata: Metadata = {
-  title: "Instructor Courses",
+  title: "Course Developer Courses",
   description: "Manage your courses",
+}
+
+async function getSampleCourses() {
+  try {
+    const courses = await prisma.course.findMany({
+      where: { status: "PUBLISHED", isFeatured: true },
+      select: {
+        id: true,
+        title: true,
+        status: true,
+        price: true,
+        thumbnail: true,
+        averageRating: true,
+        updatedAt: true,
+        totalStudents: true,
+      },
+      orderBy: { featuredOrder: "asc" },
+      take: 6,
+    })
+
+    return courses.map((course) => {
+      const price = Number(course.price)
+      const monthly = Math.max(1, Math.floor(course.totalStudents / 12))
+      return {
+        id: course.id,
+        title: course.title,
+        status: course.status,
+        price,
+        thumbnail: course.thumbnail,
+        averageRating: Number(course.averageRating),
+        totalEarnings: Math.round(price * course.totalStudents * 100 * 0.5),
+        monthlyEarnings: Math.round(price * monthly * 100 * 0.5),
+        totalStudents: course.totalStudents,
+        monthlyEnrollments: monthly,
+        updatedAt: course.updatedAt.toISOString(),
+      }
+    })
+  } catch (error) {
+    console.error("Failed to fetch sample courses:", error)
+    return []
+  }
 }
 
 async function getInstructorCourses(userId: string) {
@@ -105,27 +143,22 @@ export default async function InstructorCoursesPage() {
     return null
   }
 
-  const courses = await getInstructorCourses(session.user.id)
+  const ownCourses = await getInstructorCourses(session.user.id)
+  const courses = ownCourses.length > 0 ? ownCourses : await getSampleCourses()
+  const isSample = ownCourses.length === 0
 
   return (
     <div className="p-6 space-y-6">
-      <h1 className="text-2xl font-bold">Courses</h1>
-
-      {courses.length > 0 ? (
-        <InstructorCourseList courses={courses} />
-      ) : (
-        <div className="text-center py-16 space-y-4">
-          <p className="text-muted-foreground">
-            You haven&apos;t created any courses yet. Get started by creating your first course!
+      <div className="space-y-1">
+        <h1 className="text-2xl font-bold">Courses</h1>
+        {isSample && (
+          <p className="text-sm text-muted-foreground">
+            Showing sample courses from the catalogue. Create your own course to replace this view.
           </p>
-          <Button className="bg-purple-600 hover:bg-purple-700 text-white" asChild>
-            <Link href="/instructor/courses/new">
-              <Plus className="h-4 w-4 mr-2" />
-              Create Your Course
-            </Link>
-          </Button>
-        </div>
-      )}
+        )}
+      </div>
+
+      <InstructorCourseList courses={courses} />
     </div>
   )
 }

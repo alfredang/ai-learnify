@@ -1,7 +1,6 @@
 import { redirect } from "next/navigation"
 import { auth } from "@/lib/auth"
 import { RoleSidebar, type RoleSidebarItem } from "@/components/layout/role-sidebar"
-import { DashboardTopBar } from "@/components/layout/dashboard-topbar"
 
 export default async function AcademyLayout({
   children,
@@ -27,17 +26,10 @@ export default async function AcademyLayout({
     { href: "/academy/settings", iconName: "Settings", label: "Settings" },
   ]
 
-  const serializedUser = JSON.parse(JSON.stringify(session.user))
-
   return (
     <div className="flex min-h-screen">
       <RoleSidebar rootHref="/academy" roleLabel="Academy Admin" items={items} />
       <div className="flex-1 flex flex-col overflow-auto">
-        <DashboardTopBar
-          user={serializedUser}
-          platformRole={serializedUser.platformRole ?? "NONE"}
-          memberships={serializedUser.memberships ?? []}
-        />
         <main className="flex-1 overflow-auto">{children}</main>
       </div>
     </div>

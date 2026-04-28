@@ -65,9 +65,15 @@ export default auth((req) => {
     return NextResponse.next()
   }
 
-  // Redirect logged-in users away from auth routes
+  // Redirect logged-in users away from auth routes to their role dashboard
   if (isAuthRoute && isLoggedIn) {
-    return NextResponse.redirect(new URL("/", nextUrl))
+    let landing = "/learner"
+    if (platformRole === "PLATFORM_SUPPORT") landing = "/platform/ops"
+    else if (platformRole === "PLATFORM_OWNER") landing = "/platform"
+    else if (memberships.some((m: { role: string }) => m.role === "ACADEMY_ADMIN")) landing = "/academy"
+    else if (memberships.some((m: { role: string }) => m.role === "COURSE_DEVELOPER")) landing = "/instructor"
+    else if (memberships.some((m: { role: string }) => m.role === "MARKETER")) landing = "/marketer"
+    return NextResponse.redirect(new URL(landing, nextUrl))
   }
 
   // Require auth for onboarding wizard (must be before public route check)
@@ -81,6 +87,17 @@ export default auth((req) => {
       return NextResponse.redirect(new URL("/instructor", nextUrl))
     }
     return NextResponse.next()
+  }
+
+  // Logged-in users hitting the homepage → redirect to their role dashboard
+  if (pathname === "/" && isLoggedIn) {
+    let landing = "/learner"
+    if (platformRole === "PLATFORM_SUPPORT") landing = "/platform/ops"
+    else if (platformRole === "PLATFORM_OWNER") landing = "/platform"
+    else if (memberships.some((m: { role: string }) => m.role === "ACADEMY_ADMIN")) landing = "/academy"
+    else if (memberships.some((m: { role: string }) => m.role === "COURSE_DEVELOPER")) landing = "/instructor"
+    else if (memberships.some((m: { role: string }) => m.role === "MARKETER")) landing = "/marketer"
+    return NextResponse.redirect(new URL(landing, nextUrl))
   }
 
   // Allow public routes

@@ -1,7 +1,5 @@
 import NextAuth from "next-auth"
 import { PrismaAdapter } from "@auth/prisma-adapter"
-import Google from "next-auth/providers/google"
-import GitHub from "next-auth/providers/github"
 import Credentials from "next-auth/providers/credentials"
 import bcrypt from "bcryptjs"
 import { prisma } from "@/lib/prisma"
@@ -64,14 +62,6 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     error: "/login",
   },
   providers: [
-    Google({
-      clientId: process.env.AUTH_GOOGLE_ID,
-      clientSecret: process.env.AUTH_GOOGLE_SECRET,
-    }),
-    GitHub({
-      clientId: process.env.AUTH_GITHUB_ID,
-      clientSecret: process.env.AUTH_GITHUB_SECRET,
-    }),
     Credentials({
       name: "credentials",
       credentials: {
@@ -158,36 +148,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     }),
   ],
   callbacks: {
-    // IESA LMS spec §3.1: learners must authenticate via email + password only.
-    // OAuth is allowed for staff roles (COURSE_DEVELOPER, ACADEMY_ADMIN,
-    // MARKETER) and platform roles. A user with no non-learner membership is
-    // treated as a learner and blocked from OAuth sign-in.
-    async signIn({ user, account }) {
-      if (!account || account.provider === "credentials") return true
-
-      const existing = await prisma.user.findUnique({
-        where: { email: user.email ?? undefined },
-        select: {
-          id: true,
-          platformRole: true,
-          academyMemberships: { select: { role: true } },
-        },
-      })
-
-      if (!existing) {
-        // New OAuth sign-up: would default to a learner (STUDENT / LEARNER).
-        // Block per spec §3.1.
-        return "/login?error=OAuthLearnerBlocked"
-      }
-
-      const isStaff =
-        existing.platformRole !== "NONE" ||
-        existing.academyMemberships.some((m) => m.role !== "LEARNER")
-
-      if (!isStaff) {
-        return "/login?error=OAuthLearnerBlocked"
-      }
-
+    async signIn() {
       return true
     },
     async jwt({ token, user, trigger }) {

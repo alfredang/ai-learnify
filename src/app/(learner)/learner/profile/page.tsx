@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { IdentityForm } from "./identity-form"
+import { ResetPasswordForm } from "./reset-password-form"
 
 export default async function LearnerProfilePage() {
   const session = await auth()
@@ -76,6 +77,7 @@ export default async function LearnerProfilePage() {
             label="Certificates earned"
             value={String(user._count.certificates)}
           />
+          <ResetPasswordForm />
         </CardContent>
       </Card>
 

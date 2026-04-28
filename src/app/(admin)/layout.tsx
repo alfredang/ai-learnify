@@ -1,7 +1,6 @@
 import Link from "next/link"
 import { redirect } from "next/navigation"
 import { auth } from "@/lib/auth"
-import { DashboardTopBar } from "@/components/layout/dashboard-topbar"
 import {
   LayoutDashboard,
   Users,
@@ -40,8 +39,6 @@ export default async function AdminLayout({
     redirect("/")
   }
 
-  const serializedUser = JSON.parse(JSON.stringify(session.user))
-
   return (
     <div className="flex min-h-screen">
       {/* Sidebar */}
@@ -74,11 +71,6 @@ export default async function AdminLayout({
 
       {/* Main content */}
       <div className="flex-1 flex flex-col overflow-auto">
-        <DashboardTopBar
-          user={serializedUser}
-          platformRole={serializedUser.platformRole ?? "NONE"}
-          memberships={serializedUser.memberships ?? []}
-        />
         <main className="flex-1 overflow-auto">{children}</main>
       </div>
     </div>

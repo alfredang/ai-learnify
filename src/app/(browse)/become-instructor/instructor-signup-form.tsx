@@ -18,7 +18,6 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form"
-import { SocialButtons } from "@/components/auth/social-buttons"
 
 const instructorSignupSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
@@ -161,19 +160,6 @@ export function InstructorSignupForm() {
           </Button>
         </form>
       </Form>
-
-      <div className="relative">
-        <div className="absolute inset-0 flex items-center">
-          <span className="w-full border-t" />
-        </div>
-        <div className="relative flex justify-center text-xs uppercase">
-          <span className="bg-background px-2 text-muted-foreground">
-            Other sign up options
-          </span>
-        </div>
-      </div>
-
-      <SocialButtons isLoading={isLoading} callbackUrl="/become-instructor/onboarding" />
 
       <p className="text-xs text-center text-muted-foreground">
         By signing up, you agree to our{" "}

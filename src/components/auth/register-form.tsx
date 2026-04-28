@@ -25,11 +25,11 @@ import Link from "next/link"
 const signupSchema = z.object({
   nameToBeCalled: z
     .string()
-    .min(2, "Name to be called must be at least 2 characters")
+    .min(2, "User name must be at least 2 characters")
     .max(80),
   certificateName: z
     .string()
-    .min(2, "Name on certificate must be at least 2 characters")
+    .min(2, "Name to be written into certificate must be at least 2 characters")
     .max(120),
   certificateIdNumber: z.string().max(64).optional().or(z.literal("")),
   email: z.string().email("Please enter a valid email address"),
@@ -130,7 +130,7 @@ export function RegisterForm() {
             name="nameToBeCalled"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Name to be called</FormLabel>
+                <FormLabel>User</FormLabel>
                 <FormControl>
                   <Input
                     placeholder="e.g. Alex"
@@ -148,7 +148,7 @@ export function RegisterForm() {
             name="certificateName"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Name on certificate</FormLabel>
+                <FormLabel>Name to Be Written into Certificate</FormLabel>
                 <FormControl>
                   <Input
                     placeholder="Full legal name for certificates"
