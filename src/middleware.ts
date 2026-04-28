@@ -15,6 +15,12 @@ const publicRoutes = [
   "/about",
   "/contact",
   "/become-instructor",
+  "/programmes",
+  "/refund-policy",
+  "/terms",
+  "/privacy",
+  "/help",
+  "/faq",
 ]
 
 const authRoutes = ["/login", "/register", "/forgot-password"]
