@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation"
 import { auth } from "@/lib/auth"
 import { RoleSidebar, type RoleSidebarItem } from "@/components/layout/role-sidebar"
-import { UserMenu } from "@/components/layout/user-menu"
+import { DashboardTopBar } from "@/components/layout/dashboard-topbar"
 
 export default async function LearnerLayout({
   children,
@@ -13,10 +13,6 @@ export default async function LearnerLayout({
     redirect("/login?callbackUrl=/learner")
   }
 
-  // Spec §5.2 tabs. /my-courses and /certificates already exist, so the
-  // learner dashboard links out to those rather than duplicating screens.
-  // iconName strings (not LucideIcon refs) so the array survives the
-  // Server→Client serialisation into RoleSidebar.
   const items: RoleSidebarItem[] = [
     { href: "/learner", iconName: "LayoutDashboard", label: "Dashboard", matchExact: true },
     { href: "/learner/complimentary", iconName: "Gift", label: "Complimentary" },
@@ -27,13 +23,17 @@ export default async function LearnerLayout({
     { href: "/learner/profile", iconName: "UserCircle", label: "Profile" },
   ]
 
+  const serializedUser = JSON.parse(JSON.stringify(session.user))
+
   return (
     <div className="flex min-h-screen">
       <RoleSidebar rootHref="/learner" roleLabel="Learner" items={items} />
       <div className="flex-1 flex flex-col overflow-auto">
-        <div className="hidden md:flex items-center justify-end gap-4 px-6 py-3">
-          <UserMenu user={JSON.parse(JSON.stringify(session.user))} />
-        </div>
+        <DashboardTopBar
+          user={serializedUser}
+          platformRole={serializedUser.platformRole ?? "NONE"}
+          memberships={serializedUser.memberships ?? []}
+        />
         <main className="flex-1 overflow-auto">{children}</main>
       </div>
     </div>
