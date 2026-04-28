@@ -23,6 +23,8 @@ import { getCartItemCourseIds } from "@/lib/cart"
 import { getEnrolledCourseMap } from "@/lib/enrollment"
 import { CourseGrid } from "@/components/courses/course-grid"
 import { AdvertisingCarousel } from "@/components/layout/advertising-carousel"
+import { ComplianceStrip } from "@/components/home/compliance-strip"
+import { getT } from "@/lib/i18n-server"
 
 const iconMap: Record<string, React.ElementType> = {
   Code,
@@ -98,11 +100,12 @@ async function getStats() {
 }
 
 export default async function HomePage() {
-  const [featuredCourses, categories, stats, session] = await Promise.all([
+  const [featuredCourses, categories, stats, session, t] = await Promise.all([
     getFeaturedCourses(),
     getCategories(),
     getStats(),
     auth(),
+    getT(),
   ])
   const isCourseDeveloper = session?.user?.role === "INSTRUCTOR" || session?.user?.role === "ADMIN"
   let favouritedCourseIds = new Set<string>()
@@ -126,26 +129,25 @@ export default async function HomePage() {
           <div className="grid lg:grid-cols-2 gap-8 lg:gap-12 items-center">
             <div className="space-y-6 md:space-y-8 text-center lg:text-left">
               <Badge variant="secondary" className="px-4 py-1">
-                Self-paced &middot; Asynchronous &middot; Learn anytime
+                {t("home.hero.badge")}
               </Badge>
               <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight">
-                Advance Your Engineering Career with{" "}
-                <span className="text-primary">e&#8209;Learning</span>
+                {t("home.hero.title")}{" "}
+                <span className="text-primary">{t("home.hero.titleAccent")}</span>
               </h1>
               <p className="text-lg md:text-xl text-muted-foreground max-w-lg mx-auto lg:mx-0">
-                Professional learning content created by subject matter experts
-                in civil engineering, sustainability, and GenAI. Earn CPD points at your own pace.
+                {t("home.hero.subtitle")}
               </p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
                 <Button size="lg" asChild>
                   <Link href="/courses">
-                    Explore Courses
+                    {t("home.hero.exploreCta")}
                     <ArrowRight className="ml-2 h-5 w-5" />
                   </Link>
                 </Button>
                 <Button size="lg" variant="outline" className="border-primary text-primary font-semibold hover:bg-primary hover:text-primary-foreground" asChild>
                   <Link href={isCourseDeveloper ? "/instructor" : "/become-instructor"}>
-                    {isCourseDeveloper ? "Go to Course Developer" : "Become a Course Developer"}
+                    {isCourseDeveloper ? t("home.hero.developerCtaActive") : t("home.hero.developerCta")}
                     <ArrowRight className="ml-2 h-5 w-5" />
                   </Link>
                 </Button>
@@ -153,15 +155,15 @@ export default async function HomePage() {
               <div className="flex flex-wrap items-center gap-4 md:gap-6 pt-4 justify-center lg:justify-start">
                 <div className="flex items-center gap-2">
                   <CheckCircle className="h-5 w-5 text-green-500" />
-                  <span className="text-sm">Self-paced learning</span>
+                  <span className="text-sm">{t("home.hero.feature1")}</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <CheckCircle className="h-5 w-5 text-green-500" />
-                  <span className="text-sm">CPD-accredited certificates</span>
+                  <span className="text-sm">{t("home.hero.feature2")}</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <CheckCircle className="h-5 w-5 text-green-500" />
-                  <span className="text-sm">90-day access</span>
+                  <span className="text-sm">{t("home.hero.feature3")}</span>
                 </div>
               </div>
             </div>
@@ -198,7 +200,7 @@ export default async function HomePage() {
                   ? `${stats.totalCourses.toLocaleString()}+`
                   : "1000+"}
               </div>
-              <div className="text-muted-foreground">Courses</div>
+              <div className="text-muted-foreground">{t("home.stats.courses")}</div>
             </div>
             <div className="text-center">
               <div className="flex justify-center mb-2">
@@ -209,7 +211,7 @@ export default async function HomePage() {
                   ? `${stats.totalStudents.toLocaleString()}+`
                   : "50K+"}
               </div>
-              <div className="text-muted-foreground">Students</div>
+              <div className="text-muted-foreground">{t("home.stats.students")}</div>
             </div>
             <div className="text-center">
               <div className="flex justify-center mb-2">
@@ -220,18 +222,21 @@ export default async function HomePage() {
                   ? `${stats.totalInstructors.toLocaleString()}+`
                   : "200+"}
               </div>
-              <div className="text-muted-foreground">Experts</div>
+              <div className="text-muted-foreground">{t("home.stats.experts")}</div>
             </div>
             <div className="text-center">
               <div className="flex justify-center mb-2">
                 <CheckCircle className="h-8 w-8 text-primary" />
               </div>
               <div className="text-3xl font-bold">95%</div>
-              <div className="text-muted-foreground">Satisfaction</div>
+              <div className="text-muted-foreground">{t("home.stats.satisfaction")}</div>
             </div>
           </div>
         </div>
       </section>
+
+      {/* Compliance & Localization Strip */}
+      <ComplianceStrip />
 
       {/* Categories Section */}
       {categories.length > 0 && (
