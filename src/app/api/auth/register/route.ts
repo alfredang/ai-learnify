@@ -3,7 +3,7 @@ import bcrypt from "bcryptjs"
 import { prisma } from "@/lib/prisma"
 import { registerSchema } from "@/lib/validations/auth"
 import { audit, getRequestIp } from "@/lib/audit"
-import { grantProgrammeAccess } from "@/lib/access"
+import { grantComplimentaryAccess } from "@/lib/access"
 import { rateLimitFromRequest } from "@/lib/rate-limit"
 
 const DEFAULT_ACADEMY_SLUG = "default"
@@ -101,19 +101,19 @@ export async function POST(request: Request) {
       },
     })
 
-    // Phase 3 — auto-grant the academy's Complimentary Programme
-    // (spec §6.1: free to every registered learner, no expiry).
+    // Spec §6.1 — auto-grant the academy's Complimentary Programme to
+    // every newly-registered learner. grantComplimentaryAccess marks the
+    // grant with productType=COMPLIMENTARY so the learner dashboard's
+    // /learner/complimentary page picks it up, and uses a far-future
+    // sentinel for expiresAt so the grant never expires.
     if (defaultAcademy) {
       const complimentary = await prisma.programme.findFirst({
         where: { academyId: defaultAcademy.id, isFree: true, status: "PUBLISHED" },
         orderBy: { createdAt: "asc" },
-        select: { id: true, accessDurationDays: true },
+        select: { id: true },
       })
       if (complimentary) {
-        await grantProgrammeAccess(user.id, complimentary.id, {
-          source: "COMPLIMENTARY",
-          durationDays: complimentary.accessDurationDays,
-        })
+        await grantComplimentaryAccess(user.id, complimentary.id)
       }
     }
 

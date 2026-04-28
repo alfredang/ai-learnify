@@ -8,6 +8,7 @@ export type CertEligibility = {
   reason?:
     | "NO_ACCESS"
     | "EXPIRED"
+    | "NOT_PAID"
     | "CONTENT_INCOMPLETE"
     | "ASSESSMENT_FAIL"
     | "SURVEY_MISSING"
@@ -36,6 +37,7 @@ export async function checkCertEligibility(
     select: {
       id: true,
       academyId: true,
+      isFree: true,
       sections: {
         select: { lectures: { select: { id: true, type: true } } },
       },
@@ -125,18 +127,40 @@ export async function checkCertEligibility(
     surveyDone = true
   }
 
-  // Access window
-  if (effective.mustBeBeforeExpiry) {
-    const access = await checkCourseAccess(userId, courseId)
-    if (!access.allowed) {
-      return {
-        eligible: false,
-        reason: access.reason === "EXPIRED" ? "EXPIRED" : "NO_ACCESS",
-        contentPct,
-        assessmentPct,
-        surveyDone,
-        rule: effective,
-      }
+  // Spec §6.1 / §6.2 — certificates are issued only for paid content.
+  // Free E-courses (course.isFree) and access via the Complimentary
+  // Programme (grant.productType === "COMPLIMENTARY") never qualify.
+  if (course.isFree) {
+    return {
+      eligible: false,
+      reason: "NOT_PAID",
+      contentPct,
+      assessmentPct,
+      surveyDone,
+      rule: effective,
+    }
+  }
+
+  // Access window — also surfaces the COMPLIMENTARY-source gate.
+  const access = await checkCourseAccess(userId, courseId)
+  if (effective.mustBeBeforeExpiry && !access.allowed) {
+    return {
+      eligible: false,
+      reason: access.reason === "EXPIRED" ? "EXPIRED" : "NO_ACCESS",
+      contentPct,
+      assessmentPct,
+      surveyDone,
+      rule: effective,
+    }
+  }
+  if (access.allowed && access.grant.productType === "COMPLIMENTARY") {
+    return {
+      eligible: false,
+      reason: "NOT_PAID",
+      contentPct,
+      assessmentPct,
+      surveyDone,
+      rule: effective,
     }
   }
 

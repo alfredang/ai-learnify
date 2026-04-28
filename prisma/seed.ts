@@ -54,6 +54,19 @@ async function main() {
 
   console.log("Database cleaned")
 
+  // Default tenant — Phase 1 multi-tenancy. Seed users gain memberships here.
+  const defaultAcademy = await prisma.academy.upsert({
+    where: { slug: "default" },
+    update: {},
+    create: {
+      slug: "default",
+      name: "Default Academy",
+      primaryCurrency: "USD",
+      aiEnabled: false,
+    },
+  })
+  console.log("Default academy ready:", defaultAcademy.slug)
+
   // Create categories
   const categories = await Promise.all([
     prisma.category.create({
@@ -110,18 +123,22 @@ async function main() {
 
   const hashedPassword = await bcrypt.hash("password123", 12)
 
-  // Create admin user
+  // Create admin user — Platform Owner with full role-management rights.
   const admin = await prisma.user.create({
     data: {
       email: "admin@learnify.com",
       password: hashedPassword,
       name: "Admin User",
       role: UserRole.ADMIN,
+      platformRole: "PLATFORM_OWNER",
       image: "https://randomuser.me/api/portraits/men/1.jpg",
+      academyMemberships: {
+        create: { academyId: defaultAcademy.id, role: "ACADEMY_ADMIN" },
+      },
     },
   })
 
-  // Create instructors
+  // Create instructors — each is a Course Developer of the default academy.
   const instructor1 = await prisma.user.create({
     data: {
       email: "john@learnify.com",
@@ -133,6 +150,9 @@ async function main() {
       bio: "10+ years of experience in web development. Passionate about teaching and helping others grow their skills. I've worked at companies like Google and Meta.",
       website: "https://johnsmith.dev",
       twitter: "johnsmithdev",
+      academyMemberships: {
+        create: { academyId: defaultAcademy.id, role: "COURSE_DEVELOPER" },
+      },
     },
   })
 
@@ -147,6 +167,9 @@ async function main() {
       bio: "Design lead with 8 years of experience. Former design lead at Airbnb. Teaching design thinking and user experience.",
       website: "https://sarahjohnson.design",
       linkedin: "sarahjohnsondesign",
+      academyMemberships: {
+        create: { academyId: defaultAcademy.id, role: "COURSE_DEVELOPER" },
+      },
     },
   })
 
@@ -159,12 +182,15 @@ async function main() {
       image: "https://randomuser.me/api/portraits/men/4.jpg",
       headline: "Marketing Strategist & Growth Expert",
       bio: "Helped scale startups from 0 to millions in revenue. Expert in digital marketing, SEO, and growth hacking.",
+      academyMemberships: {
+        create: { academyId: defaultAcademy.id, role: "COURSE_DEVELOPER" },
+      },
     },
   })
 
   console.log("Instructors created")
 
-  // Create students
+  // Create students — each is a Learner of the default academy.
   const student1 = await prisma.user.create({
     data: {
       email: "student1@example.com",
@@ -172,6 +198,9 @@ async function main() {
       name: "Emily Brown",
       role: UserRole.STUDENT,
       image: "https://randomuser.me/api/portraits/women/3.jpg",
+      academyMemberships: {
+        create: { academyId: defaultAcademy.id, role: "LEARNER" },
+      },
     },
   })
 
@@ -182,6 +211,9 @@ async function main() {
       name: "David Wilson",
       role: UserRole.STUDENT,
       image: "https://randomuser.me/api/portraits/men/5.jpg",
+      academyMemberships: {
+        create: { academyId: defaultAcademy.id, role: "LEARNER" },
+      },
     },
   })
 
@@ -205,7 +237,9 @@ async function main() {
         </ul>
       `,
       thumbnail: "https://images.unsplash.com/photo-1498050108023-c5249f4df085?w=800",
-      price: 9999,
+      price: 2999,
+      partnerName: "IES Singapore",
+      partnerLogoUrl: "https://www.ies.org.sg/wp-content/uploads/2025/02/ies-singapore.png",
       level: CourseLevel.BEGINNER,
       language: "English",
       learningOutcomes: [
@@ -339,7 +373,7 @@ async function main() {
       subtitle: "Learn user experience design from industry experts",
       description: "<h2>Master UX Design</h2><p>Learn the complete UX design process from research to prototyping.</p>",
       thumbnail: "https://images.unsplash.com/photo-1561070791-2526d30994b5?w=800",
-      price: 7999,
+      price: 2299,
       level: CourseLevel.INTERMEDIATE,
       learningOutcomes: [
         "Conduct user research and interviews",
@@ -368,7 +402,7 @@ async function main() {
       slug: "digital-marketing-fundamentals",
       subtitle: "Master the art of digital marketing",
       thumbnail: "https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=800",
-      price: 4999,
+      price: 999,
       level: CourseLevel.BEGINNER,
       learningOutcomes: [
         "Understand digital marketing channels",
@@ -396,7 +430,9 @@ async function main() {
       slug: "python-for-data-science",
       subtitle: "Learn Python programming for data analysis",
       thumbnail: "https://images.unsplash.com/photo-1526379095098-d400fd0bf935?w=800",
-      price: 8999,
+      price: 2699,
+      partnerName: "IES Singapore",
+      partnerLogoUrl: "https://www.ies.org.sg/wp-content/uploads/2025/02/ies-singapore.png",
       level: CourseLevel.INTERMEDIATE,
       learningOutcomes: [
         "Master Python programming basics",
@@ -456,7 +492,7 @@ async function main() {
       subtitle: "Learn to think strategically and lead organizations",
       description: "<h2>Master Business Strategy</h2><p>From competitive analysis to strategic planning, learn the frameworks used by top consultants and executives.</p>",
       thumbnail: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=800",
-      price: 6999,
+      price: 1799,
       level: CourseLevel.INTERMEDIATE,
       language: "English",
       learningOutcomes: [
@@ -492,7 +528,7 @@ async function main() {
       subtitle: "From idea validation to funding and scaling",
       description: "<h2>Build Your Startup From Scratch</h2><p>Learn the lean startup methodology, validate your ideas, build MVPs, pitch to investors, and scale.</p>",
       thumbnail: "https://images.unsplash.com/photo-1559136555-9303baea8ebd?w=800",
-      price: 8499,
+      price: 2499,
       level: CourseLevel.BEGINNER,
       language: "English",
       learningOutcomes: [
@@ -527,7 +563,7 @@ async function main() {
       subtitle: "Pass the AWS CCP exam on your first attempt",
       description: "<h2>Get AWS Certified</h2><p>Comprehensive preparation for the AWS Certified Cloud Practitioner exam. Covers all exam domains with hands-on labs.</p>",
       thumbnail: "https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=800",
-      price: 5999,
+      price: 1399,
       level: CourseLevel.BEGINNER,
       language: "English",
       learningOutcomes: [
@@ -564,7 +600,9 @@ async function main() {
       subtitle: "Master containerization and container orchestration",
       description: "<h2>Learn Docker & Kubernetes</h2><p>From building your first container to deploying multi-service applications on Kubernetes clusters.</p>",
       thumbnail: "https://images.unsplash.com/photo-1667372393119-3d4c48d07fc9?w=800",
-      price: 7499,
+      price: 1999,
+      partnerName: "IES Singapore",
+      partnerLogoUrl: "https://www.ies.org.sg/wp-content/uploads/2025/02/ies-singapore.png",
       level: CourseLevel.INTERMEDIATE,
       language: "English",
       learningOutcomes: [
@@ -596,7 +634,7 @@ async function main() {
       subtitle: "Protect systems and networks from cyber threats",
       description: "<h2>Start Your Cybersecurity Journey</h2><p>Learn network security, ethical hacking basics, vulnerability assessment, and security best practices.</p>",
       thumbnail: "https://images.unsplash.com/photo-1550751827-4bd374c3f58b?w=800",
-      price: 6499,
+      price: 1599,
       level: CourseLevel.BEGINNER,
       language: "English",
       learningOutcomes: [
@@ -627,7 +665,7 @@ async function main() {
       subtitle: "Proven systems to manage your time and energy",
       description: "<h2>Transform Your Productivity</h2><p>Learn time management, habit building, focus techniques, and workflow optimization from proven frameworks.</p>",
       thumbnail: "https://images.unsplash.com/photo-1484480974693-6ca0a78fb36b?w=800",
-      price: 3999,
+      price: 599,
       level: CourseLevel.BEGINNER,
       language: "English",
       learningOutcomes: [
@@ -661,7 +699,7 @@ async function main() {
       subtitle: "Develop the soft skills that drive career success",
       description: "<h2>Become a Better Leader</h2><p>Effective leadership and communication are the most sought-after skills in any industry. Learn to lead teams, give presentations, and influence stakeholders.</p>",
       thumbnail: "https://images.unsplash.com/photo-1552664730-d307ca884978?w=800",
-      price: 5499,
+      price: 1199,
       level: CourseLevel.INTERMEDIATE,
       language: "English",
       learningOutcomes: [
@@ -692,7 +730,7 @@ async function main() {
       subtitle: "Design beautiful interfaces with the industry-standard tool",
       description: "<h2>Master Figma</h2><p>Learn Figma from scratch — components, auto layout, prototyping, design systems, and real-world UI projects.</p>",
       thumbnail: "https://images.unsplash.com/photo-1558655146-9f40138edfeb?w=800",
-      price: 5999,
+      price: 1399,
       level: CourseLevel.BEGINNER,
       language: "English",
       learningOutcomes: [
@@ -728,7 +766,7 @@ async function main() {
       subtitle: "Learn search engine optimization from an industry expert",
       description: "<h2>Dominate Google Search</h2><p>Technical SEO, keyword research, link building, content strategy, and analytics — everything you need to rank.</p>",
       thumbnail: "https://images.unsplash.com/photo-1432888498266-38ffec3eaf0a?w=800",
-      price: 5499,
+      price: 1199,
       level: CourseLevel.INTERMEDIATE,
       language: "English",
       learningOutcomes: [
@@ -762,7 +800,7 @@ async function main() {
       subtitle: "Build brands and grow audiences on every platform",
       description: "<h2>Social Media That Actually Works</h2><p>Learn platform-specific strategies for Instagram, TikTok, LinkedIn, X, and YouTube. From content creation to paid ads.</p>",
       thumbnail: "https://images.unsplash.com/photo-1611162617474-5b21e879e113?w=800",
-      price: 4499,
+      price: 799,
       level: CourseLevel.BEGINNER,
       language: "English",
       learningOutcomes: [
@@ -793,7 +831,7 @@ async function main() {
       subtitle: "Build production-ready apps with React 19 and Next.js",
       description: "<h2>Modern React Development</h2><p>Server components, app router, server actions, authentication, database integration, and deployment — the full stack.</p>",
       thumbnail: "https://images.unsplash.com/photo-1633356122544-f134324a6cee?w=800",
-      price: 8999,
+      price: 2699,
       level: CourseLevel.INTERMEDIATE,
       language: "English",
       learningOutcomes: [
@@ -831,7 +869,7 @@ async function main() {
       subtitle: "Learn to build products users love",
       description: "<h2>Become a Product Manager</h2><p>From user research to roadmaps, sprints, and stakeholder management — master the PM skill set.</p>",
       thumbnail: "https://images.unsplash.com/photo-1531403009284-440f080d1e12?w=800",
-      price: 7499,
+      price: 1999,
       level: CourseLevel.BEGINNER,
       language: "English",
       learningOutcomes: [

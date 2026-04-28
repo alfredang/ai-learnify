@@ -153,7 +153,7 @@ export function Header() {
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-44">
                   <DropdownMenuItem asChild>
-                    <Link href="/select-role">Log in</Link>
+                    <Link href="/login">Log in</Link>
                   </DropdownMenuItem>
                   <DropdownMenuItem asChild>
                     <Link href="/register">Sign up</Link>

@@ -14,6 +14,7 @@ import { MobileBottomBar } from "@/components/courses/mobile-bottom-bar"
 import { FavouriteButton } from "@/components/courses/favourite-button"
 import { BuyNowButton } from "@/components/courses/buy-now-button"
 import { CourseReviewsSection } from "@/components/courses/course-reviews-section"
+import { formatPrice } from "@/lib/stripe"
 import { ITEMS_PER_PAGE } from "@/lib/constants"
 import {
   Play,
@@ -58,6 +59,9 @@ async function getCourse(slug: string, userId?: string) {
           },
         },
         category: true,
+        cpdCatalog: {
+          select: { id: true, name: true, points: true, badgeUrl: true },
+        },
         sections: {
           orderBy: { position: "asc" },
           include: {
@@ -251,6 +255,12 @@ export default async function CoursePage({ params, searchParams }: CoursePagePro
   const minutes = Math.floor((totalDuration % 3600) / 60)
   const durationText = hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`
 
+  // Spec §4.4 — Fee or Complimentary
+  const effectivePrice = course.discountPrice
+    ? Number(course.discountPrice)
+    : Number(course.price)
+  const isFreeCourse = course.isFree || effectivePrice === 0
+
   // Shared purchase card content
   const purchaseCardContent = (
     <>
@@ -270,9 +280,22 @@ export default async function CoursePage({ params, searchParams }: CoursePagePro
         )}
       </div>
       <CardContent className="p-6 space-y-4">
-        {isEnrolled && (
+        {isEnrolled ? (
           <div className="flex items-baseline gap-2">
             <Badge variant="secondary" className="font-semibold text-sm px-3 py-1">Owned</Badge>
+          </div>
+        ) : (
+          // Spec §4.4 — Fee or "Complimentary"
+          <div className="flex items-baseline gap-2">
+            {isFreeCourse ? (
+              <Badge className="font-semibold text-sm px-3 py-1 bg-emerald-100 text-emerald-800 border-emerald-300 hover:bg-emerald-100 dark:bg-emerald-950 dark:text-emerald-300">
+                Complimentary
+              </Badge>
+            ) : (
+              <span className="text-3xl font-bold">
+                {formatPrice(effectivePrice)}
+              </span>
+            )}
           </div>
         )}
 
@@ -289,7 +312,11 @@ export default async function CoursePage({ params, searchParams }: CoursePagePro
             </Link>
           </Button>
         ) : (
-          <BuyNowButton courseId={course.id} isFree={true} />
+          <BuyNowButton
+            courseId={course.id}
+            isFree={isFreeCourse}
+            expectedPrice={isFreeCourse ? undefined : effectivePrice}
+          />
         )}
 
         {!isEnrolled && !isOwner && (
@@ -324,6 +351,15 @@ export default async function CoursePage({ params, searchParams }: CoursePagePro
             <Award className="h-4 w-4 text-muted-foreground" />
             <span>Certificate of completion</span>
           </div>
+          {/* Spec §4.4 — CPD info */}
+          {course.cpdCatalog && (
+            <div className="flex items-center gap-2">
+              <Award className="h-4 w-4 text-muted-foreground" />
+              <span>
+                {course.cpdCatalog.name} · {Number(course.cpdCatalog.points)} CPD points
+              </span>
+            </div>
+          )}
         </div>
       </CardContent>
     </>
@@ -410,6 +446,23 @@ export default async function CoursePage({ params, searchParams }: CoursePagePro
                 </Link>
               </div>
             </div>
+
+            {/* Spec §4.4 — Partner info */}
+            {course.partnerName && (
+              <div className="flex items-center gap-3">
+                {course.partnerLogoUrl && (
+                  <img
+                    src={course.partnerLogoUrl}
+                    alt={course.partnerName}
+                    className="h-10 w-10 object-contain rounded bg-white p-1"
+                  />
+                )}
+                <div>
+                  <p className="text-sm text-slate-400">In partnership with</p>
+                  <p className="font-medium">{course.partnerName}</p>
+                </div>
+              </div>
+            )}
 
             <div className="flex flex-wrap gap-4 text-sm text-slate-300">
               <div className="flex items-center gap-1">

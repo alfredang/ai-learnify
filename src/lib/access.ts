@@ -11,6 +11,16 @@ function addDays(d: Date, days: number): Date {
   return copy
 }
 
+// Spec §6.1 — Complimentary Programme has no expiry. The schema requires
+// expiresAt to be non-null, so we set a far-future sentinel and skip the
+// expiry check at runtime for grants of this type.
+const COMPLIMENTARY_SENTINEL_EXPIRY = new Date("9999-12-31T23:59:59.000Z")
+
+function isExpired(grant: AccessGrant, now: Date): boolean {
+  if (grant.productType === "COMPLIMENTARY") return false
+  return grant.expiresAt <= now
+}
+
 /**
  * Check whether a user currently has active access to a course, honouring
  * both direct course grants and programme-level grants that cover it.
@@ -31,7 +41,7 @@ export async function checkCourseAccess(
 
   if (directGrant) {
     if (directGrant.revokedAt) return { allowed: false, reason: "REVOKED" }
-    if (directGrant.expiresAt <= now) return { allowed: false, reason: "EXPIRED" }
+    if (isExpired(directGrant, now)) return { allowed: false, reason: "EXPIRED" }
     return { allowed: true, grant: directGrant }
   }
 
@@ -48,7 +58,7 @@ export async function checkCourseAccess(
 
   if (programmeGrant) {
     if (programmeGrant.revokedAt) return { allowed: false, reason: "REVOKED" }
-    if (programmeGrant.expiresAt <= now) return { allowed: false, reason: "EXPIRED" }
+    if (isExpired(programmeGrant, now)) return { allowed: false, reason: "EXPIRED" }
     return { allowed: true, grant: programmeGrant }
   }
 
@@ -65,7 +75,7 @@ export async function checkProgrammeAccess(
   })
   if (!grant) return { allowed: false, reason: "NO_GRANT" }
   if (grant.revokedAt) return { allowed: false, reason: "REVOKED" }
-  if (grant.expiresAt <= now) return { allowed: false, reason: "EXPIRED" }
+  if (isExpired(grant, now)) return { allowed: false, reason: "EXPIRED" }
   return { allowed: true, grant }
 }
 
@@ -173,6 +183,50 @@ export async function grantProgrammeAccess(
       source: opts.source ?? "PURCHASE",
       grantedAt: now,
       expiresAt: addDays(now, durationDays),
+      isActive: true,
+    },
+  })
+}
+
+/**
+ * Spec §6.1 — grant the academy's Complimentary Programme to a learner.
+ * Differs from grantProgrammeAccess in two ways:
+ *  - productType is COMPLIMENTARY (so the learner dashboard's complimentary
+ *    page picks it up via productType filter)
+ *  - expiresAt is a far-future sentinel (the runtime expiry check skips
+ *    COMPLIMENTARY grants outright, satisfying "no expiry")
+ */
+export async function grantComplimentaryAccess(
+  userId: string,
+  programmeId: string
+) {
+  const now = new Date()
+  const existing = await prisma.accessGrant.findFirst({
+    where: { userId, programmeId },
+  })
+
+  if (existing) {
+    return prisma.accessGrant.update({
+      where: { id: existing.id },
+      data: {
+        productType: "COMPLIMENTARY" satisfies ProductType,
+        source: "COMPLIMENTARY" satisfies AccessGrantSource,
+        expiresAt: COMPLIMENTARY_SENTINEL_EXPIRY,
+        isActive: true,
+        revokedAt: null,
+        revokedReason: null,
+      },
+    })
+  }
+
+  return prisma.accessGrant.create({
+    data: {
+      userId,
+      programmeId,
+      productType: "COMPLIMENTARY" satisfies ProductType,
+      source: "COMPLIMENTARY" satisfies AccessGrantSource,
+      grantedAt: now,
+      expiresAt: COMPLIMENTARY_SENTINEL_EXPIRY,
       isActive: true,
     },
   })

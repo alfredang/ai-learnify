@@ -1,15 +1,7 @@
 import type { Metadata } from "next"
+import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
-import { Badge } from "@/components/ui/badge"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
+import { UsersTable } from "./users-table"
 
 export const metadata: Metadata = {
   title: "User Management",
@@ -25,12 +17,17 @@ async function getUsers() {
         email: true,
         image: true,
         role: true,
+        platformRole: true,
         createdAt: true,
-        _count: {
+        academyMemberships: {
           select: {
-            courses: true,
-            enrollments: true,
+            academyId: true,
+            role: true,
+            academy: { select: { id: true, name: true, slug: true } },
           },
+        },
+        _count: {
+          select: { courses: true, enrollments: true },
         },
       },
       orderBy: { createdAt: "desc" },
@@ -41,14 +38,29 @@ async function getUsers() {
   }
 }
 
-const roleColors: Record<string, string> = {
-  ADMIN: "bg-red-100 text-red-800",
-  INSTRUCTOR: "bg-blue-100 text-blue-800",
-  STUDENT: "bg-green-100 text-green-800",
+async function getAcademies() {
+  try {
+    return await prisma.academy.findMany({
+      where: { isActive: true },
+      orderBy: { name: "asc" },
+      select: { id: true, name: true, slug: true },
+    })
+  } catch {
+    return []
+  }
 }
 
 export default async function AdminUsersPage() {
-  const users = await getUsers()
+  const [session, users, academies] = await Promise.all([
+    auth(),
+    getUsers(),
+    getAcademies(),
+  ])
+
+  // Edit affordances are surfaced only to Platform Owners. Other admins
+  // see the table read-only — the API enforces the same gate, so even
+  // direct calls from non-owners would 403.
+  const canEditRoles = session?.user?.platformRole === "PLATFORM_OWNER"
 
   return (
     <div className="p-6 space-y-6">
@@ -56,52 +68,19 @@ export default async function AdminUsersPage() {
         <h1 className="text-3xl font-bold">User Management</h1>
         <p className="text-muted-foreground">
           View and manage all platform users
+          {canEditRoles && (
+            <> — click <span className="font-medium">Edit roles</span> on any
+            row to change a user&apos;s Platform and Academy roles.</>
+          )}
         </p>
       </div>
 
-      <div className="border rounded-lg">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>User</TableHead>
-              <TableHead>Role</TableHead>
-              <TableHead>Courses</TableHead>
-              <TableHead>Enrollments</TableHead>
-              <TableHead>Joined</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {users.map((user) => (
-              <TableRow key={user.id}>
-                <TableCell>
-                  <div className="flex items-center gap-3">
-                    <Avatar>
-                      <AvatarImage src={user.image || ""} />
-                      <AvatarFallback>
-                        {user.name?.[0] || user.email[0].toUpperCase()}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <p className="font-medium">{user.name || "No name"}</p>
-                      <p className="text-sm text-muted-foreground">
-                        {user.email}
-                      </p>
-                    </div>
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <Badge variant="secondary" className={roleColors[user.role]}>
-                    {user.role}
-                  </Badge>
-                </TableCell>
-                <TableCell>{user._count.courses}</TableCell>
-                <TableCell>{user._count.enrollments}</TableCell>
-                <TableCell>{user.createdAt.toLocaleDateString()}</TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </div>
+      <UsersTable
+        users={JSON.parse(JSON.stringify(users))}
+        academies={academies}
+        canEditRoles={canEditRoles}
+        currentUserId={session?.user?.id ?? ""}
+      />
     </div>
   )
 }

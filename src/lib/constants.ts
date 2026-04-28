@@ -51,11 +51,11 @@ export const PRODUCT_TYPE_FILTERS = [
   { value: "COMPLIMENTARY", label: "Complimentary" },
 ] as const
 
+// Spec §4.3 — Price filter is a binary Free / Paid choice.
 export const PRICE_FILTERS = [
   { value: "all", label: "All Prices" },
-  { value: "500-1000", label: "$500 – $1,000" },
-  { value: "1000-2500", label: "$1,000 – $2,500" },
-  { value: "2500-5000", label: "$2,500 – $5,000" },
+  { value: "free", label: "Free" },
+  { value: "paid", label: "Paid" },
 ] as const
 
 export const RATING_FILTERS = [

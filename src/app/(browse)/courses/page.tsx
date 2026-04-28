@@ -74,18 +74,11 @@ async function getCourses(searchParams: CoursesPageProps["searchParams"]) {
     where.level = params.level
   }
 
-  if (params.price) {
-    switch (params.price) {
-      case "500-1000":
-        where.price = { gte: 500, lt: 1000 }
-        break
-      case "1000-2500":
-        where.price = { gte: 1000, lt: 2500 }
-        break
-      case "2500-5000":
-        where.price = { gte: 2500, lte: 5000 }
-        break
-    }
+  // Spec §4.3 — Price filter (Free / Paid)
+  if (params.price === "free") {
+    where.isFree = true
+  } else if (params.price === "paid") {
+    where.isFree = false
   }
 
   if (params.rating && params.rating !== "all") {

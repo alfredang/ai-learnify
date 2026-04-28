@@ -80,6 +80,32 @@ export async function PATCH(
     }
   }
 
+  // Spec §6.3 — a programme must bundle ≥2 courses before it can be
+  // published. This guards the publish transition specifically (the
+  // create endpoint already enforces ≥2 via Zod). When courseIds is
+  // included in the same PATCH, Zod's .min(2) already caught it; we
+  // only need to validate against the persisted count when courseIds
+  // is not being changed in this request.
+  if (
+    parsed.data.status === "PUBLISHED" &&
+    own.status !== "PUBLISHED" &&
+    !parsed.data.courseIds
+  ) {
+    const persistedCount = await prisma.programmeCourse.count({
+      where: { programmeId: id },
+    })
+    if (persistedCount < 2) {
+      return NextResponse.json(
+        {
+          error:
+            "Programme must contain at least 2 courses before it can be published.",
+          code: "INSUFFICIENT_COURSES",
+        },
+        { status: 400 }
+      )
+    }
+  }
+
   const programme = await prisma.$transaction(async (tx) => {
     const updated = await tx.programme.update({ where: { id }, data })
     if (parsed.data.courseIds) {

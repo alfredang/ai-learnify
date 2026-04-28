@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button"
 import { X } from "lucide-react"
 import {
   COURSE_LEVELS,
+  PRICE_FILTERS,
   PRODUCT_TYPE_FILTERS,
   RATING_FILTERS,
   SORT_OPTIONS,
@@ -46,6 +47,7 @@ export function CourseFilters({
   const currentCpd = searchParams.get("cpd") || "all"
   const currentPartner = searchParams.get("partner") || "all"
   const currentProductType = searchParams.get("productType") || "all"
+  const currentPrice = searchParams.get("price") || "all"
   const currentLevel = searchParams.get("level") || "all"
   const currentRating = searchParams.get("rating") || "all"
   const currentSort = searchParams.get("sort") || "popular"
@@ -71,6 +73,7 @@ export function CourseFilters({
     (currentCpd && currentCpd !== "all") ||
     (currentPartner && currentPartner !== "all") ||
     (currentProductType && currentProductType !== "all") ||
+    (currentPrice && currentPrice !== "all") ||
     (currentLevel && currentLevel !== "all") ||
     (currentRating && currentRating !== "all")
 
@@ -119,6 +122,20 @@ export function CourseFilters({
           {PRODUCT_TYPE_FILTERS.map((o) => (
             <SelectItem key={o.value} value={o.value}>
               {o.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+
+      {/* Spec §4.3 — Price filter (Free / Paid) */}
+      <Select value={currentPrice} onValueChange={(v) => updateFilter("price", v)}>
+        <SelectTrigger className="w-[140px]">
+          <SelectValue placeholder="Price" />
+        </SelectTrigger>
+        <SelectContent>
+          {PRICE_FILTERS.map((p) => (
+            <SelectItem key={p.value} value={p.value}>
+              {p.label}
             </SelectItem>
           ))}
         </SelectContent>

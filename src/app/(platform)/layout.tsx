@@ -23,6 +23,7 @@ export default async function PlatformLayout({
   const items: RoleSidebarItem[] = isOwner
     ? [
         { href: "/platform", iconName: "LayoutDashboard", label: "Dashboard", matchExact: true },
+        { href: "/platform/users", iconName: "Users", label: "Users & Roles" },
         { href: "/platform/audit", iconName: "ScrollText", label: "Audit log" },
         { href: "/platform/ops", iconName: "Activity", label: "Operations" },
       ]

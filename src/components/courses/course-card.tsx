@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { StarRating } from "@/components/shared/star-rating"
 import { Users, BookOpen } from "lucide-react"
 import { FavouriteButton } from "@/components/courses/favourite-button"
+import { formatPrice } from "@/lib/stripe"
 import type { CourseWithInstructor } from "@/types"
 
 interface CourseCardProps {
@@ -60,10 +61,22 @@ export function CourseCard({
             {course.subtitle}
           </p>
         )}
-        {/* Phase 2: Partner name (spec §4.2 card field) */}
+        {/* Phase 2: Partner name + logo (spec §4.2 card field) */}
         {course.partnerName ? (
-          <div className="text-xs text-muted-foreground mb-2">
-            by <span className="font-medium text-foreground/80">{course.partnerName}</span>
+          <div className="flex items-center gap-2 text-xs text-muted-foreground mb-2">
+            {course.partnerLogoUrl && (
+              <img
+                src={course.partnerLogoUrl}
+                alt={course.partnerName}
+                className="h-5 w-5 object-contain shrink-0"
+              />
+            )}
+            <span>
+              by{" "}
+              <span className="font-medium text-foreground/80">
+                {course.partnerName}
+              </span>
+            </span>
           </div>
         ) : (
           <Link
@@ -105,9 +118,25 @@ export function CourseCard({
               </Button>
             </>
           ) : (
-            <Button size="sm" className="relative z-10 rounded-full text-xs min-w-[9rem] justify-center" asChild>
-              <Link href={`/courses/${course.slug}`}>View course</Link>
-            </Button>
+            <>
+              {/* Spec §4.2 — Fee or "Complimentary" */}
+              {course.isFree || Number(course.price) === 0 ? (
+                <Badge className="mr-auto bg-emerald-100 text-emerald-800 border-emerald-300 hover:bg-emerald-100 dark:bg-emerald-950 dark:text-emerald-300">
+                  Complimentary
+                </Badge>
+              ) : (
+                <span className="mr-auto font-semibold text-base">
+                  {formatPrice(
+                    course.discountPrice
+                      ? Number(course.discountPrice)
+                      : Number(course.price)
+                  )}
+                </span>
+              )}
+              <Button size="sm" className="relative z-10 rounded-full text-xs min-w-[9rem] justify-center" asChild>
+                <Link href={`/courses/${course.slug}`}>View course</Link>
+              </Button>
+            </>
           )}
         </div>
       </CardFooter>
