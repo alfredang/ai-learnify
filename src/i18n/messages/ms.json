@@ -31,7 +31,33 @@
     "myCourses": "Kursus saya",
     "certificates": "Sijil",
     "profile": "Profil",
-    "privacy": "Privasi & data"
+    "privacy": "Privasi & data",
+    "language": "Bahasa",
+    "currency": "Mata wang",
+    "currencyDisclaimer": "Hanya paparan — pembayaran menggunakan mata wang yang ditetapkan kursus.",
+    "eCourses": "E-Kursus",
+    "categories": "Kategori",
+    "searchPlaceholder": "Cari kursus...",
+    "myProfile": "Profil Saya",
+    "accountSettings": "Tetapan Akaun"
+  },
+  "footer": {
+    "platform": "Platform",
+    "company": "Syarikat",
+    "support": "Sokongan",
+    "browseCourses": "Layari Kursus",
+    "categories": "Kategori",
+    "becomeDeveloper": "Jadi Pembangun Kursus",
+    "aboutUs": "Tentang Kami",
+    "contact": "Hubungi Kami",
+    "careers": "Kerjaya",
+    "helpCenter": "Pusat Bantuan",
+    "faq": "Soalan Lazim",
+    "terms": "Syarat Perkhidmatan",
+    "privacyPolicy": "Dasar Privasi",
+    "refundPolicy": "Dasar Bayaran Balik",
+    "description": "Platform pembelajaran dalam talian terkemuka. Pelajari kemahiran baru, majukan kerjaya anda, dan terokai hobi baru dengan kursus yang dipimpin pakar.",
+    "allRightsReserved": "Hak cipta terpelihara."
   },
   "learner": {
     "welcomeBack": "Selamat kembali, {name}",
@@ -52,5 +78,55 @@
     "deactivateAccount": "Nyahaktifkan akaun",
     "confirmEmail": "Taip e-mel anda untuk sahkan: {email}",
     "deactivateWarning": "Anda tidak lagi boleh log masuk. Rekod dikekalkan seperti spec §17."
+  },
+  "home": {
+    "hero": {
+      "badge": "Belajar sendiri · Tak segerak · Belajar bila-bila masa",
+      "title": "Majukan Kerjaya Kejuruteraan Anda dengan",
+      "titleAccent": "e-Pembelajaran",
+      "subtitle": "Kandungan pembelajaran profesional yang dicipta oleh pakar dalam kejuruteraan awam, kelestarian, dan GenAI. Dapatkan mata CPD mengikut kadar anda sendiri.",
+      "exploreCta": "Terokai Kursus",
+      "developerCta": "Jadi Pembangun Kursus",
+      "developerCtaActive": "Pergi ke Pembangun Kursus",
+      "feature1": "Belajar mengikut kadar sendiri",
+      "feature2": "Sijil terakreditasi CPD",
+      "feature3": "Akses 90 hari"
+    },
+    "stats": {
+      "courses": "Kursus",
+      "students": "Pelajar",
+      "experts": "Pakar",
+      "satisfaction": "Kepuasan"
+    },
+    "compliance": {
+      "title": "Dibina untuk Asia & Pematuhan Global",
+      "subtitle": "Disesuaikan untuk rantau ini, sedia untuk pelajar dan pasukan kewangan global.",
+      "cards": {
+        "multilang": {
+          "title": "Antara muka pelbagai bahasa",
+          "desc": "English, 中文, Bahasa Melayu, ไทย, Tiếng Việt — tukar bila-bila masa."
+        },
+        "utf8": {
+          "title": "Sokongan nama UTF-8",
+          "desc": "Nama pelajar dipaparkan betul dalam setiap skrip — Cina, Thai, Vietnam, dan lain-lain."
+        },
+        "multicurrency": {
+          "title": "Paparan pelbagai mata wang",
+          "desc": "Lihat harga dalam SGD, MYR, USD, THB atau VND."
+        },
+        "tax": {
+          "title": "Sedar VAT / GST",
+          "desc": "Cukai dikira mengikut bidang kuasa akademi — GST Singapura, VAT EU, dan lain-lain."
+        },
+        "invoice": {
+          "title": "Invois sedar bidang kuasa",
+          "desc": "Nombor pendaftaran cukai dan bidang kuasa dicetak pada setiap resit."
+        },
+        "gdpr": {
+          "title": "Sedia GDPR & PDPA",
+          "desc": "Eksport data penuh, padam-lembut atas permintaan, jejak audit dikekalkan."
+        }
+      }
+    }
   }
 }

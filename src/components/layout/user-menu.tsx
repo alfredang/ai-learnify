@@ -6,6 +6,7 @@ import { useQueryClient } from "@tanstack/react-query"
 import { serverSignOut } from "@/app/actions/auth"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { User, LogOut, Settings } from "lucide-react"
+import { useT } from "@/hooks/use-t"
 import type { UserRole } from "@prisma/client"
 
 interface UserMenuProps {
@@ -21,6 +22,7 @@ interface UserMenuProps {
 export function UserMenu({ user }: UserMenuProps) {
   const queryClient = useQueryClient()
   const [isOpen, setIsOpen] = useState(false)
+  const t = useT()
 
   if (!user) return null
 
@@ -65,7 +67,7 @@ export function UserMenu({ user }: UserMenuProps) {
                 className="flex items-center gap-3 px-3 py-2.5 text-sm rounded-md hover:bg-muted/50 transition-colors"
               >
                 <User className="h-4 w-4" />
-                My Profile
+                {t("nav.myProfile")}
               </Link>
               <Link
                 href="/learner"
@@ -73,7 +75,7 @@ export function UserMenu({ user }: UserMenuProps) {
                 className="flex items-center gap-3 px-3 py-2.5 text-sm rounded-md hover:bg-muted/50 transition-colors"
               >
                 <Settings className="h-4 w-4" />
-                Account Settings
+                {t("nav.accountSettings")}
               </Link>
             </div>
             <div className="p-2 border-t">
@@ -82,7 +84,7 @@ export function UserMenu({ user }: UserMenuProps) {
                 className="w-full flex items-center gap-3 px-3 py-2.5 text-sm rounded-md text-red-600 hover:bg-red-50 transition-colors"
               >
                 <LogOut className="h-4 w-4" />
-                Log out
+                {t("auth.logout")}
               </button>
             </div>
           </div>

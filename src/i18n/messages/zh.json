@@ -21,7 +21,7 @@
     "logout": "退出登录",
     "email": "邮箱",
     "password": "密码",
-    "forgotPassword": "忘记密码？",
+    "forgotPassword": "忘记密码?",
     "tooManyAttempts": "尝试次数过多,请稍后再试。"
   },
   "nav": {
@@ -31,7 +31,33 @@
     "myCourses": "我的课程",
     "certificates": "证书",
     "profile": "个人资料",
-    "privacy": "隐私与数据"
+    "privacy": "隐私与数据",
+    "language": "语言",
+    "currency": "货币",
+    "currencyDisclaimer": "仅供显示 — 结账以课程设定的货币为准。",
+    "eCourses": "电子课程",
+    "categories": "分类",
+    "searchPlaceholder": "搜索课程...",
+    "myProfile": "我的资料",
+    "accountSettings": "账户设置"
+  },
+  "footer": {
+    "platform": "平台",
+    "company": "公司",
+    "support": "支持",
+    "browseCourses": "浏览课程",
+    "categories": "分类",
+    "becomeDeveloper": "成为课程开发者",
+    "aboutUs": "关于我们",
+    "contact": "联系我们",
+    "careers": "职业机会",
+    "helpCenter": "帮助中心",
+    "faq": "常见问题",
+    "terms": "服务条款",
+    "privacyPolicy": "隐私政策",
+    "refundPolicy": "退款政策",
+    "description": "领先的在线学习平台。学习新技能，提升职业发展，通过专家教授的课程探索新兴趣。",
+    "allRightsReserved": "版权所有。"
   },
   "learner": {
     "welcomeBack": "欢迎回来,{name}",
@@ -52,5 +78,55 @@
     "deactivateAccount": "停用账户",
     "confirmEmail": "输入您的邮箱以确认:{email}",
     "deactivateWarning": "您将无法再登录。根据规范 §17,记录将被保留。"
+  },
+  "home": {
+    "hero": {
+      "badge": "自主学习 · 异步进行 · 随时学习",
+      "title": "通过电子学习提升您的工程职业生涯,立即探索",
+      "titleAccent": "电子学习",
+      "subtitle": "由土木工程、可持续发展和生成式人工智能领域的专家创建的专业学习内容。按照自己的节奏赚取 CPD 积分。",
+      "exploreCta": "浏览课程",
+      "developerCta": "成为课程开发者",
+      "developerCtaActive": "进入课程开发者",
+      "feature1": "自主学习",
+      "feature2": "CPD 认证证书",
+      "feature3": "90 天访问期"
+    },
+    "stats": {
+      "courses": "课程",
+      "students": "学员",
+      "experts": "专家",
+      "satisfaction": "满意度"
+    },
+    "compliance": {
+      "title": "为亚洲与全球合规打造",
+      "subtitle": "本地化适配,为全球学习者和财务团队准备就绪。",
+      "cards": {
+        "multilang": {
+          "title": "多语言界面",
+          "desc": "English, 中文, Bahasa Melayu, ไทย, Tiếng Việt — 随时切换。"
+        },
+        "utf8": {
+          "title": "UTF-8 姓名支持",
+          "desc": "学员姓名以各种文字正确显示 — 中文、泰文、越南文等。"
+        },
+        "multicurrency": {
+          "title": "多币种显示",
+          "desc": "以 SGD、MYR、USD、THB 或 VND 浏览价格。"
+        },
+        "tax": {
+          "title": "增值税 / 商品及服务税支持",
+          "desc": "按学院司法管辖区计算税款 — 新加坡 GST、欧盟 VAT 等。"
+        },
+        "invoice": {
+          "title": "司法管辖区感知发票",
+          "desc": "每张发票均印有税务登记号和司法管辖区。"
+        },
+        "gdpr": {
+          "title": "GDPR 与 PDPA 就绪",
+          "desc": "完整数据导出,根据请求执行软删除,完整保留审计跟踪。"
+        }
+      }
+    }
   }
 }

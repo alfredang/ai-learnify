@@ -9,22 +9,26 @@ import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/s
 import { UserMenu } from "./user-menu"
 import { MobileNav } from "./mobile-nav"
 import { RoleSwitcher } from "./role-switcher"
+import { LanguageSwitcher } from "./language-switcher"
+import { CurrencySwitcher } from "./currency-switcher"
 import { useAuth } from "@/hooks/use-auth"
+import { useT } from "@/hooks/use-t"
 import { cn } from "@/lib/utils"
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-
-const mainNav = [
-  { href: "/courses", label: "E-Courses" },
-  { href: "/programmes", label: "Programmes" },
-  { href: "/categories", label: "Categories" },
-]
 
 export function Header() {
   const pathname = usePathname()
   const { user, isAuthenticated, isInstructor, isAdmin } = useAuth()
   const [searchQuery, setSearchQuery] = useState("")
   const router = useRouter()
+  const t = useT()
+
+  const mainNav = [
+    { href: "/courses", label: t("nav.eCourses") },
+    { href: "/programmes", label: t("nav.programmes") },
+    { href: "/categories", label: t("nav.categories") },
+  ]
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault()
@@ -83,7 +87,7 @@ export function Header() {
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               type="search"
-              placeholder="Search for courses..."
+              placeholder={t("nav.searchPlaceholder")}
               className="w-full pl-10"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
@@ -93,6 +97,10 @@ export function Header() {
 
         {/* Right side */}
         <div className="flex items-center space-x-2">
+          <div className="hidden md:flex items-center gap-1">
+            <LanguageSwitcher />
+            <CurrencySwitcher />
+          </div>
           {isAuthenticated ? (
             <>
               <div className="hidden md:flex items-center gap-3">
@@ -114,10 +122,10 @@ export function Header() {
           ) : (
             <>
               <Button variant="outline" asChild>
-                <Link href="/login">Log in</Link>
+                <Link href="/login">{t("auth.login")}</Link>
               </Button>
               <Button asChild>
-                <Link href="/register">Sign up</Link>
+                <Link href="/register">{t("auth.register")}</Link>
               </Button>
             </>
           )}

@@ -1,0 +1,132 @@
+{
+  "$meta": {
+    "locale": "vi",
+    "displayName": "Tiếng Việt",
+    "direction": "ltr"
+  },
+  "common": {
+    "save": "Lưu",
+    "cancel": "Hủy",
+    "delete": "Xóa",
+    "edit": "Chỉnh sửa",
+    "confirm": "Xác nhận",
+    "close": "Đóng",
+    "loading": "Đang tải…",
+    "error": "Đã xảy ra lỗi",
+    "required": "Bắt buộc"
+  },
+  "auth": {
+    "login": "Đăng nhập",
+    "register": "Đăng ký",
+    "logout": "Đăng xuất",
+    "email": "Email",
+    "password": "Mật khẩu",
+    "forgotPassword": "Quên mật khẩu?",
+    "tooManyAttempts": "Quá nhiều lần thử — vui lòng thử lại sau ít phút."
+  },
+  "nav": {
+    "home": "Trang chủ",
+    "courses": "Khóa học",
+    "programmes": "Chương trình",
+    "myCourses": "Khóa học của tôi",
+    "certificates": "Chứng chỉ",
+    "profile": "Hồ sơ",
+    "privacy": "Quyền riêng tư & dữ liệu",
+    "language": "Ngôn ngữ",
+    "currency": "Tiền tệ",
+    "currencyDisclaimer": "Chỉ hiển thị — thanh toán sử dụng tiền tệ đã đặt của khóa học.",
+    "eCourses": "Khóa học điện tử",
+    "categories": "Danh mục",
+    "searchPlaceholder": "Tìm kiếm khóa học...",
+    "myProfile": "Hồ sơ của tôi",
+    "accountSettings": "Cài đặt tài khoản"
+  },
+  "footer": {
+    "platform": "Nền tảng",
+    "company": "Công ty",
+    "support": "Hỗ trợ",
+    "browseCourses": "Duyệt khóa học",
+    "categories": "Danh mục",
+    "becomeDeveloper": "Trở thành Nhà phát triển khóa học",
+    "aboutUs": "Về chúng tôi",
+    "contact": "Liên hệ",
+    "careers": "Tuyển dụng",
+    "helpCenter": "Trung tâm trợ giúp",
+    "faq": "Câu hỏi thường gặp",
+    "terms": "Điều khoản dịch vụ",
+    "privacyPolicy": "Chính sách quyền riêng tư",
+    "refundPolicy": "Chính sách hoàn tiền",
+    "description": "Nền tảng học trực tuyến hàng đầu. Học kỹ năng mới, phát triển sự nghiệp và khám phá sở thích mới với các khóa học từ chuyên gia.",
+    "allRightsReserved": "Bảo lưu mọi quyền."
+  },
+  "learner": {
+    "welcomeBack": "Chào mừng trở lại, {name}",
+    "continueLearning": "Tiếp tục học",
+    "unlockCert": "Để lại phản hồi & mở khóa chứng chỉ",
+    "accessExpired": "Quyền truy cập khóa học này đã hết hạn.",
+    "accessExpiresIn": "Quyền truy cập hết hạn sau {days} ngày"
+  },
+  "checkout": {
+    "subtotal": "Tạm tính",
+    "discount": "Giảm giá",
+    "tax": "{label}",
+    "total": "Tổng cộng",
+    "payNow": "Thanh toán ngay"
+  },
+  "privacy": {
+    "downloadExport": "Tải xuống bản xuất JSON",
+    "deactivateAccount": "Vô hiệu hóa tài khoản",
+    "confirmEmail": "Nhập email của bạn để xác nhận: {email}",
+    "deactivateWarning": "Bạn sẽ không thể đăng nhập nữa. Hồ sơ được lưu giữ theo spec §17."
+  },
+  "home": {
+    "hero": {
+      "badge": "Tự học · Bất đồng bộ · Học mọi lúc",
+      "title": "Thăng tiến sự nghiệp kỹ thuật của bạn với",
+      "titleAccent": "Học trực tuyến",
+      "subtitle": "Nội dung học tập chuyên nghiệp được tạo bởi các chuyên gia trong lĩnh vực kỹ thuật xây dựng, bền vững và GenAI. Tích lũy điểm CPD theo nhịp độ của bạn.",
+      "exploreCta": "Khám phá khóa học",
+      "developerCta": "Trở thành nhà phát triển khóa học",
+      "developerCtaActive": "Đến trang nhà phát triển khóa học",
+      "feature1": "Học theo nhịp độ của bạn",
+      "feature2": "Chứng chỉ được công nhận CPD",
+      "feature3": "Truy cập 90 ngày"
+    },
+    "stats": {
+      "courses": "Khóa học",
+      "students": "Học viên",
+      "experts": "Chuyên gia",
+      "satisfaction": "Hài lòng"
+    },
+    "compliance": {
+      "title": "Xây dựng cho Châu Á & Tuân thủ Toàn cầu",
+      "subtitle": "Bản địa hóa cho khu vực, sẵn sàng cho học viên và đội ngũ tài chính toàn cầu.",
+      "cards": {
+        "multilang": {
+          "title": "Giao diện đa ngôn ngữ",
+          "desc": "English, 中文, Bahasa Melayu, ไทย, Tiếng Việt — chuyển đổi bất cứ lúc nào."
+        },
+        "utf8": {
+          "title": "Hỗ trợ tên UTF-8",
+          "desc": "Tên học viên hiển thị chính xác ở mọi loại chữ — Trung, Thái, Việt và nhiều ngôn ngữ khác."
+        },
+        "multicurrency": {
+          "title": "Hiển thị đa tiền tệ",
+          "desc": "Xem giá bằng SGD, MYR, USD, THB hoặc VND."
+        },
+        "tax": {
+          "title": "Hỗ trợ VAT / GST",
+          "desc": "Thuế được tính theo khu vực pháp lý của học viện — GST Singapore, VAT EU và nhiều hơn nữa."
+        },
+        "invoice": {
+          "title": "Hóa đơn theo khu vực pháp lý",
+          "desc": "Mã số thuế và khu vực pháp lý được in trên mọi hóa đơn."
+        },
+        "gdpr": {
+          "title": "Sẵn sàng GDPR & PDPA",
+          "desc": "Xuất dữ liệu đầy đủ, xóa mềm theo yêu cầu, lưu giữ nhật ký kiểm toán."
+        }
+      }
+    }
+  }
+}

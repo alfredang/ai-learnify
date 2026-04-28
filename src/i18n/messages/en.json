@@ -31,7 +31,33 @@
     "myCourses": "My Courses",
     "certificates": "Certificates",
     "profile": "Profile",
-    "privacy": "Privacy & data"
+    "privacy": "Privacy & data",
+    "language": "Language",
+    "currency": "Currency",
+    "currencyDisclaimer": "Display only — checkout uses the course's set currency.",
+    "eCourses": "E-Courses",
+    "categories": "Categories",
+    "searchPlaceholder": "Search for courses...",
+    "myProfile": "My Profile",
+    "accountSettings": "Account Settings"
+  },
+  "footer": {
+    "platform": "Platform",
+    "company": "Company",
+    "support": "Support",
+    "browseCourses": "Browse Courses",
+    "categories": "Categories",
+    "becomeDeveloper": "Become a Course Developer",
+    "aboutUs": "About Us",
+    "contact": "Contact",
+    "careers": "Careers",
+    "helpCenter": "Help Center",
+    "faq": "FAQ",
+    "terms": "Terms of Service",
+    "privacyPolicy": "Privacy Policy",
+    "refundPolicy": "Refund Policy",
+    "description": "The leading online learning platform. Learn new skills, advance your career, and explore new hobbies with expert-led courses.",
+    "allRightsReserved": "All rights reserved."
   },
   "learner": {
     "welcomeBack": "Welcome back, {name}",
@@ -52,5 +78,55 @@
     "deactivateAccount": "Deactivate account",
     "confirmEmail": "Type your email to confirm: {email}",
     "deactivateWarning": "You will no longer be able to sign in. Records are preserved per spec §17."
+  },
+  "home": {
+    "hero": {
+      "badge": "Self-paced · Asynchronous · Learn anytime",
+      "title": "Advance Your Engineering Career with",
+      "titleAccent": "e-Learning",
+      "subtitle": "Professional learning content created by subject matter experts in civil engineering, sustainability, and GenAI. Earn CPD points at your own pace.",
+      "exploreCta": "Explore Courses",
+      "developerCta": "Become a Course Developer",
+      "developerCtaActive": "Go to Course Developer",
+      "feature1": "Self-paced learning",
+      "feature2": "CPD-accredited certificates",
+      "feature3": "90-day access"
+    },
+    "stats": {
+      "courses": "Courses",
+      "students": "Students",
+      "experts": "Experts",
+      "satisfaction": "Satisfaction"
+    },
+    "compliance": {
+      "title": "Built for Asia & Global Compliance",
+      "subtitle": "Localised for the region, ready for global learners and finance teams.",
+      "cards": {
+        "multilang": {
+          "title": "Multi-language UI",
+          "desc": "English, 中文, Bahasa Melayu, ไทย, Tiếng Việt — switch anytime."
+        },
+        "utf8": {
+          "title": "UTF-8 names",
+          "desc": "Learner names render correctly in every script — Chinese, Thai, Vietnamese, and more."
+        },
+        "multicurrency": {
+          "title": "Multi-currency display",
+          "desc": "Browse prices in SGD, MYR, USD, THB or VND."
+        },
+        "tax": {
+          "title": "VAT / GST aware",
+          "desc": "Tax computed per academy jurisdiction — Singapore GST, EU VAT, and beyond."
+        },
+        "invoice": {
+          "title": "Jurisdiction-aware invoices",
+          "desc": "Tax registration number and jurisdiction printed on every receipt."
+        },
+        "gdpr": {
+          "title": "GDPR & PDPA ready",
+          "desc": "Full data export, soft-delete on request, audit trail preserved."
+        }
+      }
+    }
   }
 }
