@@ -1,147 +1,250 @@
-# IESA LMS
+<div align="center">
 
-Self-paced, async-only Learning Management System built on Next.js. Forked from Learnify (Udemy-clone), reshaped end-to-end against the IESA LMS product specification.
+# IESA LMS (Learnify)
 
-> **License:** Proprietary / All Rights Reserved. See `package.json`. This repo is **not** open-source — clone and modification rights are retained by the project owner.
+[![Next.js](https://img.shields.io/badge/Next.js-16-black?logo=next.js)](https://nextjs.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.x-3178C6?logo=typescript&logoColor=white)](https://typescriptlang.org/)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15+-4169E1?logo=postgresql&logoColor=white)](https://postgresql.org/)
+[![Prisma](https://img.shields.io/badge/Prisma-5.22-2D3748?logo=prisma)](https://prisma.io/)
+[![Stripe](https://img.shields.io/badge/Stripe-Payments-635BFF?logo=stripe&logoColor=white)](https://stripe.com/)
+[![Anthropic](https://img.shields.io/badge/Anthropic-Claude_AI-D4A574?logo=anthropic&logoColor=white)](https://anthropic.com/)
+[![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-4-06B6D4?logo=tailwindcss&logoColor=white)](https://tailwindcss.com/)
+[![License](https://img.shields.io/badge/License-Proprietary-red)](#license)
 
-## What this is
+**An international, scalable, self-learning LMS built for academies, course developers, and learners.**
 
-A multi-tenant LMS that supports:
+[Report Bug](https://github.com/alfredang/learnify-iesa-lms/issues) · [Request Feature](https://github.com/alfredang/learnify-iesa-lms/issues)
 
-- **6 user roles** — Platform Owner · Platform Support · Academy Admin · Course Developer · Marketer · Learner
-- **3 content models** — Complimentary Programmes (free, no expiry), E-Courses (paid/free), Programmes (course bundles with one shared 90-day window)
-- **8 lecture types** — Video, Text, Quiz, PDF, SCORM 1.2/2004, xAPI, Voice-Over Slides, Downloadable
-- **5 quiz question types** — multiple choice, multiple select, true/false, drag-and-drop ordering, open-ended
-- **4-way revenue distribution** — Marketer commission → Platform support fixed fee → Discount → Academy/Developer share (default 50/50)
-- **Immutable double-entry ledger** — every money movement writes append-only `LedgerEntry` rows; refunds are reversal entries; nightly invariant cron asserts every transaction sums to zero
-- **Auto-issued certificates** — gated by ≥50% content + ≥80% assessment + survey + before-expiry; PDF with QR verifier
-- **Gen-AI authoring** — per-tenant on/off, author-approval-gated drafts via Anthropic Claude
-- **GDPR/PDPA** — JSON data export, soft-deactivation, audit trail with 7-year retention
+</div>
 
-For the full specification see the IESA LMS spec PDF.
+## Screenshot
 
-## Tech stack
+![Screenshot](screenshot.png)
 
-| | |
-|---|---|
-| Framework | Next.js 16 (App Router, Server Components, Server Actions) |
-| Language | TypeScript (strict) |
-| Database | PostgreSQL via Prisma 5 |
-| Auth | NextAuth.js v5 (JWT, email+password for learners; email-or-username for staff) |
-| Payments | Stripe Checkout + webhooks |
-| Media | Cloudinary (signed uploads) |
-| AI | Anthropic Claude (Opus 4.7, prompt-cached) |
-| Email | Resend (transactional invoice + reminder emails) |
-| UI | Tailwind 4 + shadcn/ui (Radix primitives) |
+## About
 
-## Project structure
+IESA LMS is a multi-tenant, self-paced Learning Management System built on Next.js 16. Forked from Learnify (Udemy-clone) and reshaped end-to-end against the IESA LMS product specification, it delivers a production-grade platform for academies to publish, sell, and certify online courses.
+
+### Key Features
+
+- **6 User Roles** — Platform Owner, Platform Support, Academy Admin, Course Developer, Marketer, Learner
+- **3 Content Models** — Complimentary Programmes (free, no expiry), E-Courses (paid/free), Programmes (course bundles with shared 90-day access window)
+- **8 Lecture Types** — Video, Text, Quiz, PDF, SCORM 1.2/2004, xAPI, Voice-Over Slides, Downloadable
+- **5 Quiz Question Types** — Multiple choice, multiple select, true/false, drag-and-drop ordering, open-ended
+- **4-Way Revenue Distribution** — Marketer commission → Platform support fee → Discount → Academy/Developer split (default 50/50)
+- **Immutable Double-Entry Ledger** — Every money movement writes append-only ledger entries; refunds are reversal entries; nightly invariant cron asserts every transaction sums to zero
+- **Auto-Issued Certificates** — Gated by >=50% content + >=80% assessment + survey + before expiry; PDF with QR verification
+- **Gen-AI Authoring** — Per-tenant toggle, author-approval-gated drafts via Anthropic Claude (outlines, objectives, quizzes, voice-over text, metadata)
+- **GDPR/PDPA Compliance** — JSON data export, soft-deactivation, audit trail with 7-year retention
+
+## Tech Stack
+
+| Category | Technology |
+|----------|-----------|
+| **Framework** | Next.js 16 (App Router, Server Components, Server Actions, Turbopack) |
+| **Language** | TypeScript (strict mode) |
+| **Database** | PostgreSQL 15+ via Prisma 5 ORM |
+| **Auth** | NextAuth.js v5 (JWT, email+password for learners, OAuth for staff) |
+| **Payments** | Stripe (Checkout Sessions, Connect, Webhooks) |
+| **Media** | Cloudinary (signed uploads, video transcoding, CDN) |
+| **AI** | Anthropic Claude SDK (prompt caching, capability-based) |
+| **Email** | Resend (invoices, access reminders) |
+| **UI** | Tailwind CSS 4 + shadcn/ui (Radix primitives) |
+| **Forms** | React Hook Form + Zod validation |
+| **Data Fetching** | TanStack React Query |
+| **State** | Zustand |
+| **Rich Text** | TipTap |
+| **Drag & Drop** | dnd-kit |
+| **Charts** | Recharts |
+| **Icons** | Lucide React |
+| **Deploy** | Netlify (plugin-nextjs) |
+
+## Architecture
+
+```
+┌──────────────────────────────────────────────────────────────────┐
+│                          Frontend                                │
+│   Next.js 16 App Router  ·  React 19  ·  Tailwind + shadcn/ui   │
+│   Server Components (default)  ·  Client Components (opt-in)    │
+└──────────────────────────┬───────────────────────────────────────┘
+                           │
+┌──────────────────────────▼───────────────────────────────────────┐
+│                          Backend                                 │
+│   API Routes (REST)  ·  Server Actions  ·  NextAuth v5 (JWT)    │
+│   Stripe Webhooks  ·  Cron Jobs  ·  xAPI LRS  ·  AI Assist      │
+└──────────────────────────┬───────────────────────────────────────┘
+                           │
+┌──────────────────────────▼───────────────────────────────────────┐
+│                        Data Layer                                │
+│   PostgreSQL (Prisma ORM)  ·  Cloudinary (Media)  ·  Stripe     │
+│   Immutable Ledger  ·  Audit Log  ·  Feature Flags               │
+└──────────────────────────────────────────────────────────────────┘
+```
+
+## Project Structure
 
 ```
 src/
 ├── app/                        # Next.js App Router
 │   ├── (auth)/                 # Login, register, password reset
-│   ├── (browse)/               # Public catalogue, course detail
-│   ├── (student)/              # Learner pages (legacy route group)
-│   ├── (learner)/              # Learner pages (IESA route group)
-│   ├── (instructor)/           # Course Developer editor
+│   ├── (browse)/               # Public catalogue, course detail, search
+│   ├── (learner)/              # Learner dashboard & pages
+│   ├── (instructor)/           # Course Developer editor & dashboard
 │   ├── (academy)/              # Academy Admin tenant area
 │   ├── (marketer)/             # Marketer dashboard
-│   ├── (platform)/             # Platform Owner / Support
-│   └── api/                    # REST endpoints, cron, webhooks, AI, xAPI LRS
-├── components/                 # UI components (auth, courses, layout, shared, ui)
-├── lib/                        # Domain logic — ledger, payouts, certification,
-│                                 access, tax, ai, audit, env, image-hosts
-├── i18n/messages/{en,zh,ms}.json
-└── types/
+│   ├── (platform)/             # Platform Owner / Support dashboards
+│   ├── api/                    # 50+ REST endpoints, cron, webhooks, AI, xAPI
+│   ├── actions/                # Server Actions
+│   ├── checkout/               # Stripe checkout pages
+│   └── verify/                 # Public certificate verification
+├── components/                 # UI components
+│   ├── auth/                   # Login/register forms
+│   ├── courses/                # Editors, players, quiz builders
+│   ├── layout/                 # Header, footer, sidebars
+│   ├── shared/                 # AI assist, audit logs, reusable
+│   └── ui/                     # 22 shadcn/ui components
+├── lib/                        # Domain logic (33 modules)
+│   ├── ai/                     # Anthropic Claude integration
+│   ├── validations/            # Zod schemas
+│   ├── ledger.ts               # Double-entry ledger (spec §16)
+│   ├── certification.ts        # Cert eligibility engine (spec §12-13)
+│   ├── access.ts               # 90-day access enforcement
+│   ├── tax.ts                  # Jurisdiction-aware tax calc
+│   └── audit.ts                # Append-only audit logging
+├── i18n/messages/              # EN, ZH, MS translations
+├── providers/                  # Auth, React Query providers
+└── types/                      # TypeScript type definitions
 prisma/
-├── schema.prisma               # Full data model (~30 models, ~10 enums)
-└── seed.ts                     # Dev seed — DO NOT RUN IN PROD
-docs/
-├── lms-implementation-plan.md  # Phase 0–10 roadmap
-├── runbook.md                  # Backup/restore + incident response
-├── security-review.md          # OWASP top 10 walk-through
-└── uat-checklist.md            # End-to-end test script
-scripts/
-└── seed-filter-coverage.ts     # Idempotent dev tool — populates filters
+├── schema.prisma               # 30+ models, 13 enums (1,289 lines)
+├── seed.ts                     # Dev seed data
+└── migrations/                 # Database migrations
+docs/                           # 20 markdown docs (MkDocs)
+scripts/                        # 20 migration/verification utilities
 ```
 
-## Quick start
+## Getting Started
 
-Prereqs: Node 20+, PostgreSQL 15+ (or Neon).
+### Prerequisites
+
+- **Node.js** 20+
+- **PostgreSQL** 15+ (or [Neon](https://neon.tech) for cloud)
+
+### Installation
 
 ```bash
-# 1. Install (postinstall runs `prisma generate`)
+# 1. Clone the repository
+git clone https://github.com/alfredang/learnify-iesa-lms.git
+cd learnify-iesa-lms
+
+# 2. Install dependencies (postinstall runs prisma generate)
 npm install
 
-# 2. Configure
+# 3. Configure environment
 cp .env.example .env
-# fill in DATABASE_URL, AUTH_SECRET, NEXT_PUBLIC_APP_URL — others optional
-# every required value is validated at boot in src/lib/env.ts
+# Fill in DATABASE_URL, AUTH_SECRET, NEXT_PUBLIC_APP_URL (others optional)
 
-# 3. Push schema to DB
-npm run db:push          # dev — fast iteration
-# OR for production:
-# npx prisma migrate deploy
+# 4. Push schema to database
+npm run db:push
 
-# 4. (Optional, dev only) Seed test data
+# 5. (Optional) Seed test data
 npm run db:seed
-npx tsx scripts/seed-filter-coverage.ts   # adds Sector/CPD/Partner coverage
+npx tsx scripts/seed-filter-coverage.ts
 
-# 5. Run
-npm run dev              # http://localhost:3000
+# 6. Start dev server
+npm run dev
 ```
 
-## Test accounts (after `npm run db:seed`)
+### Test Accounts (after `npm run db:seed`)
 
 | Email | Role | Password |
-|---|---|---|
+|-------|------|----------|
 | `admin@learnify.com` | Platform Owner + Academy Admin | `password123` |
 | `john@learnify.com` | Course Developer | `password123` |
 | `sarah@learnify.com` | Course Developer | `password123` |
 | `student1@example.com` | Learner | `password123` |
 
-> **Do not run `npm run db:seed` against a production database.** Test passwords are visible in `prisma/seed.ts`.
+> **Warning:** Do not run `npm run db:seed` against a production database.
 
-## Optional integrations
+### Optional Integrations
 
-Every integration degrades gracefully when env vars are absent. Add as needed:
+Every integration degrades gracefully when env vars are absent:
 
-- `STRIPE_SECRET_KEY` + `STRIPE_PUBLISHABLE_KEY` + `STRIPE_WEBHOOK_SECRET` — paid checkout
-- `CLOUDINARY_CLOUD_NAME` + `CLOUDINARY_API_KEY` + `CLOUDINARY_API_SECRET` + `NEXT_PUBLIC_CLOUDINARY_*` — file uploads
-- `ANTHROPIC_API_KEY` — AI Assist drafting
-- `RESEND_API_KEY` + `EMAIL_FROM` — invoice + reminder emails
-- `AUTH_GOOGLE_*` / `AUTH_GITHUB_*` — OAuth for staff (learners are email-only per spec §3.1)
-- `CRON_SECRET` — protects `/api/cron/*` endpoints
-
-## Health & ops
-
-- `GET /api/health` — liveness + DB ping + integration status
-- `GET /api/cron/ledger-invariant` — nightly check; fails the dashboard banner if any transaction doesn't sum to zero
-- `GET /api/cron/access-reminders` — sends M1/M2/T-14d reminders when email is configured
-- See `docs/runbook.md` for backup/restore procedure and incident playbooks
+| Integration | Env Vars | Purpose |
+|-------------|----------|---------|
+| Stripe | `STRIPE_SECRET_KEY`, `STRIPE_PUBLISHABLE_KEY`, `STRIPE_WEBHOOK_SECRET` | Paid checkout |
+| Cloudinary | `CLOUDINARY_*`, `NEXT_PUBLIC_CLOUDINARY_*` | File/video uploads |
+| Anthropic | `ANTHROPIC_API_KEY` | AI Assist drafting |
+| Resend | `RESEND_API_KEY`, `EMAIL_FROM` | Invoice + reminder emails |
+| OAuth | `AUTH_GOOGLE_*`, `AUTH_GITHUB_*` | Staff OAuth (learners are email-only) |
+| Cron | `CRON_SECRET` | Protects `/api/cron/*` endpoints |
 
 ## Scripts
 
 | Command | Purpose |
-|---|---|
-| `npm run dev` | Dev server with HMR |
+|---------|---------|
+| `npm run dev` | Dev server with Turbopack HMR |
 | `npm run build` | Production build (`prisma generate && next build`) |
 | `npm run start` | Production server |
 | `npm run lint` | ESLint |
 | `npm run db:push` | Apply schema to DB (dev only) |
-| `npm run db:migrate` | Run Prisma migrations (use this in production) |
-| `npm run db:seed` | Seed test data (`tsx prisma/seed.ts`) |
+| `npm run db:migrate` | Run Prisma migrations (production) |
+| `npm run db:seed` | Seed test data |
 | `npm run db:studio` | Open Prisma Studio GUI |
 
-## Spec compliance
+## Health & Ops
 
-The codebase is audited against every section of the IESA LMS specification. The four learning-model invariants are guarded server-side (no live classes, no instructor-led sessions, no manual grading, no pre-payment invoices) — see `docs/security-review.md` and `docs/uat-checklist.md`.
+| Endpoint | Purpose |
+|----------|---------|
+| `GET /api/health` | Liveness + DB ping + integration status |
+| `GET /api/cron/ledger-invariant` | Nightly check — fails if any transaction doesn't sum to zero |
+| `GET /api/cron/access-reminders` | Sends M1/M2/T-14d reminders when email is configured |
 
-## Status
+See `docs/runbook.md` for backup/restore procedures and incident playbooks.
 
-- **Phases 0–10** functionally complete
-- **Phase 10b backlog** (deferred — listed in `docs/security-review.md`): strict CSP, Dependabot/Renovate, MFA, Sentry, SCORM cmi runtime, full next-intl locale routing, server-side PPT/PPTX conversion, Cloudinary→S3 mirror
+## Deployment
+
+### Netlify (Default)
+
+The project includes a `netlify.toml` for one-click deploy:
+
+```bash
+npm run build
+# Deploys .next/ with @netlify/plugin-nextjs
+```
+
+### Other Platforms
+
+See the deployment guides in `docs/deployment/`:
+- `docs/deployment/vercel.md`
+- `docs/deployment/railway.md`
+- `docs/deployment/docker.md`
 
 ## Contributing
 
-This is a closed-source project. External pull requests are not accepted at this time. Internal contributors should branch from `main`, follow the conventions in `docs/contributing.md`, and tick `docs/uat-checklist.md` before merge.
+This is a closed-source project. External pull requests are not accepted at this time. Internal contributors should branch from `main`, follow the conventions in `docs/contributing.md`, and complete `docs/uat-checklist.md` before merge.
+
+## Developed By
+
+**Tertiary Infotech Academy Pte. Ltd.**
+
+## Acknowledgements
+
+- [Next.js](https://nextjs.org/) — React framework
+- [Prisma](https://prisma.io/) — Database ORM
+- [shadcn/ui](https://ui.shadcn.com/) — UI component library
+- [Stripe](https://stripe.com/) — Payment processing
+- [Cloudinary](https://cloudinary.com/) — Media management
+- [Anthropic Claude](https://anthropic.com/) — AI-assisted authoring
+- [Resend](https://resend.com/) — Transactional email
+
+---
+
+<div align="center">
+
+If you have access to this repository, please give it a star!
+
+</div>
+
+## License
+
+Proprietary / All Rights Reserved. This repo is **not** open-source — clone and modification rights are retained by the project owner.
