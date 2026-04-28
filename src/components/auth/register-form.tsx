@@ -130,7 +130,7 @@ export function RegisterForm() {
             name="nameToBeCalled"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>User</FormLabel>
+                <FormLabel>Name to Be Called</FormLabel>
                 <FormControl>
                   <Input
                     placeholder="e.g. Alex"

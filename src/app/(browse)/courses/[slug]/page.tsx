@@ -317,6 +317,7 @@ export default async function CoursePage({ params, searchParams }: CoursePagePro
         ) : (
           <BuyNowButton
             courseId={course.id}
+            courseSlug={slug}
             isFree={isFreeCourse}
             expectedPrice={isFreeCourse ? undefined : effectivePrice}
           />
@@ -602,6 +603,32 @@ export default async function CoursePage({ params, searchParams }: CoursePagePro
                 </div>
               )}
 
+              {/* CPD Badge */}
+              {course.cpdCatalog && (
+                <div>
+                  <h2 className="text-2xl font-bold mb-4">CPD Accreditation</h2>
+                  <Card>
+                    <CardContent className="p-6">
+                      <div className="flex items-start gap-4">
+                        <div className="flex-shrink-0 rounded-full bg-blue-50 p-3 dark:bg-blue-950">
+                          <Award className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+                        </div>
+                        <div className="space-y-2">
+                          {course.cpdCatalog.name.split("\n").map((line, i) => (
+                            <p key={i} className="text-base font-medium text-foreground">
+                              {line}
+                            </p>
+                          ))}
+                          <Badge variant="outline" className="text-xs font-medium border-blue-300 text-blue-700 bg-blue-50 dark:bg-blue-950 dark:text-blue-300">
+                            {Number(course.cpdCatalog.points)} CPD Points
+                          </Badge>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+              )}
+
               {/* Partner */}
               <div>
                 <h2 className="text-2xl font-bold mb-4">Partner</h2>
@@ -674,7 +701,7 @@ export default async function CoursePage({ params, searchParams }: CoursePagePro
 
       {/* Mobile Fixed Bottom Bar */}
       {!isEnrolled && !isOwner && (
-        <MobileBottomBar courseId={course.id} />
+        <MobileBottomBar courseId={course.id} courseSlug={slug} />
       )}
     </div>
   )

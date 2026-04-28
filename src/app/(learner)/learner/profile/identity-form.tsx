@@ -80,7 +80,7 @@ export function IdentityForm({ initial }: Props) {
       </div>
 
       <div className="space-y-1.5">
-        <Label className="text-xs">User</Label>
+        <Label className="text-xs">Name to Be Called</Label>
         <Input
           value={nameToBeCalled}
           onChange={(e) => setNameToBeCalled(e.target.value)}

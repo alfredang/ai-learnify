@@ -92,7 +92,7 @@ export function RoleSidebar({ rootHref, roleLabel, items }: RoleSidebarProps) {
         onMouseLeave={() => setExpanded(false)}
         className={cn(
           "hidden md:flex flex-col border-r bg-background transition-all duration-200 ease-in-out",
-          expanded ? "w-[220px]" : "w-[68px]"
+          expanded ? "w-[280px]" : "w-[68px]"
         )}
       >
         <div className="flex items-center h-14 px-4 border-b">
