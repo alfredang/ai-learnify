@@ -35,10 +35,16 @@ export default async function BrandingPage() {
     )
   }
 
-  const banners = await prisma.banner.findMany({
-    where: { academyId },
-    orderBy: { position: "asc" },
-  })
+  const [banners, academy] = await Promise.all([
+    prisma.banner.findMany({
+      where: { academyId },
+      orderBy: { position: "asc" },
+    }),
+    prisma.academy.findUnique({
+      where: { id: academyId },
+      select: { bannerRotationMs: true },
+    }),
+  ])
 
   return (
     <div className="container max-w-4xl py-8 space-y-6">
@@ -51,6 +57,7 @@ export default async function BrandingPage() {
       </div>
       <BannerManager
         initialBanners={JSON.parse(JSON.stringify(banners))}
+        initialRotationMs={academy?.bannerRotationMs ?? 6000}
       />
     </div>
   )

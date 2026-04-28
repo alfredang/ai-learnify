@@ -26,11 +26,11 @@ interface LectureSidebarProps {
   lectureProgress: Record<string, { isCompleted: boolean; lastPosition: number }>
 }
 
-const lectureIcon = {
+const lectureIcon: Record<string, typeof Play> = {
   VIDEO: Play,
   TEXT: FileText,
   QUIZ: HelpCircle,
-} as const
+}
 
 export function LectureSidebar({
   courseId,

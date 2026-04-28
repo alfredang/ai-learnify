@@ -61,7 +61,7 @@ export async function GET(request: Request) {
       where: { userId },
       select: {
         role: true,
-        joinedAt: true,
+        createdAt: true,
         academy: { select: { id: true, name: true, slug: true } },
       },
     }),
@@ -132,7 +132,6 @@ export async function GET(request: Request) {
         id: true,
         courseId: true,
         amount: true,
-        currency: true,
         status: true,
         stripeSessionId: true,
         createdAt: true,

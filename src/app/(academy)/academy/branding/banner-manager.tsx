@@ -22,14 +22,48 @@ type Banner = {
 
 interface BannerManagerProps {
   initialBanners: Banner[]
+  initialRotationMs: number
 }
 
-export function BannerManager({ initialBanners }: BannerManagerProps) {
+export function BannerManager({ initialBanners, initialRotationMs }: BannerManagerProps) {
   const [banners, setBanners] = useState<Banner[]>(initialBanners)
   const [newImageUrl, setNewImageUrl] = useState("")
   const [newTitle, setNewTitle] = useState("")
   const [newTargetUrl, setNewTargetUrl] = useState("")
   const [creating, setCreating] = useState(false)
+  const [rotationSeconds, setRotationSeconds] = useState(
+    Math.round(initialRotationMs / 1000)
+  )
+  const [savedSeconds, setSavedSeconds] = useState(
+    Math.round(initialRotationMs / 1000)
+  )
+  const [savingRotation, setSavingRotation] = useState(false)
+
+  async function handleSaveRotation() {
+    const ms = rotationSeconds * 1000
+    if (ms < 2000 || ms > 60000) {
+      toast.error("Rotation must be between 2 and 60 seconds")
+      return
+    }
+    setSavingRotation(true)
+    try {
+      const res = await fetch("/api/academy/branding", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ bannerRotationMs: ms }),
+      })
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        throw new Error(err.error ?? "Save failed")
+      }
+      setSavedSeconds(rotationSeconds)
+      toast.success(`Rotation set to ${rotationSeconds}s`)
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Save failed")
+    } finally {
+      setSavingRotation(false)
+    }
+  }
 
   async function handleCreate() {
     if (!newImageUrl) {
@@ -97,6 +131,42 @@ export function BannerManager({ initialBanners }: BannerManagerProps) {
     <div className="space-y-6">
       <Card>
         <CardContent className="p-5 space-y-3">
+          <h2 className="font-semibold text-sm">Rotation timing</h2>
+          <p className="text-xs text-muted-foreground">
+            How long each banner is shown before fading to the next. Applies to
+            every visitor.
+          </p>
+          <div className="flex items-end gap-3">
+            <div className="w-32">
+              <Label htmlFor="rotation-seconds" className="text-xs">
+                Seconds per slide
+              </Label>
+              <Input
+                id="rotation-seconds"
+                type="number"
+                min={2}
+                max={60}
+                value={rotationSeconds}
+                onChange={(e) =>
+                  setRotationSeconds(Number(e.target.value) || 0)
+                }
+                disabled={savingRotation}
+              />
+            </div>
+            <Button
+              onClick={handleSaveRotation}
+              disabled={savingRotation || rotationSeconds === savedSeconds}
+            >
+              {savingRotation && (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              )}
+              Save
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+      <Card>
+        <CardContent className="p-5 space-y-3">
           <h2 className="font-semibold text-sm">Add a banner</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             <div className="md:col-span-2">
@@ -147,7 +217,7 @@ export function BannerManager({ initialBanners }: BannerManagerProps) {
       {banners.length === 0 ? (
         <Card>
           <CardContent className="py-10 text-center text-muted-foreground">
-            No banners yet. Add one above — it'll show on the public homepage and catalogue.
+            No banners yet. Add one above — it&apos;ll show on the public homepage and catalogue.
           </CardContent>
         </Card>
       ) : (

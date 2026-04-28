@@ -55,7 +55,7 @@ export function PdfViewer({
         <div className="relative bg-muted/30" style={{ height: "75vh" }}>
           {loadError ? (
             <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-6 text-sm text-muted-foreground">
-              <p>This PDF couldn't be embedded.</p>
+              <p>This PDF couldn&apos;t be embedded.</p>
               <p className="mt-1">
                 Use the <b>Open</b> or <b>Download</b> button above to view it.
               </p>

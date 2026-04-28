@@ -85,6 +85,7 @@ export async function finalizePurchase(input: FinalizeInput) {
       developerUserId: input.developerUserId,
       taxBps: input.taxBps,
       platformSupportFixedFeeMinor: platformSupportFixed,
+      promoCodeId: input.promoCodeId ?? null,
     }
 
     // 1. Write ledger legs.

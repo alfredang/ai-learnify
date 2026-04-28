@@ -124,6 +124,19 @@ model Academy {
   taxRegistrationNumber String?
   aiEnabled        Boolean @default(false)
   isActive         Boolean @default(true)
+  // Spec §4.1 — admin-configurable banner carousel rotation interval, in ms.
+  bannerRotationMs Int     @default(6000)
+
+  // Phase 9 — Catalogue language list. Drives the language filter on the
+  // public catalogue and the language picker in the course editor. Default
+  // seeded as English; admins extend per academy via /academy/settings.
+  supportedLanguages String[] @default(["English"])
+
+  // Spec §15 step 3 — author revenue split default. Basis points credited to
+  // DEVELOPER on each charge; remainder (after marketer commission, platform
+  // support fee and tax) goes to ACADEMY. Per-academy override of the global
+  // PlatformSettings.defaultDeveloperSplitBps; default 50/50.
+  defaultDeveloperSplitBps Int @default(5000)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1069,6 +1082,11 @@ model LedgerEntry {
   payoutGroup  PayoutGroup?
   payoutBatchId String?
   reversalOfId String?         // Set on refund legs pointing back to the original leg
+  // Spec §15 step 4 — campaign attribution. When a purchase used a promo
+  // code, every leg of that transaction carries the code id so the academy
+  // marketers page can surface per-code gross / discount / commission.
+  // Refunds copy this through reverseLedger so attribution stays clean.
+  promoCodeId  String?
   notes        String?
   metadata     Json?
   createdAt    DateTime        @default(now())
@@ -1077,6 +1095,7 @@ model LedgerEntry {
   payoutBatch  PayoutBatch?  @relation(fields: [payoutBatchId], references: [id])
   reversalOf   LedgerEntry?  @relation("LedgerReversal", fields: [reversalOfId], references: [id])
   reversals    LedgerEntry[] @relation("LedgerReversal")
+  promoCode    PromoCode?    @relation(fields: [promoCodeId], references: [id])
 
   @@index([parentTxnId])
   @@index([academyId])
@@ -1085,6 +1104,7 @@ model LedgerEntry {
   @@index([entryType])
   @@index([payoutGroup])
   @@index([payoutBatchId])
+  @@index([promoCodeId])
   @@index([createdAt])
   @@index([productType, productId])
 }
@@ -1109,8 +1129,9 @@ model PromoCode {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  academy        Academy @relation(fields: [academyId], references: [id], onDelete: Cascade)
-  marketer       User?   @relation("MarketerPromoCodes", fields: [marketerUserId], references: [id])
+  academy        Academy       @relation(fields: [academyId], references: [id], onDelete: Cascade)
+  marketer       User?         @relation("MarketerPromoCodes", fields: [marketerUserId], references: [id])
+  ledgerEntries  LedgerEntry[]
 
   @@index([academyId])
   @@index([marketerUserId])

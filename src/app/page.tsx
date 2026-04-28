@@ -120,10 +120,6 @@ export default async function HomePage() {
 
   return (
     <div className="flex flex-col">
-      {/* Phase 2: Advertising Banner Carousel (spec §4.1) */}
-      <section className="container pt-6">
-        <AdvertisingCarousel />
-      </section>
       {/* Hero Section */}
       <section className="relative py-8 md:py-12 bg-gradient-to-br from-primary/10 via-background to-background overflow-hidden">
         <div className="container">
@@ -183,6 +179,11 @@ export default async function HomePage() {
             </div>
           </div>
         </div>
+      </section>
+
+      {/* Phase 2: Advertising Banner Carousel (spec §4.1) */}
+      <section className="container py-8">
+        <AdvertisingCarousel />
       </section>
 
       {/* Stats Section */}

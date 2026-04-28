@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server"
+import type { Session } from "next-auth"
 import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { listCourseVersions, snapshotCourse } from "@/lib/course-versions"
@@ -15,7 +16,7 @@ import { listCourseVersions, snapshotCourse } from "@/lib/course-versions"
  */
 
 async function assertCourseAuthor(
-  session: Awaited<ReturnType<typeof auth>>,
+  session: Session | null,
   courseId: string
 ) {
   if (!session?.user) return { ok: false as const, status: 401, error: "Unauthorized" }

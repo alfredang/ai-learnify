@@ -13,8 +13,8 @@ export type BannerSlide = {
 
 interface BannerRotatorProps {
   slides: BannerSlide[]
-  // Milliseconds between auto-rotations. Academy Admin can override this in a
-  // later phase; default is 6s per IESA LMS spec §4.1 (auto-configurable).
+  // Spec §4.1 — admin-configurable rotation interval (ms). Sourced from
+  // Academy.bannerRotationMs; default 6000.
   intervalMs?: number
 }
 

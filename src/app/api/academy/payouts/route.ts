@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { z } from "zod"
+import type { Session } from "next-auth"
 import type { PayoutGroup } from "@prisma/client"
 import { auth } from "@/lib/auth"
 import {
@@ -28,9 +29,7 @@ const postSchema = z.object({
   preview: z.boolean().optional(),
 })
 
-type Session = Awaited<ReturnType<typeof auth>>
-
-function authorizeAcademyAdmin(session: Session, academyId: string): string | null {
+function authorizeAcademyAdmin(session: Session | null, academyId: string): string | null {
   if (!session?.user) return "Unauthorized"
   const isOwner = session.user.platformRole === "PLATFORM_OWNER"
   const isAdmin = session.user.memberships?.some(

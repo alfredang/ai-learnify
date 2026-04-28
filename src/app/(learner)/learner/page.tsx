@@ -6,6 +6,10 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Award, BookOpen, Gift, Layers, Receipt } from "lucide-react"
 
+function daysUntil(future: Date): number {
+  return Math.round((future.getTime() - Date.now()) / 86_400_000)
+}
+
 export default async function LearnerDashboardPage() {
   const session = await auth()
   if (!session?.user) return null
@@ -104,7 +108,7 @@ export default async function LearnerDashboardPage() {
                   const href = g.course
                     ? `/my-courses/${g.course.id}`
                     : `/learner/programmes`
-                  const days = Math.round((g.expiresAt.getTime() - Date.now()) / 86_400_000)
+                  const days = daysUntil(g.expiresAt)
                   return (
                     <li key={g.id} className="flex items-center justify-between gap-2">
                       <Link href={href} className="text-sm hover:underline truncate">

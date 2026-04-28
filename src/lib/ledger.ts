@@ -42,6 +42,8 @@ export type PurchaseInput = {
   taxBps?: number
   taxJurisdiction?: string
   platformSupportFixedFeeMinor?: number
+  /** Tag every leg with the promo code that earned the conversion. */
+  promoCodeId?: string | null
 }
 
 export type LegSpec = {
@@ -211,6 +213,7 @@ export async function writeLedger(
         amountMinor: leg.amountMinor,
         currency: input.currency,
         payoutGroup: leg.payoutGroup ?? null,
+        promoCodeId: input.promoCodeId ?? null,
         notes: leg.notes,
       },
     })
@@ -281,6 +284,7 @@ export async function reverseLedger(
         amountMinor: -leg.amountMinor, // flip sign
         currency: leg.currency,
         payoutGroup: leg.payoutGroup,
+        promoCodeId: leg.promoCodeId,
         reversalOfId: leg.id,
         notes: `Reversal of ${leg.entryType}`,
       },

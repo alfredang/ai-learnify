@@ -5,6 +5,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Layers } from "lucide-react"
 
+function daysUntil(future: Date): number {
+  return Math.round((future.getTime() - Date.now()) / 86_400_000)
+}
+
 export default async function LearnerProgrammesPage() {
   const session = await auth()
   if (!session?.user) return null
@@ -48,7 +52,7 @@ export default async function LearnerProgrammesPage() {
         <div className="space-y-4">
           {grants.map((g) => {
             if (!g.programme) return null
-            const days = Math.round((g.expiresAt.getTime() - Date.now()) / 86_400_000)
+            const days = daysUntil(g.expiresAt)
             return (
               <Card key={g.id}>
                 <CardHeader className="flex flex-row items-center justify-between pb-3">

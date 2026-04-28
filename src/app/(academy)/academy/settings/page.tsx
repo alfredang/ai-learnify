@@ -1,7 +1,12 @@
 import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
+import { Card, CardContent } from "@/components/ui/card"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { AcademyProfileForm } from "./academy-profile-form"
+import { LanguagesManager } from "./languages-manager"
+import { TaxRatesManager } from "./tax-rates-manager"
+import { CpdCatalogManager } from "./cpd-catalog-manager"
+import { CertificateRuleForm } from "./certificate-rule-form"
 
 async function resolveAcademyId(userId: string, platformRole: string) {
   if (platformRole === "PLATFORM_OWNER") {
@@ -22,98 +27,107 @@ export default async function AcademySettingsPage() {
     session.user.id,
     session.user.platformRole ?? "NONE"
   )
-  if (!academyId) return null
+  if (!academyId) {
+    return (
+      <div className="container py-12 max-w-3xl">
+        <Card>
+          <CardContent className="py-10 text-center text-muted-foreground">
+            No academy for this account.
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
 
-  const [academy, rule, template, sectorCount, cpdCount] = await Promise.all([
+  const [academy, rule, taxRates, cpd] = await Promise.all([
     prisma.academy.findUnique({
       where: { id: academyId },
-      select: { id: true, name: true, slug: true, primaryCurrency: true, taxJurisdiction: true, aiEnabled: true },
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+        brandingLogoUrl: true,
+        secondaryLogoUrl: true,
+        primaryCurrency: true,
+        taxJurisdiction: true,
+        taxRegistrationNumber: true,
+        aiEnabled: true,
+        bannerRotationMs: true,
+        supportedLanguages: true,
+        defaultDeveloperSplitBps: true,
+      },
     }),
     prisma.certificateRule.findFirst({ where: { academyId, isActive: true } }),
-    prisma.certificateTemplate.findFirst({ where: { academyId, isDefault: true } }),
-    prisma.sector.count({ where: { academyId } }),
-    prisma.cpdCatalog.count({ where: { academyId } }),
+    prisma.taxRate.findMany({
+      where: { academyId },
+      orderBy: [{ isActive: "desc" }, { jurisdiction: "asc" }, { appliesFrom: "desc" }],
+    }),
+    prisma.cpdCatalog.findMany({
+      where: { academyId },
+      orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
+    }),
   ])
 
+  if (!academy) return null
+
   return (
-    <div className="container max-w-4xl py-8 space-y-6">
+    <div className="container max-w-5xl py-8 space-y-6">
       <div>
         <h1 className="text-2xl font-bold">Settings</h1>
         <p className="text-muted-foreground text-sm mt-1">
-          Spec §4 step 2 configuration. Mutation UI ships in a later phase —
-          current values shown here.
+          Spec §4 step 2 — branding, languages, currency, tax, AI, CPD,
+          certification thresholds and the default author revenue split.
         </p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Academy</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2 text-sm">
-            <Row label="Name" value={academy?.name ?? "—"} />
-            <Row label="Slug" value={academy?.slug ?? "—"} />
-            <Row label="Currency" value={academy?.primaryCurrency ?? "USD"} />
-            <Row label="Tax jurisdiction" value={academy?.taxJurisdiction ?? "—"} />
-            <Row
-              label="Gen-AI authoring"
-              value={
-                <Badge variant={academy?.aiEnabled ? "default" : "outline"}>
-                  {academy?.aiEnabled ? "Enabled" : "Disabled"}
-                </Badge>
-              }
-            />
-          </CardContent>
-        </Card>
+      <Tabs defaultValue="profile">
+        <TabsList>
+          <TabsTrigger value="profile">Academy</TabsTrigger>
+          <TabsTrigger value="languages">Languages</TabsTrigger>
+          <TabsTrigger value="tax">Tax</TabsTrigger>
+          <TabsTrigger value="cpd">CPD</TabsTrigger>
+          <TabsTrigger value="cert">Certification</TabsTrigger>
+        </TabsList>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Certification rule</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2 text-sm">
-            <Row label="Min content completion" value={`${rule?.minContentPct ?? 50}%`} />
-            <Row label="Min assessment score" value={`${rule?.minAssessmentPct ?? 80}%`} />
-            <Row
-              label="Survey required"
-              value={rule?.requiresSurvey ?? true ? "Yes" : "No"}
-            />
-            <Row
-              label="Must be before expiry"
-              value={rule?.mustBeBeforeExpiry ?? true ? "Yes" : "No"}
-            />
-          </CardContent>
-        </Card>
+        <TabsContent value="profile" className="mt-6">
+          <AcademyProfileForm
+            initial={JSON.parse(JSON.stringify(academy))}
+          />
+        </TabsContent>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Certificate template</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2 text-sm">
-            <Row label="Template" value={template?.name ?? "—"} />
-            <Row label="Primary logo" value={template?.primaryLogoUrl ?? "—"} />
-            <Row label="Signatory" value={template?.signatoryName ?? "—"} />
-          </CardContent>
-        </Card>
+        <TabsContent value="languages" className="mt-6">
+          <LanguagesManager
+            initial={academy.supportedLanguages}
+          />
+        </TabsContent>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Catalogue</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2 text-sm">
-            <Row label="Sectors" value={sectorCount} />
-            <Row label="CPD entries" value={cpdCount} />
-          </CardContent>
-        </Card>
-      </div>
-    </div>
-  )
-}
+        <TabsContent value="tax" className="mt-6">
+          <TaxRatesManager
+            initialRates={JSON.parse(JSON.stringify(taxRates))}
+          />
+        </TabsContent>
 
-function Row({ label, value }: { label: string; value: React.ReactNode }) {
-  return (
-    <div className="flex items-center justify-between gap-4">
-      <span className="text-muted-foreground">{label}</span>
-      <span className="font-medium">{value}</span>
+        <TabsContent value="cpd" className="mt-6">
+          <CpdCatalogManager
+            initialEntries={JSON.parse(JSON.stringify(cpd))}
+          />
+        </TabsContent>
+
+        <TabsContent value="cert" className="mt-6">
+          <CertificateRuleForm
+            initial={
+              rule
+                ? {
+                    minContentPct: rule.minContentPct,
+                    minAssessmentPct: rule.minAssessmentPct,
+                    requiresSurvey: rule.requiresSurvey,
+                    mustBeBeforeExpiry: rule.mustBeBeforeExpiry,
+                  }
+                : null
+            }
+          />
+        </TabsContent>
+      </Tabs>
     </div>
   )
 }

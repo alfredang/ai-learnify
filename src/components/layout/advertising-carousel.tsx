@@ -19,7 +19,7 @@ export async function AdvertisingCarousel({
 }: AdvertisingCarouselProps) {
   const academy = await prisma.academy.findUnique({
     where: { slug: academySlug },
-    select: { id: true },
+    select: { id: true, bannerRotationMs: true },
   })
   if (!academy) return null
 
@@ -48,5 +48,5 @@ export async function AdvertisingCarousel({
     targetUrl: b.targetUrl,
   }))
 
-  return <BannerRotator slides={slides} />
+  return <BannerRotator slides={slides} intervalMs={academy.bannerRotationMs} />
 }

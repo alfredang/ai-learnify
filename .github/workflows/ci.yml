@@ -1,4 +1,4 @@
-name: CI
+name: CI/CD
 
 on:
   push:
@@ -12,9 +12,12 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  DATABASE_URL: "postgresql://ci:ci@localhost:5432/ci?schema=public"
+
 jobs:
-  build:
-    name: Typecheck, Lint, Prisma Validate
+  lint-typecheck:
+    name: Lint & Typecheck
     runs-on: ubuntu-latest
 
     steps:
@@ -32,16 +35,65 @@ jobs:
 
       - name: Prisma validate
         run: npx prisma validate
-        env:
-          DATABASE_URL: "postgresql://ci:ci@localhost:5432/ci?schema=public"
 
       - name: Prisma generate
         run: npx prisma generate
-        env:
-          DATABASE_URL: "postgresql://ci:ci@localhost:5432/ci?schema=public"
 
       - name: Typecheck
         run: npx tsc --noEmit
 
       - name: Lint
         run: npm run lint
+
+  build:
+    name: Production Build
+    runs-on: ubuntu-latest
+    needs: lint-typecheck
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+        env:
+          AUTH_SECRET: "ci-test-secret-not-real-at-least-32-chars"
+          NEXT_PUBLIC_APP_URL: "http://localhost:3000"
+
+  db-migrate:
+    name: Migrate Database
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Push schema to Neon
+        run: npx prisma db push --skip-generate --accept-data-loss
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+
+  # Vercel auto-deploys via GitHub integration:
+  #   - Push to main → Production deployment
+  #   - Pull request  → Preview deployment with comment
+  # No VERCEL_TOKEN needed — Vercel GitHub app handles it.

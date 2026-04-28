@@ -3,11 +3,15 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Activity, Database, Shield, Clock } from "lucide-react"
 
+function cutoff24h(): Date {
+  return new Date(Date.now() - 24 * 60 * 60 * 1000)
+}
+
 export default async function PlatformOpsPage() {
   // Sub-metrics Platform Support can see without any business data.
   const [auditCount24h, userActiveCount, academyCount, lastAuditEvent] = await Promise.all([
     prisma.auditLog.count({
-      where: { createdAt: { gt: new Date(Date.now() - 24 * 60 * 60 * 1000) } },
+      where: { createdAt: { gt: cutoff24h() } },
     }),
     prisma.user.count({ where: { isActive: true } }),
     prisma.academy.count({ where: { isActive: true } }),

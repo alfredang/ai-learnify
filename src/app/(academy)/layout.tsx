@@ -19,8 +19,10 @@ export default async function AcademyLayout({
     { href: "/academy", iconName: "LayoutDashboard", label: "Dashboard", matchExact: true },
     { href: "/academy/branding", iconName: "Image", label: "Branding" },
     { href: "/academy/courses", iconName: "BookOpen", label: "Catalogue" },
+    { href: "/academy/programmes", iconName: "Layers", label: "Programmes" },
     { href: "/academy/learners", iconName: "Users", label: "Learners" },
     { href: "/academy/marketers", iconName: "Megaphone", label: "Marketers" },
+    { href: "/academy/finance", iconName: "DollarSign", label: "Finance" },
     { href: "/academy/audit", iconName: "ScrollText", label: "Audit Log" },
     { href: "/academy/settings", iconName: "Settings", label: "Settings" },
   ]

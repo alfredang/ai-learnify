@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { z } from "zod"
+import type { Session } from "next-auth"
 import { AiCapability } from "@prisma/client"
 import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
@@ -35,7 +36,7 @@ const schema = z.object({
 })
 
 async function assertAcademyAuthor(
-  session: Awaited<ReturnType<typeof auth>>,
+  session: Session | null,
   academyId: string
 ) {
   if (!session?.user) return { ok: false as const, status: 401, error: "Unauthorized" }

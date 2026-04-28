@@ -47,3 +47,11 @@ next-env.d.ts
 # Local dev tools (don't commit binaries)
 /stripe.exe
 /stripe
+
+# Playwright MCP
+.playwright-mcp/
+
+# Temp screenshots
+localhost-*.png
+vercel-*.png
+homepage-*.png

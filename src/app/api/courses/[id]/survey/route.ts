@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { z } from "zod"
+import type { Session } from "next-auth"
 import { Prisma } from "@prisma/client"
 import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
@@ -47,7 +48,7 @@ const upsertSchema = z.object({
 })
 
 async function assertCourseAuthor(
-  session: Awaited<ReturnType<typeof auth>>,
+  session: Session | null,
   courseId: string
 ): Promise<{ ok: true; course: { id: string; academyId: string | null; instructorId: string } } | { ok: false; status: number; error: string }> {
   if (!session?.user) return { ok: false, status: 401, error: "Unauthorized" }
