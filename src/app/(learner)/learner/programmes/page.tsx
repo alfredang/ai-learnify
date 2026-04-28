@@ -31,11 +31,14 @@ export default async function LearnerProgrammesPage() {
 
   return (
     <div className="container max-w-5xl py-8 space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">My Programmes</h1>
-        <p className="text-muted-foreground text-sm mt-1">
-          Spec §6.3. Each programme uses one shared 90-day access window.
-        </p>
+      <div className="flex items-start gap-4">
+        <Layers className="h-10 w-10 text-primary mt-1" />
+        <div>
+          <h1 className="text-2xl font-bold">My Programmes</h1>
+          <p className="text-muted-foreground text-sm mt-1">
+            Bundled courses with a shared 3-month access window.
+          </p>
+        </div>
       </div>
 
       {grants.length === 0 ? (

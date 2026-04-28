@@ -4,11 +4,12 @@ import { prisma } from "@/lib/prisma"
 import {
   createCheckoutSession,
   createCartCheckoutSession,
+  createProgrammeCheckoutSession,
   isStripeConfigured,
   StripeNotConfiguredError,
 } from "@/lib/stripe"
 import { validatePromoCode } from "@/lib/promo-codes"
-import { grantCourseAccess } from "@/lib/access"
+import { grantCourseAccess, grantProgrammeAccess } from "@/lib/access"
 
 export async function POST(request: Request) {
   try {
@@ -28,6 +29,15 @@ export async function POST(request: Request) {
         session.user.email!,
         body.expectedPrices,
         body.promoCode
+      )
+    }
+
+    // Programme checkout
+    if (body.programmeId) {
+      return handleProgrammeCheckout(
+        body.programmeId,
+        session.user.id,
+        session.user.email!
       )
     }
 
@@ -302,6 +312,82 @@ async function handleCartCheckout(
     userId,
     userEmail,
     promoCodeId,
+  })
+
+  return NextResponse.json({ url: checkoutSession.url })
+}
+
+async function handleProgrammeCheckout(
+  programmeId: string,
+  userId: string,
+  userEmail: string
+) {
+  const programme = await prisma.programme.findUnique({
+    where: { id: programmeId, status: "PUBLISHED" },
+    include: {
+      courses: {
+        include: { course: { select: { id: true } } },
+      },
+    },
+  })
+
+  if (!programme) {
+    return NextResponse.json(
+      { message: "Programme not found" },
+      { status: 404 }
+    )
+  }
+
+  // Check if already has access
+  const existingGrant = await prisma.accessGrant.findFirst({
+    where: { userId, programmeId, productType: "PROGRAMME", isActive: true },
+  })
+
+  if (existingGrant) {
+    return NextResponse.json(
+      { message: "Already enrolled in this programme" },
+      { status: 400 }
+    )
+  }
+
+  const price = Number(programme.price)
+
+  // Free programme — grant access immediately
+  if (programme.isFree || price === 0) {
+    await grantProgrammeAccess(userId, programmeId)
+
+    // Also create enrollments for each course in the programme
+    for (const pc of programme.courses) {
+      const existing = await prisma.enrollment.findUnique({
+        where: { userId_courseId: { userId, courseId: pc.course.id } },
+      })
+      if (!existing) {
+        await prisma.enrollment.create({
+          data: { userId, courseId: pc.course.id },
+        })
+        await grantCourseAccess(userId, pc.course.id)
+        await prisma.course.update({
+          where: { id: pc.course.id },
+          data: { totalStudents: { increment: 1 } },
+        })
+      }
+    }
+
+    return NextResponse.json({
+      url: `/programmes/${programme.slug}/enroll?success=true`,
+      free: true,
+    })
+  }
+
+  // Paid programme — create Stripe checkout session
+  const checkoutSession = await createProgrammeCheckoutSession({
+    programmeId,
+    programmeSlug: programme.slug,
+    programmeName: programme.title,
+    programmePrice: price,
+    programmeImage: programme.thumbnail || undefined,
+    userId,
+    userEmail,
   })
 
   return NextResponse.json({ url: checkoutSession.url })

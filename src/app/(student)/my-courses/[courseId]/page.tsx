@@ -89,7 +89,7 @@ export async function generateMetadata({
   const session = await auth()
 
   if (!session?.user) {
-    return { title: "My Learning" }
+    return { title: "My Courses" }
   }
 
   const enrollment = await getEnrollment(courseId, session.user.id)

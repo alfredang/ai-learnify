@@ -11,8 +11,8 @@ import { EmptyState } from "@/components/shared/empty-state"
 import { BookOpen, Play } from "lucide-react"
 
 export const metadata: Metadata = {
-  title: "My Learning",
-  description: "Your enrolled courses",
+  title: "E-Courses",
+  description: "Your enrolled e-courses",
 }
 
 async function getEnrollments(userId: string) {
@@ -48,8 +48,16 @@ export default async function MyCoursesPage() {
   const enrollments = await getEnrollments(session.user.id)
 
   return (
-    <div className="container py-8">
-      <h1 className="text-3xl font-bold mb-8">My Learning</h1>
+    <div className="container max-w-5xl py-8 space-y-6">
+      <div className="flex items-start gap-4">
+        <BookOpen className="h-10 w-10 text-primary mt-1" />
+        <div>
+          <h1 className="text-2xl font-bold">E-Courses</h1>
+          <p className="text-muted-foreground text-sm mt-1">
+            Your enrolled e-courses. Pick up where you left off.
+          </p>
+        </div>
+      </div>
 
       {enrollments.length > 0 ? (
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">

@@ -126,6 +126,54 @@ export async function createCartCheckoutSession({
   return session
 }
 
+interface CreateProgrammeCheckoutSessionParams {
+  programmeId: string
+  programmeSlug: string
+  programmeName: string
+  programmePrice: number
+  programmeImage?: string
+  userId: string
+  userEmail: string
+}
+
+export async function createProgrammeCheckoutSession({
+  programmeId,
+  programmeSlug,
+  programmeName,
+  programmePrice,
+  programmeImage,
+  userId,
+  userEmail,
+}: CreateProgrammeCheckoutSessionParams) {
+  const session = await getStripe().checkout.sessions.create({
+    mode: "payment",
+    payment_method_types: ["card"],
+    customer_email: userEmail,
+    line_items: [
+      {
+        price_data: {
+          currency: "usd",
+          product_data: {
+            name: programmeName,
+            images: programmeImage ? [programmeImage] : [],
+          },
+          unit_amount: Math.round(programmePrice * 100),
+        },
+        quantity: 1,
+      },
+    ],
+    metadata: {
+      programmeId,
+      userId,
+      programmeCheckout: "true",
+    },
+    success_url: `${process.env.NEXT_PUBLIC_APP_URL}/programmes/${programmeSlug}/enroll?success=true`,
+    cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/programmes/${programmeSlug}?canceled=true`,
+  })
+
+  return session
+}
+
 export function formatPrice(price: number): string {
   return new Intl.NumberFormat("en-US", {
     style: "currency",

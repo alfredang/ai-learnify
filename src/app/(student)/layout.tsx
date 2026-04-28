@@ -13,9 +13,8 @@ export default async function StudentLayout({
   }
 
   const items: RoleSidebarItem[] = [
-    { href: "/learner", iconName: "LayoutDashboard", label: "Dashboard", matchExact: true },
-    { href: "/learner/complimentary", iconName: "Gift", label: "Complimentary" },
-    { href: "/my-courses", iconName: "BookOpen", label: "My Courses" },
+    { href: "/learner/complimentary", iconName: "Gift", label: "Complimentary Programme", matchExact: true },
+    { href: "/my-courses", iconName: "BookOpen", label: "E-Courses" },
     { href: "/learner/programmes", iconName: "Layers", label: "My Programmes" },
     { href: "/certificates", iconName: "Award", label: "Certificates" },
     { href: "/learner/invoices", iconName: "Receipt", label: "Invoices & Receipts" },

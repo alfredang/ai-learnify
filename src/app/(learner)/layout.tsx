@@ -14,7 +14,7 @@ export default async function LearnerLayout({
 
   const items: RoleSidebarItem[] = [
     { href: "/learner/complimentary", iconName: "Gift", label: "Complimentary Programme", matchExact: true },
-    { href: "/my-courses", iconName: "BookOpen", label: "My Courses" },
+    { href: "/my-courses", iconName: "BookOpen", label: "E-Courses" },
     { href: "/learner/programmes", iconName: "Layers", label: "My Programmes" },
     { href: "/certificates", iconName: "Award", label: "Certificates" },
     { href: "/learner/invoices", iconName: "Receipt", label: "Invoices & Receipts" },

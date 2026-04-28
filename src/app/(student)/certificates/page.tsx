@@ -192,7 +192,7 @@ export default async function CertificatesPage() {
               Complete a course to earn your first certificate!
             </p>
             <Button asChild>
-              <Link href="/my-courses">Go to My Learning</Link>
+              <Link href="/my-courses">Go to My Courses</Link>
             </Button>
           </CardContent>
         </Card>

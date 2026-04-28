@@ -15,7 +15,8 @@ import { useState } from "react"
 import { useRouter } from "next/navigation"
 
 const mainNav = [
-  { href: "/courses", label: "Courses" },
+  { href: "/courses", label: "E-Courses" },
+  { href: "/programmes", label: "Programmes" },
   { href: "/categories", label: "Categories" },
 ]
 
