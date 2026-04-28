@@ -34,6 +34,8 @@ import { IntendedLearnersSection } from "@/components/courses/editor-sections/in
 import { LandingPageSection } from "@/components/courses/editor-sections/landing-page"
 import { PricingSection } from "@/components/courses/editor-sections/pricing"
 import { SurveySection } from "@/components/courses/editor-sections/survey"
+import { AssessmentRulesSection } from "@/components/courses/editor-sections/assessment-rules"
+import { VersionsSection } from "@/components/courses/editor-sections/versions"
 
 async function fetchCourse(id: string) {
   const res = await fetch(`/api/courses/${id}`)
@@ -287,6 +289,7 @@ export default function CourseEditorPage() {
               <CourseContentEditor
                 courseId={courseId}
                 sections={course.sections || []}
+                academyId={course.academyId ?? null}
               />
             </div>
           )}
@@ -309,6 +312,19 @@ export default function CourseEditorPage() {
 
           {currentSection === "survey" && (
             <SurveySection courseId={courseId} onSaved={handleSaved} />
+          )}
+
+          {currentSection === "assessment" && (
+            <AssessmentRulesSection
+              courseId={courseId}
+              assessmentPassMark={course.assessmentPassMark ?? 80}
+              retakesAllowed={course.retakesAllowed ?? -1}
+              onSaved={handleSaved}
+            />
+          )}
+
+          {currentSection === "versions" && (
+            <VersionsSection courseId={courseId} onSaved={handleSaved} />
           )}
 
         </main>

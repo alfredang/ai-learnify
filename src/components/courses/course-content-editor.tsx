@@ -58,6 +58,11 @@ import {
 import { CSS } from "@dnd-kit/utilities"
 import { VideoUpload } from "@/components/courses/video-upload"
 import { QuizBuilder } from "@/components/courses/quiz-builder"
+import {
+  LecturePayloadEditor,
+  type LecturePayload,
+  type PayloadLectureType,
+} from "@/components/courses/editor-sections/lecture-payload-editor"
 import { quizDataSchema } from "@/lib/validations/course"
 import { cn, formatDuration } from "@/lib/utils"
 
@@ -73,7 +78,7 @@ interface Lecture {
   id: string
   title: string
   description: string | null
-  type: "VIDEO" | "TEXT" | "QUIZ" | "PDF" | "SCORM" | "XAPI" | "VOICE_OVER_SLIDES" | "DOWNLOADABLE"
+  type: "VIDEO" | "TEXT" | "QUIZ" | "PDF" | "SCORM" | "XAPI" | "VOICE_OVER_SLIDES" | "DOWNLOADABLE" | "HTML"
   position: number
   videoUrl: string | null
   videoDuration: number | null
@@ -85,6 +90,7 @@ interface Lecture {
 interface CourseContentEditorProps {
   courseId: string
   sections: Section[]
+  academyId?: string | null
 }
 
 const lectureTypeIcons = {
@@ -96,26 +102,111 @@ const lectureTypeIcons = {
   XAPI: FileText,
   VOICE_OVER_SLIDES: FileText,
   DOWNLOADABLE: FileText,
+  HTML: FileText,
 }
 
-// Phase 6 — per-type JSON payload authoring helpers.
-const PAYLOAD_PLACEHOLDERS: Record<string, string> = {
-  PDF: `{\n  "pdfUrl": "https://cdn.example.com/notes.pdf"\n}`,
-  SCORM: `{\n  "packageUrl": "https://cdn.example.com/scorm/course/",\n  "entryPoint": "index.html"\n}`,
-  XAPI: `{\n  "launchUrl": "https://content.example.com/launch?activityId=abc",\n  "activityId": "https://learnify.local/activities/abc"\n}`,
-  VOICE_OVER_SLIDES: `{\n  "pdfUrl": "https://cdn.example.com/slides.pdf",\n  "slides": [\n    { "page": 1, "voText": "Welcome to the course..." },\n    { "page": 2, "voText": "In this module you'll learn..." }\n  ]\n}`,
-  DOWNLOADABLE: `{\n  "files": [\n    { "name": "Workbook.pdf", "url": "https://cdn.example.com/workbook.pdf", "sizeBytes": 482000 }\n  ]\n}`,
-}
-const PAYLOAD_HINTS: Record<string, string> = {
-  PDF: "Points to a PDF URL the learner can view inline and download.",
-  SCORM: "packageUrl points at the hosted SCORM package root; entryPoint is the launch HTML relative to it. Full cmi tracking is not yet wired — follow-up item.",
-  XAPI: "launchUrl is the activity launch endpoint. Statements should POST to /api/xapi/statements.",
-  VOICE_OVER_SLIDES: "Host the slide deck as a PDF and list per-page voice-over text. Learner completion triggers when every slide is visited.",
-  DOWNLOADABLE: "List of resource files. Completion is manual — learner clicks 'mark complete' after reviewing.",
+const PAYLOAD_TYPES: PayloadLectureType[] = [
+  "PDF",
+  "SCORM",
+  "XAPI",
+  "VOICE_OVER_SLIDES",
+  "DOWNLOADABLE",
+  "HTML",
+]
+
+function isPayloadType(t: string): t is PayloadLectureType {
+  return (PAYLOAD_TYPES as string[]).includes(t)
 }
 
-function isPayloadType(t: string): boolean {
-  return ["PDF", "SCORM", "XAPI", "VOICE_OVER_SLIDES", "DOWNLOADABLE"].includes(t)
+type ValidationResult =
+  | { ok: true; payload: Record<string, unknown> }
+  | { ok: false; error: string }
+
+function validatePayload(
+  type: PayloadLectureType,
+  payload: LecturePayload
+): ValidationResult {
+  if (!payload) {
+    return { ok: false, error: "Please fill in the lecture content first." }
+  }
+  switch (type) {
+    case "PDF": {
+      const url = payload.pdfUrl
+      if (typeof url !== "string" || !url.trim()) {
+        return { ok: false, error: "PDF URL is required." }
+      }
+      return { ok: true, payload: { pdfUrl: url.trim() } }
+    }
+    case "SCORM": {
+      const pkg = payload.packageUrl
+      if (typeof pkg !== "string" || !pkg.trim()) {
+        return { ok: false, error: "SCORM package URL is required." }
+      }
+      const out: Record<string, unknown> = { packageUrl: pkg.trim() }
+      if (typeof payload.entryPoint === "string" && payload.entryPoint.trim()) {
+        out.entryPoint = payload.entryPoint.trim()
+      }
+      const v = payload.version
+      out.version = v === "SCORM_2004" ? "SCORM_2004" : "SCORM_1_2"
+      return { ok: true, payload: out }
+    }
+    case "XAPI": {
+      const launch = payload.launchUrl
+      if (typeof launch !== "string" || !launch.trim()) {
+        return { ok: false, error: "xAPI launch URL is required." }
+      }
+      const out: Record<string, unknown> = { launchUrl: launch.trim() }
+      if (typeof payload.activityId === "string" && payload.activityId.trim()) {
+        out.activityId = payload.activityId.trim()
+      }
+      return { ok: true, payload: out }
+    }
+    case "VOICE_OVER_SLIDES": {
+      const url = payload.pdfUrl
+      if (typeof url !== "string" || !url.trim()) {
+        return { ok: false, error: "Slides PDF URL is required." }
+      }
+      const slides = Array.isArray(payload.slides) ? payload.slides : []
+      return {
+        ok: true,
+        payload: {
+          pdfUrl: url.trim(),
+          slides: slides.filter(
+            (s): s is { page: number; voText: string } =>
+              !!s &&
+              typeof s === "object" &&
+              "page" in (s as Record<string, unknown>) &&
+              typeof (s as { page: unknown }).page === "number"
+          ),
+        },
+      }
+    }
+    case "DOWNLOADABLE": {
+      const files = Array.isArray(payload.files) ? payload.files : []
+      const cleaned = files
+        .filter(
+          (f): f is { name: string; url: string; sizeBytes?: number } =>
+            !!f &&
+            typeof f === "object" &&
+            "name" in (f as Record<string, unknown>) &&
+            "url" in (f as Record<string, unknown>) &&
+            typeof (f as { name: unknown }).name === "string" &&
+            typeof (f as { url: unknown }).url === "string"
+        )
+        .filter((f) => f.name.trim() && f.url.trim())
+      if (cleaned.length === 0) {
+        return { ok: false, error: "Add at least one downloadable file with a name and URL." }
+      }
+      return { ok: true, payload: { files: cleaned } }
+    }
+    case "HTML": {
+      const html = payload.html
+      if (typeof html !== "string" || !html.trim()) {
+        return { ok: false, error: "HTML content is required." }
+      }
+      return { ok: true, payload: { html } }
+    }
+  }
 }
 
 function SortableSectionItem({
@@ -197,6 +288,7 @@ function SortableLectureItem({
 export function CourseContentEditor({
   courseId,
   sections: initialSections,
+  academyId,
 }: CourseContentEditorProps) {
   const queryClient = useQueryClient()
 
@@ -233,13 +325,11 @@ export function CourseContentEditor({
     | "XAPI"
     | "VOICE_OVER_SLIDES"
     | "DOWNLOADABLE"
+    | "HTML"
   >("VIDEO")
   const [lectureIsFree, setLectureIsFree] = useState(false)
   const [lectureContent, setLectureContent] = useState("")
-  // Phase 6 — JSON payload editor backing for PDF / SCORM / XAPI /
-  // VOICE_OVER_SLIDES / DOWNLOADABLE lecture types. Stored as text and
-  // parsed on save.
-  const [lecturePayloadText, setLecturePayloadText] = useState("")
+  const [lecturePayload, setLecturePayload] = useState<LecturePayload>(null)
   const [lectureLoading, setLectureLoading] = useState(false)
   const [isVideoUploading, setIsVideoUploading] = useState(false)
 
@@ -465,7 +555,7 @@ export function CourseContentEditor({
     setLectureType("VIDEO")
     setLectureIsFree(false)
     setLectureContent("")
-    setLecturePayloadText("")
+    setLecturePayload(null)
     setVideoData(null)
     setIsVideoUploading(false)
     setAddLectureToSection(sectionId)
@@ -477,15 +567,12 @@ export function CourseContentEditor({
     setLectureType(lecture.type)
     setLectureIsFree(lecture.isFreePreview)
     setLectureContent(lecture.content || "")
-    setLecturePayloadText(
-      (lecture as unknown as { contentPayloadJson?: unknown }).contentPayloadJson
-        ? JSON.stringify(
-            (lecture as unknown as { contentPayloadJson?: unknown })
-              .contentPayloadJson,
-            null,
-            2
-          )
-        : ""
+    const existingPayload = (lecture as unknown as { contentPayloadJson?: unknown })
+      .contentPayloadJson
+    setLecturePayload(
+      existingPayload && typeof existingPayload === "object" && existingPayload !== null
+        ? (existingPayload as LecturePayload)
+        : null
     )
     setIsVideoUploading(false)
     setVideoData(
@@ -515,22 +602,14 @@ export function CourseContentEditor({
         return
       }
     }
-    let parsedPayload: Record<string, unknown> | undefined
-    if (
-      ["PDF", "SCORM", "XAPI", "VOICE_OVER_SLIDES", "DOWNLOADABLE"].includes(
-        lectureType
-      )
-    ) {
-      if (!lecturePayloadText.trim()) {
-        toast.error("Content payload (JSON) is required for this lecture type")
+    let payloadToSave: Record<string, unknown> | undefined
+    if (isPayloadType(lectureType)) {
+      const validation = validatePayload(lectureType, lecturePayload)
+      if (!validation.ok) {
+        toast.error(validation.error)
         return
       }
-      try {
-        parsedPayload = JSON.parse(lecturePayloadText) as Record<string, unknown>
-      } catch {
-        toast.error("Content payload must be valid JSON")
-        return
-      }
+      payloadToSave = validation.payload
     }
     setLectureLoading(true)
     try {
@@ -552,8 +631,8 @@ export function CourseContentEditor({
                 }
               : {
                   content: lectureContent.trim() || undefined,
-                  ...(parsedPayload
-                    ? { contentPayloadJson: parsedPayload }
+                  ...(payloadToSave
+                    ? { contentPayloadJson: payloadToSave }
                     : {}),
                 }),
           }),
@@ -591,25 +670,14 @@ export function CourseContentEditor({
         return
       }
     }
-    let parsedPayload: Record<string, unknown> | null | undefined
-    if (
-      ["PDF", "SCORM", "XAPI", "VOICE_OVER_SLIDES", "DOWNLOADABLE"].includes(
-        lectureType
-      )
-    ) {
-      if (!lecturePayloadText.trim()) {
-        toast.error("Content payload (JSON) is required for this lecture type")
+    let payloadToSave: Record<string, unknown> | null = null
+    if (isPayloadType(lectureType)) {
+      const validation = validatePayload(lectureType, lecturePayload)
+      if (!validation.ok) {
+        toast.error(validation.error)
         return
       }
-      try {
-        parsedPayload = JSON.parse(lecturePayloadText) as Record<string, unknown>
-      } catch {
-        toast.error("Content payload must be valid JSON")
-        return
-      }
-    } else {
-      // Switched away from a payload-backed type — clear any stored payload.
-      parsedPayload = null
+      payloadToSave = validation.payload
     }
     setLectureLoading(true)
     try {
@@ -623,7 +691,7 @@ export function CourseContentEditor({
             description: lectureDesc.trim() || null,
             type: lectureType,
             isFreePreview: lectureIsFree,
-            contentPayloadJson: parsedPayload ?? null,
+            contentPayloadJson: payloadToSave,
             ...(lectureType === "VIDEO"
               ? {
                   videoUrl: videoData?.videoUrl || "",
@@ -1074,6 +1142,7 @@ export function CourseContentEditor({
                   <SelectItem value="TEXT">Text</SelectItem>
                   <SelectItem value="QUIZ">Quiz</SelectItem>
                   <SelectItem value="PDF">PDF</SelectItem>
+                  <SelectItem value="HTML">HTML</SelectItem>
                   <SelectItem value="SCORM">SCORM package</SelectItem>
                   <SelectItem value="XAPI">xAPI launch</SelectItem>
                   <SelectItem value="VOICE_OVER_SLIDES">Voice-over slides</SelectItem>
@@ -1138,19 +1207,24 @@ export function CourseContentEditor({
             {isPayloadType(lectureType) && (
               <>
                 <Separator />
-                <div className="space-y-2">
-                  <Label>Content payload (JSON)</Label>
-                  <Textarea
-                    rows={8}
-                    value={lecturePayloadText}
-                    onChange={(e) => setLecturePayloadText(e.target.value)}
-                    placeholder={PAYLOAD_PLACEHOLDERS[lectureType]}
-                    className="font-mono text-xs"
+                <div className="flex items-center gap-3">
+                  <Switch
+                    id={`payload-free-${lectureType}`}
+                    checked={lectureIsFree}
+                    onCheckedChange={setLectureIsFree}
                   />
-                  <p className="text-xs text-muted-foreground">
-                    {PAYLOAD_HINTS[lectureType]}
-                  </p>
+                  <Label htmlFor={`payload-free-${lectureType}`} className="text-sm">
+                    Free Preview
+                  </Label>
                 </div>
+                <LecturePayloadEditor
+                  type={lectureType}
+                  value={lecturePayload}
+                  onChange={setLecturePayload}
+                  disabled={lectureLoading}
+                  academyId={academyId ?? null}
+                  courseId={courseId}
+                />
               </>
             )}
           </div>
@@ -1217,6 +1291,7 @@ export function CourseContentEditor({
                   <SelectItem value="TEXT">Text</SelectItem>
                   <SelectItem value="QUIZ">Quiz</SelectItem>
                   <SelectItem value="PDF">PDF</SelectItem>
+                  <SelectItem value="HTML">HTML</SelectItem>
                   <SelectItem value="SCORM">SCORM package</SelectItem>
                   <SelectItem value="XAPI">xAPI launch</SelectItem>
                   <SelectItem value="VOICE_OVER_SLIDES">Voice-over slides</SelectItem>
@@ -1285,19 +1360,24 @@ export function CourseContentEditor({
             {isPayloadType(lectureType) && (
               <>
                 <Separator />
-                <div className="space-y-2">
-                  <Label>Content payload (JSON)</Label>
-                  <Textarea
-                    rows={8}
-                    value={lecturePayloadText}
-                    onChange={(e) => setLecturePayloadText(e.target.value)}
-                    placeholder={PAYLOAD_PLACEHOLDERS[lectureType]}
-                    className="font-mono text-xs"
+                <div className="flex items-center gap-3">
+                  <Switch
+                    id={`payload-free-${lectureType}`}
+                    checked={lectureIsFree}
+                    onCheckedChange={setLectureIsFree}
                   />
-                  <p className="text-xs text-muted-foreground">
-                    {PAYLOAD_HINTS[lectureType]}
-                  </p>
+                  <Label htmlFor={`payload-free-${lectureType}`} className="text-sm">
+                    Free Preview
+                  </Label>
                 </div>
+                <LecturePayloadEditor
+                  type={lectureType}
+                  value={lecturePayload}
+                  onChange={setLecturePayload}
+                  disabled={lectureLoading}
+                  academyId={academyId ?? null}
+                  courseId={courseId}
+                />
               </>
             )}
           </div>

@@ -123,6 +123,67 @@ Rules:
 - summary: 2–4 sentences, ≤ 400 chars. Neutral tone.
 - keyPoints: 3–6 short bullets capturing the core takeaways. Plain sentences, no bullet characters.
 - Return ONLY the JSON object.`,
+
+  COURSE_SCOPING: `${BASE_GUARDRAILS}
+
+Task: produce a **course scope brief** — the planning artefact a Course Developer uses before writing the outline. Given a topic + audience + constraints, return target hours, suggested module count, prerequisites and a recommended learning path.
+
+Output format: a JSON object matching:
+{
+  "title": string,
+  "audience": string,
+  "level": "BEGINNER" | "INTERMEDIATE" | "ADVANCED" | "ALL_LEVELS",
+  "targetHours": number,
+  "moduleCount": number,
+  "modules": [
+    { "name": string, "summary": string, "estimatedHours": number, "outcomes": string[] }
+  ],
+  "prerequisites": string[],
+  "recommendedPath": string,
+  "successCriteria": string[]
+}
+
+Rules:
+- targetHours reflects total self-paced async consumption (no instructor time). Typical scopes: 2–4h micro-course, 4–10h focused course, 10–25h deep course.
+- moduleCount is between 3 and 10. \`modules.length === moduleCount\`.
+- Each module must have ≥ 1 outcome. outcomes start with action verbs (Apply, Build, Diagnose).
+- prerequisites: 0–6 short bullets — what a learner needs to know before starting. Empty array if none.
+- recommendedPath: one paragraph describing the order modules should be consumed in and why.
+- successCriteria: 3–5 observable signs the learner has mastered the course.
+- Return ONLY the JSON object.`,
+
+  MEDIA_CURATION: `${BASE_GUARDRAILS}
+
+Task: rank **licence-free media candidates** the platform retrieved from Openverse and Wikimedia. The user turn includes a JSON array of candidates with provider, licence, attribution and source URL. Pick the best 5–10, deduplicate near-identical hits, and return them in a structure ready to write into the Resource model.
+
+Output format: a JSON object matching:
+{
+  "query": string,
+  "results": [
+    {
+      "providerId": string,
+      "title": string,
+      "url": string,
+      "thumbnailUrl": string | null,
+      "license": string,
+      "licenseVersion": string | null,
+      "licenseUrl": string | null,
+      "sourceUrl": string | null,
+      "sourceProvider": "openverse" | "wikimedia",
+      "attribution": string | null,
+      "creator": string | null,
+      "creatorUrl": string | null,
+      "rationale": string
+    }
+  ]
+}
+
+Rules:
+- Drop any candidate whose \`license\` is unknown, missing, or "all rights reserved".
+- Prefer CC0, CC-BY, public domain, then CC-BY-SA. Skip non-commercial-only (NC) unless the candidate set is otherwise empty.
+- Prefer relevant titles. \`rationale\` is one short sentence ("Clean composition matching topic", "Public domain, no attribution required").
+- Preserve the exact licence string from the input — do not invent licence names.
+- Return ONLY the JSON object.`,
 }
 
 /**
@@ -135,4 +196,6 @@ export const CAPABILITY_LABELS: Record<AiCapability, string> = {
   QUIZ: "Quiz questions",
   METADATA: "Title / description / tags",
   SUMMARISE: "Summary",
+  COURSE_SCOPING: "Course scope brief",
+  MEDIA_CURATION: "Licence-free media",
 }

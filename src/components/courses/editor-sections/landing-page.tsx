@@ -32,6 +32,7 @@ import {
 } from "@/components/ui/form"
 import { RichTextEditor } from "@/components/shared/rich-text-editor"
 import { AiAssistButton } from "@/components/shared/ai-assist-button"
+import { CourseScopingButton } from "@/components/shared/course-scoping-button"
 import {
   validateImageUrl,
   explainImageUrlReason,
@@ -53,9 +54,12 @@ const landingPageSchema = z.object({
   categoryId: z.string().min(1, "Please select a category"),
   level: z.enum(["BEGINNER", "INTERMEDIATE", "ADVANCED", "ALL_LEVELS"]),
   language: z.string().optional(),
+  cpdCatalogId: z.string().nullable().optional(),
 })
 
 type LandingPageInput = z.infer<typeof landingPageSchema>
+
+const CPD_NONE = "__none__"
 
 interface LandingPageProps {
   courseId: string
@@ -69,6 +73,7 @@ interface LandingPageProps {
     thumbnail?: string | null
     previewVideoUrl?: string | null
     academyId?: string | null
+    cpdCatalogId?: string | null
   }
   onSaved: () => void
 }
@@ -77,6 +82,15 @@ async function fetchCategories() {
   const res = await fetch("/api/categories")
   if (!res.ok) throw new Error("Failed to fetch categories")
   return res.json()
+}
+
+type CpdOption = { id: string; name: string; points: number | string }
+
+async function fetchCpdOptions(courseId: string): Promise<CpdOption[]> {
+  const res = await fetch(`/api/courses/${courseId}/cpd-options`)
+  if (!res.ok) return []
+  const json = await res.json()
+  return Array.isArray(json.entries) ? json.entries : []
 }
 
 type UploadState = "idle" | "uploading" | "success" | "error"
@@ -224,6 +238,11 @@ export function LandingPageSection({
     queryFn: fetchCategories,
   })
 
+  const { data: cpdOptions = [] } = useQuery({
+    queryKey: ["cpd-options", courseId],
+    queryFn: () => fetchCpdOptions(courseId),
+  })
+
   const form = useForm<LandingPageInput>({
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     resolver: zodResolver(landingPageSchema) as any,
@@ -234,6 +253,7 @@ export function LandingPageSection({
       categoryId: course.categoryId || "",
       level: (course.level as LandingPageInput["level"]) || "ALL_LEVELS",
       language: course.language || "",
+      cpdCatalogId: course.cpdCatalogId ?? null,
     },
   })
 
@@ -261,6 +281,10 @@ export function LandingPageSection({
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             ...values,
+            cpdCatalogId:
+              values.cpdCatalogId === CPD_NONE
+                ? null
+                : values.cpdCatalogId ?? null,
             thumbnail: thumbnailUrl,
             previewVideoUrl: previewVideoUrl,
           }),
@@ -327,15 +351,65 @@ export function LandingPageSection({
 
   return (
     <div className="max-w-3xl space-y-8">
-      <div>
-        <h2 className="text-xl font-bold">Course landing page</h2>
-        <p className="text-sm text-muted-foreground mt-1">
-          Your course landing page is crucial to your success. If it&apos;s done
-          right, it can also help you gain visibility in search engines like
-          Google. As you complete this section, think about creating a compelling
-          Course Landing Page that demonstrates why someone would want to enroll
-          in your course.
-        </p>
+      <div className="flex items-start justify-between gap-4 flex-wrap">
+        <div>
+          <h2 className="text-xl font-bold">Course landing page</h2>
+          <p className="text-sm text-muted-foreground mt-1">
+            Your course landing page is crucial to your success. If it&apos;s done
+            right, it can also help you gain visibility in search engines like
+            Google. As you complete this section, think about creating a compelling
+            Course Landing Page that demonstrates why someone would want to enroll
+            in your course.
+          </p>
+        </div>
+        {course.academyId && (
+          <CourseScopingButton
+            academyId={course.academyId}
+            initialTitle={form.getValues("title") || ""}
+            context={{ courseId }}
+            onAccept={(brief) => {
+              if (brief.title) {
+                form.setValue("title", brief.title, { shouldDirty: true })
+              }
+              if (brief.recommendedPath) {
+                // Drop the recommended path into the description as a
+                // starting point — the author will clean it up.
+                form.setValue(
+                  "description",
+                  `<p>${brief.recommendedPath}</p>` +
+                    (brief.modules
+                      ? "<h3>Modules</h3><ol>" +
+                        brief.modules
+                          .map(
+                            (m) =>
+                              `<li><strong>${m.name}</strong> — ${m.summary}</li>`
+                          )
+                          .join("") +
+                        "</ol>"
+                      : ""),
+                  { shouldDirty: true }
+                )
+              }
+              if (brief.level) {
+                const allowed = [
+                  "BEGINNER",
+                  "INTERMEDIATE",
+                  "ADVANCED",
+                  "ALL_LEVELS",
+                ] as const
+                if (
+                  (allowed as readonly string[]).includes(brief.level)
+                ) {
+                  form.setValue(
+                    "level",
+                    brief.level as (typeof allowed)[number],
+                    { shouldDirty: true }
+                  )
+                }
+              }
+            }}
+          />
+        )}
       </div>
 
       <Form {...form}>
@@ -548,6 +622,48 @@ export function LandingPageSection({
                 )}
               />
             </div>
+          </div>
+
+          {/* Spec §13 — CPD attached to this course is snapshotted onto
+              every certificate issued for this course. */}
+          <div className="space-y-3">
+            <h3 className="text-sm font-bold">Continuing Professional Development</h3>
+            <FormField
+              control={form.control}
+              name="cpdCatalogId"
+              render={({ field }) => (
+                <FormItem>
+                  <Select
+                    key={formResetKey}
+                    onValueChange={(v) =>
+                      field.onChange(v === CPD_NONE ? null : v)
+                    }
+                    value={field.value ?? CPD_NONE}
+                    disabled={isSaving}
+                  >
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="-- Select CPD --" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value={CPD_NONE}>None</SelectItem>
+                      {cpdOptions.map((c) => (
+                        <SelectItem key={c.id} value={c.id}>
+                          {c.name} · {Number(c.points)} CPD
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">
+                    {cpdOptions.length === 0
+                      ? "No CPD entries yet. Ask your Academy Admin to create one in /academy/settings → CPD."
+                      : "Used on the certificate's CPD line and as a course filter on the catalogue."}
+                  </p>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
           </div>
 
           {/* Course image — Udemy side-by-side layout */}

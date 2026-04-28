@@ -6,6 +6,13 @@ import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { runAiAssist } from "@/lib/ai/assist"
 
+// The Agent SDK spawns the bundled Claude Code binary as a subprocess —
+// must run on the Node.js runtime, never the Edge runtime.
+export const runtime = "nodejs"
+// Authoring drafts can take longer than the default 10s when prompt
+// caches miss. 60s gives generous headroom on Netlify Functions.
+export const maxDuration = 60
+
 /**
  * Phase 7 — Spec §8.1 AI Assist endpoint.
  *
@@ -28,11 +35,11 @@ const schema = z.object({
     "QUIZ",
     "METADATA",
     "SUMMARISE",
+    "COURSE_SCOPING",
   ]),
   academyId: z.string().min(1),
   userPrompt: z.string().min(1).max(20_000),
   context: z.record(z.string(), z.unknown()).optional(),
-  maxTokens: z.number().int().min(256).max(8192).optional(),
 })
 
 async function assertAcademyAuthor(
@@ -78,16 +85,14 @@ export async function POST(request: Request) {
       userId: session!.user.id,
       userPrompt: input.userPrompt,
       context: input.context,
-      maxTokens: input.maxTokens,
     })
     return NextResponse.json(result)
   } catch (e) {
     const msg = e instanceof Error ? e.message : "AI assist failed"
-    // AI disabled / missing API key → 409 (caller action required). Other
-    // errors → 500.
+    // AI disabled / no credential configured → 409 (caller action required).
     const status =
       msg.includes("disabled for this academy") ||
-      msg.includes("ANTHROPIC_API_KEY not set")
+      msg.includes("AI is not configured")
         ? 409
         : 500
     return NextResponse.json({ error: msg }, { status })

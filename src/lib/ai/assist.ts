@@ -1,35 +1,25 @@
-import Anthropic from "@anthropic-ai/sdk"
 import { createHash } from "node:crypto"
 import { AiCapability, type Prisma } from "@prisma/client"
 import { prisma } from "@/lib/prisma"
 import { audit } from "@/lib/audit"
 import { SYSTEM_PROMPTS } from "@/lib/ai/prompts"
+import { runAgentQuery, tryParseJson } from "@/lib/ai/agent"
 
 /**
  * Phase 7 — central AI assist service (spec §8).
  *
- *   - Single shared Anthropic client (server-only).
- *   - Prompt caching on the capability system prompt (5-min TTL, prefix
- *     match). Volatile per-call content goes in the user turn after the
- *     cached prefix, so the cache stays warm across authoring sessions.
- *   - Every call writes an AiInteraction row so §8.3 audit is intact.
- *   - Tenant gate: refuses if academy.aiEnabled is false.
- *   - Output is always a DRAFT. Caller decides whether to approve.
+ *   - All capabilities run through `runAgentQuery()` from
+ *     `@anthropic-ai/claude-agent-sdk` so the same per-tenant Claude
+ *     credential, audit trail, and chokepoint applies to every draft.
+ *   - The single shared system prompt per capability stays stable across
+ *     calls so the model's prompt cache (5-min TTL prefix match) keeps
+ *     warm. Volatile content (course title, existing copy) is sent in the
+ *     user turn after the cached prefix.
+ *   - Every call writes an `AiInteraction` row + audit log entry.
+ *   - Tenant gate: refuses if `academy.aiEnabled` is false.
+ *   - Output is always a DRAFT — `approved=false` until the author hits
+ *     "Use this draft" in the UI.
  */
-
-const MODEL_DEFAULT = "claude-opus-4-7"
-
-let _client: Anthropic | null = null
-function client(): Anthropic {
-  if (_client) return _client
-  if (!process.env.ANTHROPIC_API_KEY) {
-    throw new Error(
-      "ANTHROPIC_API_KEY not set — add it to .env before using AI assist."
-    )
-  }
-  _client = new Anthropic()
-  return _client
-}
 
 export type AiAssistInput = {
   capability: AiCapability
@@ -41,8 +31,8 @@ export type AiAssistInput = {
   context?: Record<string, unknown>
   /** Override model (default claude-opus-4-7). */
   model?: string
-  /** Override max_tokens (default 2048). */
-  maxTokens?: number
+  /** Override max conversation turns. Default 1 (single round-trip). */
+  maxTurns?: number
 }
 
 export type AiAssistResult = {
@@ -57,6 +47,7 @@ export type AiAssistResult = {
     outputTokens: number
     cachedTokens: number
     model: string
+    costUsd: number
   }
   approvalRequired: true
 }
@@ -65,24 +56,14 @@ function sha(s: string): string {
   return createHash("sha256").update(s).digest("hex").slice(0, 32)
 }
 
-function tryParseJson(s: string): unknown | null {
-  // Tolerate models that occasionally wrap JSON in markdown fences.
-  const trimmed = s.trim()
-  const unfenced = trimmed.startsWith("```")
-    ? trimmed.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "")
-    : trimmed
-  try {
-    return JSON.parse(unfenced)
-  } catch {
-    return null
-  }
-}
-
 /**
- * Core AI call. Reads the academy flag, sends a cached system prompt +
- * user turn, records the interaction, returns a draft.
+ * Core AI call. Reads the academy flag, runs the Agent SDK with a
+ * cached system prompt + user turn, records the interaction, returns
+ * a draft.
  */
-export async function runAiAssist(input: AiAssistInput): Promise<AiAssistResult> {
+export async function runAiAssist(
+  input: AiAssistInput
+): Promise<AiAssistResult> {
   const academy = await prisma.academy.findUnique({
     where: { id: input.academyId },
     select: { aiEnabled: true, slug: true },
@@ -95,37 +76,23 @@ export async function runAiAssist(input: AiAssistInput): Promise<AiAssistResult>
   }
 
   const systemPrompt = SYSTEM_PROMPTS[input.capability]
-  const model = input.model ?? MODEL_DEFAULT
-  const maxTokens = input.maxTokens ?? 2048
+  if (!systemPrompt) {
+    throw new Error(`No prompt registered for capability ${input.capability}`)
+  }
 
-  const response = await client().messages.create({
-    model,
-    max_tokens: maxTokens,
-    // Cached system prompt — identical across calls for a given capability,
-    // so subsequent authors writing against the same capability get cache
-    // reads. `cache_control: ephemeral` ≈ 5-min TTL.
-    system: [
-      {
-        type: "text",
-        text: systemPrompt,
-        cache_control: { type: "ephemeral" },
-      },
-    ],
-    messages: [{ role: "user", content: input.userPrompt }],
-    // Adaptive thinking — model decides how hard to think per call.
-    thinking: { type: "adaptive" },
+  const { rawText, usage } = await runAgentQuery({
+    academyId: input.academyId,
+    systemPrompt,
+    userPrompt: input.userPrompt,
+    model: input.model,
+    maxTurns: input.maxTurns ?? 1,
   })
-
-  // Extract the first text block. Thinking blocks also appear; we drop them.
-  const rawText = response.content
-    .filter((b): b is Anthropic.TextBlock => b.type === "text")
-    .map((b) => b.text)
-    .join("\n")
-    .trim()
 
   const parsed = tryParseJson(rawText)
 
-  const promptHash = sha(`${input.capability}::${systemPrompt}::${input.userPrompt}`)
+  const promptHash = sha(
+    `${input.capability}::${systemPrompt}::${input.userPrompt}`
+  )
   const outputHash = sha(rawText)
 
   const interaction = await prisma.aiInteraction.create({
@@ -135,11 +102,12 @@ export async function runAiAssist(input: AiAssistInput): Promise<AiAssistResult>
       capability: input.capability,
       promptHash,
       outputHash,
-      inputTokens: response.usage.input_tokens ?? 0,
-      outputTokens: response.usage.output_tokens ?? 0,
-      cachedTokens: response.usage.cache_read_input_tokens ?? 0,
-      model,
-      contextJson: (input.context as Prisma.InputJsonValue | undefined) ?? undefined,
+      inputTokens: usage.inputTokens,
+      outputTokens: usage.outputTokens,
+      cachedTokens: usage.cachedTokens,
+      model: usage.model,
+      contextJson:
+        (input.context as Prisma.InputJsonValue | undefined) ?? undefined,
     },
   })
 
@@ -151,10 +119,11 @@ export async function runAiAssist(input: AiAssistInput): Promise<AiAssistResult>
     academyId: input.academyId,
     metadata: {
       capability: input.capability,
-      model,
-      inputTokens: response.usage.input_tokens ?? 0,
-      outputTokens: response.usage.output_tokens ?? 0,
-      cachedTokens: response.usage.cache_read_input_tokens ?? 0,
+      model: usage.model,
+      inputTokens: usage.inputTokens,
+      outputTokens: usage.outputTokens,
+      cachedTokens: usage.cachedTokens,
+      costUsd: usage.costUsd,
     },
   })
 
@@ -163,12 +132,7 @@ export async function runAiAssist(input: AiAssistInput): Promise<AiAssistResult>
     capability: input.capability,
     rawText,
     parsed,
-    usage: {
-      inputTokens: response.usage.input_tokens ?? 0,
-      outputTokens: response.usage.output_tokens ?? 0,
-      cachedTokens: response.usage.cache_read_input_tokens ?? 0,
-      model,
-    },
+    usage,
     approvalRequired: true,
   }
 }
@@ -184,7 +148,12 @@ export async function approveAiInteraction(
 ): Promise<void> {
   const interaction = await prisma.aiInteraction.findUnique({
     where: { id: interactionId },
-    select: { id: true, academyId: true, approved: true, capability: true },
+    select: {
+      id: true,
+      academyId: true,
+      approved: true,
+      capability: true,
+    },
   })
   if (!interaction) throw new Error("Interaction not found")
   if (interaction.approved) return

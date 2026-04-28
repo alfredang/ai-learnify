@@ -4,6 +4,8 @@ import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { approveAiInteraction } from "@/lib/ai/assist"
 
+export const runtime = "nodejs"
+
 /**
  * POST /api/ai/approve — author approves a draft so it can be used as
  * canonical course content (spec §8.1 "AI outputs are drafts only — author

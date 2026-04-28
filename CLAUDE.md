@@ -1,5 +1,7 @@
 # CLAUDE.md — IESA LMS (Learnify)
 
+Project: [[LEARNIFY-IESA-LMS]] — international, scalable, self-paced LMS. Source spec: `spec.docx` (vault root). Self-paced + asynchronous only — no live classes, no instructor-led, no manual grading.
+
 ## Project Overview
 
 IESA LMS is an **international, scalable, self-learning LMS** built as a multi-tenant SaaS platform. It is a heavily customised fork of Learnify (Udemy-clone), reshaped end-to-end against the IESA LMS full product specification.

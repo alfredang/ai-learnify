@@ -42,6 +42,10 @@ const schema = z.object({
 
   // --- Phase 7 (AI Assist) ---
   ANTHROPIC_API_KEY: z.string().optional(),
+  // AES-256-GCM key used to encrypt per-tenant Claude credentials at
+  // rest. Required as soon as any Academy stores its own token via the
+  // Academy Admin Settings UI. Generate with `openssl rand -base64 32`.
+  CREDENTIAL_ENCRYPTION_KEY: z.string().optional(),
 
   // --- Phase 4 (email reminders) ---
   RESEND_API_KEY: z.string().optional(),
@@ -83,6 +87,7 @@ function parse(): Env {
     AUTH_GITHUB_ID: process.env.AUTH_GITHUB_ID,
     AUTH_GITHUB_SECRET: process.env.AUTH_GITHUB_SECRET,
     ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY,
+    CREDENTIAL_ENCRYPTION_KEY: process.env.CREDENTIAL_ENCRYPTION_KEY,
     RESEND_API_KEY: process.env.RESEND_API_KEY,
     EMAIL_FROM: process.env.EMAIL_FROM,
     VERCEL_CRON_SECRET: process.env.VERCEL_CRON_SECRET,
@@ -122,6 +127,7 @@ export function integrationStatus() {
     oauth_google: Boolean(env.AUTH_GOOGLE_ID && env.AUTH_GOOGLE_SECRET),
     oauth_github: Boolean(env.AUTH_GITHUB_ID && env.AUTH_GITHUB_SECRET),
     anthropic: Boolean(env.ANTHROPIC_API_KEY),
+    credential_encryption: Boolean(env.CREDENTIAL_ENCRYPTION_KEY),
     email: Boolean(env.RESEND_API_KEY && env.EMAIL_FROM),
     cron_auth: Boolean(env.VERCEL_CRON_SECRET),
   }

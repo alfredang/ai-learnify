@@ -20,6 +20,8 @@ import {
   Activity,
   DollarSign,
   ShieldCheck,
+  Plug,
+  KeyRound,
   type LucideIcon,
 } from "lucide-react"
 import {
@@ -52,6 +54,8 @@ const ICONS = {
   Activity,
   DollarSign,
   ShieldCheck,
+  Plug,
+  KeyRound,
 } satisfies Record<string, LucideIcon>
 
 export type RoleSidebarIconName = keyof typeof ICONS

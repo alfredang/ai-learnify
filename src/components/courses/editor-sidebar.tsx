@@ -27,6 +27,7 @@ const SECTIONS: ChecklistSection[] = [
     title: "Create your content",
     items: [
       { id: "curriculum", label: "Curriculum" },
+      { id: "assessment", label: "Assessment rules" },
     ],
   },
   {
@@ -34,6 +35,7 @@ const SECTIONS: ChecklistSection[] = [
     items: [
       { id: "landing-page", label: "Course landing page" },
       { id: "survey", label: "Survey" },
+      { id: "versions", label: "Version history" },
     ],
   },
 ]

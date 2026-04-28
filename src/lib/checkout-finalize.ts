@@ -253,6 +253,7 @@ export async function finalizePurchase(input: FinalizeInput) {
       subject: `Invoice ${result.invoice.invoiceNumber} · ${productName}`,
       html: invoiceHtml,
       purpose: "invoice",
+      academyId: input.academyId,
       context: {
         invoiceId: result.invoice.id,
         userId: input.userId,

@@ -11,6 +11,7 @@ import { PdfViewer } from "@/components/courses/pdf-viewer"
 import { SlidePlayer, type VoiceOverSlidesPayload } from "@/components/courses/slide-player"
 import { ScormPlayer, type ScormPayload } from "@/components/courses/scorm-player"
 import { DownloadableViewer, type DownloadablePayload } from "@/components/courses/downloadable-viewer"
+import { HtmlPlayer, type HtmlPayload } from "@/components/courses/html-player"
 import { toast } from "sonner"
 import {
   ChevronLeft,
@@ -86,6 +87,8 @@ export function LectureViewer({
             typeof payload.entryPoint === "string"
               ? (payload.entryPoint as string)
               : undefined,
+          version:
+            payload.version === "SCORM_2004" ? "SCORM_2004" : "SCORM_1_2",
         }
       : null
 
@@ -97,6 +100,11 @@ export function LectureViewer({
   const downloadablePayload: DownloadablePayload | null =
     lecture.type === "DOWNLOADABLE" && Array.isArray(payload?.files)
       ? { files: payload!.files as DownloadablePayload["files"] }
+      : null
+
+  const htmlPayload: HtmlPayload | null =
+    lecture.type === "HTML" && typeof payload?.html === "string"
+      ? { html: payload.html as string }
       : null
 
   const saveProgress = useCallback(
@@ -316,6 +324,18 @@ export function LectureViewer({
               payload={downloadablePayload}
               title={lecture.title}
               description={lecture.description}
+              alreadyCompleted={isCompleted}
+              onMarkComplete={() => {
+                if (!isCompleted) {
+                  saveProgress({ isCompleted: true })
+                  toast.success("Lecture complete")
+                }
+              }}
+            />
+          ) : lecture.type === "HTML" && htmlPayload ? (
+            <HtmlPlayer
+              payload={htmlPayload}
+              title={lecture.title}
               alreadyCompleted={isCompleted}
               onMarkComplete={() => {
                 if (!isCompleted) {

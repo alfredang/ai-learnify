@@ -33,6 +33,19 @@ export const courseSchema = z.object({
   learningOutcomes: z.array(z.string()).optional(),
   requirements: z.array(z.string()).optional(),
   targetAudience: z.array(z.string()).optional(),
+  // Assessment rules — spec §7.3
+  assessmentPassMark: z.coerce
+    .number()
+    .int()
+    .min(50, "Pass mark must be at least 50%")
+    .max(100, "Pass mark cannot exceed 100%")
+    .optional(),
+  // -1 = unlimited retakes (default), 0 = no retakes, N = N retakes allowed.
+  retakesAllowed: z.coerce.number().int().min(-1).optional(),
+  // Spec §13 — CPD entry attached to the course. Snapshotted onto the
+  // certificate at issue time. Empty string is normalised to null in the
+  // PUT handler so authors can clear the selection.
+  cpdCatalogId: z.string().nullable().optional(),
 })
 
 export const sectionSchema = z.object({
@@ -43,13 +56,59 @@ export const sectionSchema = z.object({
   description: z.string().optional(),
 })
 
+// Per-type content payload schemas. The DB column is Json (loose), but the
+// API and editors enforce these shapes so authors don't ship invalid lectures.
+export const pdfPayloadSchema = z.object({
+  pdfUrl: z.string().url("PDF URL must be a valid URL"),
+})
+
+export const scormPayloadSchema = z.object({
+  packageUrl: z.string().url("SCORM package URL must be a valid URL"),
+  entryPoint: z.string().optional(),
+  manifest: z.string().optional(),
+  version: z.enum(["SCORM_1_2", "SCORM_2004"]).default("SCORM_1_2"),
+})
+
+export const xapiPayloadSchema = z.object({
+  launchUrl: z.string().url("xAPI launch URL must be a valid URL"),
+  activityId: z.string().optional(),
+})
+
+export const voiceOverSlidesPayloadSchema = z.object({
+  pdfUrl: z.string().url("Slides PDF URL must be a valid URL"),
+  slides: z
+    .array(
+      z.object({
+        page: z.number().int().min(1, "Page must be 1 or greater"),
+        voText: z.string(),
+      })
+    )
+    .default([]),
+})
+
+export const downloadablePayloadSchema = z.object({
+  files: z
+    .array(
+      z.object({
+        name: z.string().min(1, "File name is required"),
+        url: z.string().url("File URL must be a valid URL"),
+        sizeBytes: z.number().int().min(0).optional(),
+      })
+    )
+    .min(1, "At least one downloadable file is required"),
+})
+
+export const htmlPayloadSchema = z.object({
+  html: z.string().min(1, "HTML content is required"),
+})
+
 export const lectureSchema = z.object({
   title: z
     .string()
     .min(3, "Title must be at least 3 characters")
     .max(100, "Title must be less than 100 characters"),
   description: z.string().nullish(),
-  // Phase 6 — Spec §7.1 content types
+  // Phase 6 — Spec §7.1 content types. HTML added in authoring tool pass.
   type: z.enum([
     "VIDEO",
     "TEXT",
@@ -59,6 +118,7 @@ export const lectureSchema = z.object({
     "XAPI",
     "VOICE_OVER_SLIDES",
     "DOWNLOADABLE",
+    "HTML",
   ]),
   content: z.string().nullish(),
   contentPayloadJson: z.record(z.string(), z.unknown()).nullish(),

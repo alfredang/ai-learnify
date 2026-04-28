@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { StarRating } from "@/components/shared/star-rating"
 import { Users, BookOpen } from "lucide-react"
 import { FavouriteButton } from "@/components/courses/favourite-button"
-import { formatPrice } from "@/lib/stripe"
+import { CoursePriceTag } from "@/components/courses/course-price-tag"
 import type { CourseWithInstructor } from "@/types"
 
 interface CourseCardProps {
@@ -125,13 +125,11 @@ export function CourseCard({
                   Complimentary
                 </Badge>
               ) : (
-                <span className="mr-auto font-semibold text-base">
-                  {formatPrice(
-                    course.discountPrice
-                      ? Number(course.discountPrice)
-                      : Number(course.price)
-                  )}
-                </span>
+                <CoursePriceTag
+                  className="mr-auto"
+                  priceUsd={Number(course.price)}
+                  discountUsd={course.discountPrice ? Number(course.discountPrice) : undefined}
+                />
               )}
               <Button size="sm" className="relative z-10 rounded-full text-xs min-w-[9rem] justify-center" asChild>
                 <Link href={`/courses/${course.slug}`}>View course</Link>

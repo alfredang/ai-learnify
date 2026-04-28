@@ -4,6 +4,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { IdentityForm } from "./identity-form"
 import { ResetPasswordForm } from "./reset-password-form"
+import { EmailForm } from "./email-form"
+import { UsernameForm } from "./username-form"
 
 export default async function LearnerProfilePage() {
   const session = await auth()
@@ -14,9 +16,11 @@ export default async function LearnerProfilePage() {
     select: {
       name: true,
       email: true,
+      username: true,
       nameToBeCalled: true,
       certificateName: true,
       certificateIdNumber: true,
+      password: true,
       createdAt: true,
       platformRole: true,
       academyMemberships: {
@@ -32,6 +36,12 @@ export default async function LearnerProfilePage() {
   })
 
   if (!user) return null
+
+  const hasPassword = !!user.password
+  const isLearnerOnly =
+    user.platformRole === "NONE" &&
+    user.academyMemberships.length > 0 &&
+    user.academyMemberships.every((m) => m.role === "LEARNER")
 
   return (
     <div className="container max-w-3xl py-8 space-y-6">
@@ -64,7 +74,11 @@ export default async function LearnerProfilePage() {
           <CardTitle className="text-base">Account</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3 text-sm">
-          <Field label="Email" value={user.email} />
+          {hasPassword ? (
+            <EmailForm currentEmail={user.email} />
+          ) : (
+            <Field label="Email" value={user.email} />
+          )}
           <Field
             label="Member since"
             value={new Date(user.createdAt).toLocaleDateString()}
@@ -80,6 +94,17 @@ export default async function LearnerProfilePage() {
           <ResetPasswordForm />
         </CardContent>
       </Card>
+
+      {!isLearnerOnly && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Username</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <UsernameForm initial={user.username} />
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardHeader>

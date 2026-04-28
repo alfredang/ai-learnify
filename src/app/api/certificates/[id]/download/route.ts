@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { renderCertificateHtml } from "@/lib/certificate-html"
+import { renderCertificatePdf } from "@/lib/certificate-pdf"
 
 export async function GET(
   request: Request,
@@ -10,6 +11,8 @@ export async function GET(
   try {
     const session = await auth()
     const { id } = await params
+    const url = new URL(request.url)
+    const format = url.searchParams.get("format") === "html" ? "html" : "pdf"
 
     if (!session?.user) {
       return NextResponse.redirect(new URL("/login", request.url))
@@ -34,7 +37,7 @@ export async function GET(
       process.env.NEXT_PUBLIC_APP_URL ?? request.headers.get("origin") ?? ""
     const verifyUrl = `${baseUrl}/verify/${certificate.certificateId}`
 
-    const html = await renderCertificateHtml({
+    const renderData = {
       certificateId: certificate.certificateId,
       courseName: certificate.courseName,
       instructorName: certificate.instructorName,
@@ -47,10 +50,22 @@ export async function GET(
       completionDate: certificate.completionDate,
       template: certificate.template,
       verifyUrl,
-    })
+    }
 
-    return new NextResponse(html, {
-      headers: { "Content-Type": "text/html; charset=utf-8" },
+    if (format === "html") {
+      const html = await renderCertificateHtml(renderData)
+      return new NextResponse(html, {
+        headers: { "Content-Type": "text/html; charset=utf-8" },
+      })
+    }
+
+    const pdfBuffer = await renderCertificatePdf(renderData)
+    return new NextResponse(new Uint8Array(pdfBuffer), {
+      headers: {
+        "Content-Type": "application/pdf",
+        "Content-Disposition": `attachment; filename="certificate-${certificate.certificateId}.pdf"`,
+        "Cache-Control": "private, max-age=0, must-revalidate",
+      },
     })
   } catch (error) {
     console.error("Certificate download error:", error)

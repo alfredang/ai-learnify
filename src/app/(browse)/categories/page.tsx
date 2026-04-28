@@ -55,8 +55,19 @@ async function getCategories() {
   }
 }
 
+async function getIntro() {
+  const academy = await prisma.academy.findFirst({
+    where: { isActive: true },
+    select: { categoriesIntroHtml: true },
+  })
+  return academy?.categoriesIntroHtml ?? null
+}
+
 export default async function CategoriesPage() {
-  const categories = await getCategories()
+  const [categories, introHtml] = await Promise.all([
+    getCategories(),
+    getIntro(),
+  ])
 
   return (
     <div className="py-12 md:py-16">
@@ -69,6 +80,12 @@ export default async function CategoriesPage() {
             Explore our wide range of course categories and find the perfect
             course to advance your skills and career.
           </p>
+          {introHtml && (
+            <div
+              className="prose prose-sm prose-slate max-w-2xl mx-auto mt-4 prose-p:text-muted-foreground prose-a:text-primary"
+              dangerouslySetInnerHTML={{ __html: introHtml }}
+            />
+          )}
         </div>
 
         {categories.length > 0 ? (

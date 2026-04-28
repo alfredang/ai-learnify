@@ -20,6 +20,7 @@ import {
   AlertTriangle,
   Award,
 } from "lucide-react"
+import { AccessWindowCard } from "@/components/courses/access-window-card"
 
 interface CoursePageProps {
   params: Promise<{ courseId: string }>
@@ -122,8 +123,16 @@ export default async function CourseLearningPage({ params }: CoursePageProps) {
   const enrollment = await getEnrollment(courseId, session.user.id)
   if (!enrollment) notFound()
 
-  // Check access grant (auto-lock after expiry)
-  const accessCheck = await checkCourseAccess(session.user.id, courseId)
+  // Check access grant (auto-lock after expiry). Also fetch the raw grant
+  // so we can render the access window + reminder schedule even after the
+  // grant has expired.
+  const [accessCheck, accessGrant] = await Promise.all([
+    checkCourseAccess(session.user.id, courseId),
+    prisma.accessGrant.findFirst({
+      where: { userId: session.user.id, courseId },
+      orderBy: { grantedAt: "desc" },
+    }),
+  ])
   const isExpired = !accessCheck.allowed && accessCheck.reason === "EXPIRED"
   const grant = accessCheck.allowed ? accessCheck.grant : null
   const isComplimentary = grant?.productType === "COMPLIMENTARY"
@@ -264,6 +273,16 @@ export default async function CourseLearningPage({ params }: CoursePageProps) {
               )}
             </CardContent>
           </Card>
+
+          {/* Access window + reminder schedule (spec §11.1 / §11.2) */}
+          {accessGrant && (
+            <AccessWindowCard
+              grantedAt={accessGrant.grantedAt}
+              expiresAt={accessGrant.expiresAt}
+              productType={accessGrant.productType}
+              productLabel="course"
+            />
+          )}
 
           {/* Assessment Scores Card */}
           {quizLectures.length > 0 && (

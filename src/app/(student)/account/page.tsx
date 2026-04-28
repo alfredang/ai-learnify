@@ -98,7 +98,7 @@ export default async function AccountPage() {
                 </div>
               </div>
               <Button asChild>
-                <Link href="/account/edit">Edit Profile</Link>
+                <Link href="/learner/profile">Edit Profile</Link>
               </Button>
             </div>
           </div>

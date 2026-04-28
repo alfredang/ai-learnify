@@ -3,32 +3,35 @@ import { z } from "zod"
 import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { audit } from "@/lib/audit"
+import { gatherMediaCandidates } from "@/lib/ai/web-search"
+import { runAgentQuery, tryParseJson } from "@/lib/ai/agent"
+import { SYSTEM_PROMPTS } from "@/lib/ai/prompts"
+
+export const runtime = "nodejs"
+export const maxDuration = 60
 
 /**
- * Phase 7 / Spec §8.2 — licence-free media curation.
+ * Phase 7 / Spec §8.2 — licence-free media curation, Claude Agent SDK
+ * edition.
  *
- * Proxies an Openverse search. Openverse (https://openverse.org) aggregates
- * Creative Commons and public-domain media — exactly the "public domain /
- * Creative Commons / platform-approved licence-free" set the spec calls
- * out. No API key required; results already carry licence metadata.
+ * Pipeline:
+ *   1. Gather candidates from licence-aware sources (Openverse +
+ *      Wikimedia) using server-side fetch — works on any Claude
+ *      credential because we don't rely on a WebSearch entitlement.
+ *   2. Hand the candidate set to the Agent SDK with the MEDIA_CURATION
+ *      prompt; the model ranks, deduplicates, drops anything without a
+ *      clear licence, and shapes the output to match the Resource model.
+ *   3. Audit log the search (no PII; counts only).
  *
- * Tenancy: callers must be Course Developer / Academy Admin / Platform
- * Owner on the target academy, and the academy's `aiEnabled` flag must
- * be true (same gate as /api/ai/assist).
- *
- * Output shape exactly matches what Resource expects for licence
- * metadata, so a frontend can drop the chosen row straight into a
- * `prisma.resource.create` payload.
+ * Auth: same gate as /api/ai/assist — Course Developer / Academy Admin /
+ * Platform Owner on the academy, with `aiEnabled` true. Returns 409 if
+ * the academy hasn't enabled AI or has no Claude credential configured.
  */
 
 const schema = z.object({
   academyId: z.string().min(1),
   query: z.string().min(2).max(200),
   kind: z.enum(["image", "audio"]).default("image"),
-  /**
-   * SPDX-ish license filters supported by Openverse. "all-cc" is the
-   * default convenience union.
-   */
   license: z
     .enum([
       "all-cc",
@@ -46,21 +49,23 @@ const schema = z.object({
   pageSize: z.number().int().min(1).max(20).default(10),
 })
 
-type OpenverseImage = {
-  id: string
-  title?: string
-  creator?: string
-  creator_url?: string
-  url: string
-  thumbnail: string
-  license: string
-  license_version?: string
-  license_url?: string
-  source?: string
-  foreign_landing_url?: string
-  attribution?: string
-  width?: number
-  height?: number
+type CurationOutput = {
+  query: string
+  results: Array<{
+    providerId: string
+    title: string
+    url: string
+    thumbnailUrl: string | null
+    license: string
+    licenseVersion?: string | null
+    licenseUrl: string | null
+    sourceUrl: string | null
+    sourceProvider: string
+    attribution: string | null
+    creator: string | null
+    creatorUrl: string | null
+    rationale: string
+  }>
 }
 
 export async function POST(request: Request) {
@@ -105,73 +110,68 @@ export async function POST(request: Request) {
     )
   }
 
-  // Build Openverse URL. Filters:
-  //   - license_type="commercial" allows commercial reuse (safer default)
-  //   - fall back to "all-cc" when the caller is fine with non-commercial.
-  const endpoint =
-    input.kind === "image"
-      ? "https://api.openverse.org/v1/images/"
-      : "https://api.openverse.org/v1/audio/"
-  const url = new URL(endpoint)
-  url.searchParams.set("q", input.query)
-  url.searchParams.set("page_size", String(input.pageSize))
-  if (input.license === "all-cc") {
-    url.searchParams.set("license_type", "all-cc")
-  } else if (input.license === "commercial") {
-    url.searchParams.set("license_type", "commercial")
-  } else {
-    url.searchParams.set("license", input.license)
-  }
-  // Filter out mature content.
-  url.searchParams.set("mature", "false")
+  // 1) Source-side gather. Fail-soft: if both sources return zero, we
+  //    skip the Agent SDK entirely and tell the caller.
+  const candidates = await gatherMediaCandidates({
+    query: input.query,
+    kind: input.kind,
+    pageSize: input.pageSize,
+    license: input.license,
+  })
 
-  let results: OpenverseImage[] = []
-  try {
-    const res = await fetch(url.toString(), {
-      headers: { Accept: "application/json" },
-      // Openverse is rate-limited anonymously; 10s is generous.
-      signal: AbortSignal.timeout(10_000),
-    })
-    if (!res.ok) {
-      return NextResponse.json(
-        { error: `Openverse ${res.status}` },
-        { status: 502 }
-      )
-    }
-    const body = (await res.json()) as { results?: OpenverseImage[] }
-    results = body.results ?? []
-  } catch (err) {
-    return NextResponse.json(
-      {
-        error:
-          err instanceof Error ? err.message : "Openverse request failed",
+  if (candidates.length === 0) {
+    await audit({
+      action: "ai.media.search",
+      resourceType: "aiMedia",
+      userId: session.user.id,
+      academyId: input.academyId,
+      metadata: {
+        query: input.query,
+        kind: input.kind,
+        license: input.license,
+        resultCount: 0,
+        curated: false,
       },
-      { status: 502 }
-    )
+    })
+    return NextResponse.json({
+      provider: "openverse+wikimedia",
+      query: input.query,
+      results: [],
+      message:
+        "No licence-free candidates found. Try a broader query or different licence filter.",
+    })
   }
 
-  // Normalise — shape each hit so the caller can drop directly into a
-  // Resource create. Spec §8.2: "Asset licence metadata stored".
-  const normalised = results.map((r) => ({
-    providerId: r.id,
-    title: r.title ?? input.query,
-    url: r.url,
-    thumbnailUrl: r.thumbnail,
-    license: r.license, // "cc0", "by", "by-sa", "pdm", etc.
-    licenseVersion: r.license_version ?? null,
-    licenseUrl: r.license_url ?? null,
-    sourceUrl: r.foreign_landing_url ?? null,
-    sourceProvider: "openverse" as const,
-    attribution:
-      r.attribution ??
-      (r.creator
-        ? `${r.title ?? "Untitled"} by ${r.creator} · ${r.license.toUpperCase()}`
-        : null),
-    creator: r.creator ?? null,
-    creatorUrl: r.creator_url ?? null,
-    dimensions:
-      r.width && r.height ? { width: r.width, height: r.height } : null,
-  }))
+  // 2) Curate via Agent SDK. The user prompt is a JSON envelope —
+  //    cheap to cache for repeat queries thanks to the system prompt
+  //    prefix being identical per capability.
+  const userPrompt = `Query: ${input.query}\nKind: ${input.kind}\nLicence filter: ${input.license}\n\nCandidates (JSON):\n${JSON.stringify(
+    candidates,
+    null,
+    2
+  )}\n\nRank, deduplicate and shape per the system prompt. Return ONLY the JSON object.`
+
+  let curated: CurationOutput | null = null
+  try {
+    const { rawText } = await runAgentQuery({
+      academyId: input.academyId,
+      systemPrompt: SYSTEM_PROMPTS.MEDIA_CURATION,
+      userPrompt,
+      maxTurns: 1,
+    })
+    const parsedJson = tryParseJson(rawText)
+    if (
+      parsedJson &&
+      typeof parsedJson === "object" &&
+      Array.isArray((parsedJson as CurationOutput).results)
+    ) {
+      curated = parsedJson as CurationOutput
+    }
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : "Curation failed"
+    const status = msg.includes("AI is not configured") ? 409 : 500
+    return NextResponse.json({ error: msg }, { status })
+  }
 
   await audit({
     action: "ai.media.search",
@@ -182,13 +182,18 @@ export async function POST(request: Request) {
       query: input.query,
       kind: input.kind,
       license: input.license,
-      resultCount: normalised.length,
+      resultCount: curated?.results.length ?? 0,
+      candidateCount: candidates.length,
+      curated: Boolean(curated),
     },
   })
 
+  // Fall-through: if the model returned no parseable JSON, return the
+  // raw multi-source candidates so the UI still has something to show.
   return NextResponse.json({
-    provider: "openverse",
+    provider: "openverse+wikimedia",
     query: input.query,
-    results: normalised,
+    results: curated?.results ?? candidates,
+    curated: Boolean(curated),
   })
 }

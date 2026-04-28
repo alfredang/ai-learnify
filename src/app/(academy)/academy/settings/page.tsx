@@ -7,6 +7,8 @@ import { LanguagesManager } from "./languages-manager"
 import { TaxRatesManager } from "./tax-rates-manager"
 import { CpdCatalogManager } from "./cpd-catalog-manager"
 import { CertificateRuleForm } from "./certificate-rule-form"
+import { CertificateTemplatesManager } from "./certificate-templates-manager"
+import { PagesManager } from "./pages-manager"
 
 async function resolveAcademyId(userId: string, platformRole: string) {
   if (platformRole === "PLATFORM_OWNER") {
@@ -39,7 +41,7 @@ export default async function AcademySettingsPage() {
     )
   }
 
-  const [academy, rule, taxRates, cpd] = await Promise.all([
+  const [academy, rule, taxRates, cpd, certTemplates, pages] = await Promise.all([
     prisma.academy.findUnique({
       where: { id: academyId },
       select: {
@@ -66,6 +68,30 @@ export default async function AcademySettingsPage() {
       where: { academyId },
       orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
     }),
+    prisma.certificateTemplate.findMany({
+      where: { academyId },
+      orderBy: [{ isDefault: "desc" }, { name: "asc" }],
+    }),
+    prisma.academy.findUnique({
+      where: { id: academyId },
+      select: {
+        aboutHtml: true,
+        aboutHeroImageUrl: true,
+        aboutStoryImageUrl: true,
+        aboutTeamJson: true,
+        helpCenterHtml: true,
+        faqJson: true,
+        contactHtml: true,
+        contactEmail: true,
+        contactPhone: true,
+        contactAddress: true,
+        careersHtml: true,
+        becomeDeveloperHtml: true,
+        becomeDeveloperHeroImageUrl: true,
+        coursesIntroHtml: true,
+        categoriesIntroHtml: true,
+      },
+    }),
   ])
 
   if (!academy) return null
@@ -81,13 +107,17 @@ export default async function AcademySettingsPage() {
       </div>
 
       <Tabs defaultValue="profile">
-        <TabsList>
-          <TabsTrigger value="profile">Academy</TabsTrigger>
-          <TabsTrigger value="languages">Languages</TabsTrigger>
-          <TabsTrigger value="tax">Tax</TabsTrigger>
-          <TabsTrigger value="cpd">CPD</TabsTrigger>
-          <TabsTrigger value="cert">Certification</TabsTrigger>
-        </TabsList>
+        <div className="overflow-x-auto -mx-1 px-1 pb-1">
+          <TabsList className="flex w-max">
+            <TabsTrigger value="profile">Academy</TabsTrigger>
+            <TabsTrigger value="languages">Languages</TabsTrigger>
+            <TabsTrigger value="tax">Tax</TabsTrigger>
+            <TabsTrigger value="cpd">CPD</TabsTrigger>
+            <TabsTrigger value="cert">Certification</TabsTrigger>
+            <TabsTrigger value="templates">Templates</TabsTrigger>
+            <TabsTrigger value="pages">Pages</TabsTrigger>
+          </TabsList>
+        </div>
 
         <TabsContent value="profile" className="mt-6">
           <AcademyProfileForm
@@ -126,6 +156,16 @@ export default async function AcademySettingsPage() {
                 : null
             }
           />
+        </TabsContent>
+
+        <TabsContent value="templates" className="mt-6">
+          <CertificateTemplatesManager
+            initialTemplates={JSON.parse(JSON.stringify(certTemplates))}
+          />
+        </TabsContent>
+
+        <TabsContent value="pages" className="mt-6">
+          <PagesManager initial={JSON.parse(JSON.stringify(pages))} />
         </TabsContent>
       </Tabs>
     </div>

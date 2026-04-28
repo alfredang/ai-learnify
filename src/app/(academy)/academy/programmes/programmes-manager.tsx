@@ -9,8 +9,25 @@ import { Label } from "@/components/ui/label"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Switch } from "@/components/ui/switch"
-import { Checkbox } from "@/components/ui/checkbox"
 import { Textarea } from "@/components/ui/textarea"
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core"
+import {
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+  useSortable,
+  arrayMove,
+} from "@dnd-kit/sortable"
+import { CSS } from "@dnd-kit/utilities"
+import { GripVertical, X, Plus as PlusIcon } from "lucide-react"
 import {
   Dialog,
   DialogContent,
@@ -292,18 +309,25 @@ function ProgrammeFormDialog({
   const [accessDurationDays, setAccessDurationDays] = useState(
     String(existing?.accessDurationDays ?? 90)
   )
-  const [selected, setSelected] = useState<Set<string>>(
-    new Set(existing?.courses.map((c) => c.id) ?? [])
+  const [selectedIds, setSelectedIds] = useState<string[]>(
+    existing?.courses.map((c) => c.id) ?? []
   )
   const [submitting, setSubmitting] = useState(false)
 
-  function toggleCourse(id: string) {
-    setSelected((prev) => {
-      const next = new Set(prev)
-      if (next.has(id)) next.delete(id)
-      else next.add(id)
-      return next
-    })
+  function addCourse(id: string) {
+    if (selectedIds.includes(id)) return
+    setSelectedIds([...selectedIds, id])
+  }
+
+  function removeCourse(id: string) {
+    setSelectedIds(selectedIds.filter((cid) => cid !== id))
+  }
+
+  function reorderSelected(activeId: string, overId: string) {
+    const oldIndex = selectedIds.indexOf(activeId)
+    const newIndex = selectedIds.indexOf(overId)
+    if (oldIndex === -1 || newIndex === -1) return
+    setSelectedIds(arrayMove(selectedIds, oldIndex, newIndex))
   }
 
   async function handleSubmit() {
@@ -311,7 +335,7 @@ function ProgrammeFormDialog({
       toast.error("Title is required")
       return
     }
-    if (selected.size < 2) {
+    if (selectedIds.length < 2) {
       toast.error("Pick at least two courses")
       return
     }
@@ -336,7 +360,7 @@ function ProgrammeFormDialog({
         currency: currency.trim().toUpperCase(),
         isFree,
         accessDurationDays: accessNum,
-        courseIds: Array.from(selected),
+        courseIds: selectedIds,
       }
       const url =
         mode === "create"
@@ -353,7 +377,7 @@ function ProgrammeFormDialog({
       }
       const { programme } = await res.json()
       const courseLookup = new Map(courses.map((c) => [c.id, c]))
-      const courseRefs = Array.from(selected)
+      const courseRefs = selectedIds
         .map((id) => courseLookup.get(id))
         .filter((c): c is CourseRef => Boolean(c))
         .map((c) => ({ id: c.id, title: c.title }))
@@ -466,37 +490,13 @@ function ProgrammeFormDialog({
             </span>
           </div>
 
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <Label className="text-xs">Courses included</Label>
-              <span className="text-[11px] text-muted-foreground">
-                {selected.size} selected · need ≥ 2
-              </span>
-            </div>
-            <div className="border rounded-md max-h-72 overflow-y-auto">
-              {courses.length === 0 ? (
-                <div className="p-4 text-sm text-muted-foreground text-center">
-                  No courses available in this academy yet.
-                </div>
-              ) : (
-                courses.map((c) => (
-                  <label
-                    key={c.id}
-                    className="flex items-center gap-3 px-3 py-2 border-b last:border-b-0 hover:bg-accent/50 cursor-pointer"
-                  >
-                    <Checkbox
-                      checked={selected.has(c.id)}
-                      onCheckedChange={() => toggleCourse(c.id)}
-                    />
-                    <span className="flex-1 text-sm">{c.title}</span>
-                    <Badge variant="outline" className="text-[10px]">
-                      {c.status}
-                    </Badge>
-                  </label>
-                ))
-              )}
-            </div>
-          </div>
+          <ProgrammeCoursesEditor
+            courses={courses}
+            selectedIds={selectedIds}
+            onAdd={addCourse}
+            onRemove={removeCourse}
+            onReorder={reorderSelected}
+          />
 
           {mode === "edit" && existing?.status && (
             <div className="border rounded-md p-3">
@@ -536,5 +536,194 @@ function ProgrammeFormDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  )
+}
+
+// ─── ProgrammeCoursesEditor (drag-and-drop two-column UI) ──────────────
+
+interface ProgrammeCoursesEditorProps {
+  courses: CourseRef[]
+  selectedIds: string[]
+  onAdd: (id: string) => void
+  onRemove: (id: string) => void
+  onReorder: (activeId: string, overId: string) => void
+}
+
+function ProgrammeCoursesEditor({
+  courses,
+  selectedIds,
+  onAdd,
+  onRemove,
+  onReorder,
+}: ProgrammeCoursesEditorProps) {
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  )
+
+  const courseLookup = new Map(courses.map((c) => [c.id, c]))
+  const selectedCourses = selectedIds
+    .map((id) => courseLookup.get(id))
+    .filter((c): c is CourseRef => Boolean(c))
+
+  const available = courses.filter((c) => !selectedIds.includes(c.id))
+
+  function handleDragEnd(event: DragEndEvent) {
+    const { active, over } = event
+    if (!over || active.id === over.id) return
+    onReorder(String(active.id), String(over.id))
+  }
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <Label className="text-xs">Courses included</Label>
+        <span className="text-[11px] text-muted-foreground">
+          {selectedIds.length} selected · need ≥ 2 · drag to reorder
+        </span>
+      </div>
+
+      {courses.length === 0 ? (
+        <div className="rounded-md border p-4 text-sm text-muted-foreground text-center">
+          No courses available in this academy yet.
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          {/* Available column */}
+          <div className="rounded-md border bg-muted/20">
+            <div className="px-3 py-2 border-b text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">
+              Available ({available.length})
+            </div>
+            <div className="max-h-72 overflow-y-auto divide-y">
+              {available.length === 0 ? (
+                <div className="px-3 py-6 text-xs text-muted-foreground text-center">
+                  All courses added.
+                </div>
+              ) : (
+                available.map((c) => (
+                  <div
+                    key={c.id}
+                    className="flex items-center gap-2 px-3 py-2 hover:bg-accent/40"
+                  >
+                    <span className="flex-1 text-sm truncate">{c.title}</span>
+                    <Badge variant="outline" className="text-[10px] shrink-0">
+                      {c.status}
+                    </Badge>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => onAdd(c.id)}
+                      aria-label="Add to programme"
+                      className="h-7 w-7 shrink-0"
+                    >
+                      <PlusIcon className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+
+          {/* Selected column (sortable) */}
+          <div className="rounded-md border">
+            <div className="px-3 py-2 border-b text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">
+              Programme order
+            </div>
+            <div className="max-h-72 overflow-y-auto">
+              {selectedCourses.length === 0 ? (
+                <div className="px-3 py-6 text-xs text-muted-foreground text-center">
+                  Drag or click to add courses.
+                </div>
+              ) : (
+                <DndContext
+                  sensors={sensors}
+                  collisionDetection={closestCenter}
+                  onDragEnd={handleDragEnd}
+                >
+                  <SortableContext
+                    items={selectedIds}
+                    strategy={verticalListSortingStrategy}
+                  >
+                    <div className="divide-y">
+                      {selectedCourses.map((c, idx) => (
+                        <SortableSelectedItem
+                          key={c.id}
+                          course={c}
+                          position={idx + 1}
+                          onRemove={() => onRemove(c.id)}
+                        />
+                      ))}
+                    </div>
+                  </SortableContext>
+                </DndContext>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function SortableSelectedItem({
+  course,
+  position,
+  onRemove,
+}: {
+  course: CourseRef
+  position: number
+  onRemove: () => void
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: course.id })
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  }
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={
+        "flex items-center gap-2 px-3 py-2 bg-background" +
+        (isDragging ? " opacity-50 ring-1 ring-primary/20" : " hover:bg-accent/40")
+      }
+    >
+      <button
+        type="button"
+        className="cursor-grab active:cursor-grabbing touch-none shrink-0 text-muted-foreground"
+        {...attributes}
+        {...listeners}
+        aria-label="Drag to reorder"
+      >
+        <GripVertical className="h-4 w-4" />
+      </button>
+      <span className="text-xs font-mono text-muted-foreground w-5 shrink-0">
+        {position}.
+      </span>
+      <span className="flex-1 text-sm truncate">{course.title}</span>
+      <Badge variant="outline" className="text-[10px] shrink-0">
+        {course.status}
+      </Badge>
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon"
+        onClick={onRemove}
+        aria-label="Remove from programme"
+        className="h-7 w-7 shrink-0 text-muted-foreground hover:text-destructive"
+      >
+        <X className="h-3.5 w-3.5" />
+      </Button>
+    </div>
   )
 }

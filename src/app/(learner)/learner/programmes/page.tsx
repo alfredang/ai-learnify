@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Layers } from "lucide-react"
+import { AccessWindowCard } from "@/components/courses/access-window-card"
 
 function daysUntil(future: Date): number {
   return Math.round((future.getTime() - Date.now()) / 86_400_000)
@@ -64,7 +65,7 @@ export default async function LearnerProgrammesPage() {
                     {days}d left
                   </Badge>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="space-y-4">
                   <ul className="space-y-1">
                     {g.programme.courses.map((pc) => (
                       <li key={pc.id} className="flex items-center justify-between text-sm">
@@ -74,6 +75,12 @@ export default async function LearnerProgrammesPage() {
                       </li>
                     ))}
                   </ul>
+                  <AccessWindowCard
+                    grantedAt={g.grantedAt}
+                    expiresAt={g.expiresAt}
+                    productType={g.productType}
+                    productLabel="programme"
+                  />
                 </CardContent>
               </Card>
             )

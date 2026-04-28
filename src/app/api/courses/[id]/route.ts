@@ -97,7 +97,13 @@ export async function PUT(
 
     const existingCourse = await prisma.course.findUnique({
       where: { id },
-      select: { instructorId: true, slug: true, status: true, academyId: true },
+      select: {
+        instructorId: true,
+        slug: true,
+        status: true,
+        academyId: true,
+        cpdCatalogId: true,
+      },
     })
 
     if (!existingCourse) {
@@ -153,6 +159,30 @@ export async function PUT(
       }
     }
 
+    // Spec §13 — CPD entry must belong to the same academy as the course
+    // so a course can't reference a sibling tenant's catalog.
+    let nextCpdCatalogId: string | null | undefined = undefined
+    if ("cpdCatalogId" in data) {
+      const raw = data.cpdCatalogId
+      nextCpdCatalogId = raw === "" || raw == null ? null : raw
+      if (nextCpdCatalogId && existingCourse.academyId) {
+        const ok = await prisma.cpdCatalog.findFirst({
+          where: { id: nextCpdCatalogId, academyId: existingCourse.academyId },
+          select: { id: true },
+        })
+        if (!ok) {
+          return NextResponse.json(
+            {
+              error: "Selected CPD entry does not belong to this academy",
+              code: "INVALID_CPD",
+              field: "cpdCatalogId",
+            },
+            { status: 400 }
+          )
+        }
+      }
+    }
+
     // Regenerate slug only if title changed
     let slug: string | undefined
     if (data.title) {
@@ -189,6 +219,15 @@ export async function PUT(
         }),
         ...(data.requirements && { requirements: data.requirements }),
         ...(data.targetAudience && { targetAudience: data.targetAudience }),
+        ...(data.assessmentPassMark !== undefined && {
+          assessmentPassMark: data.assessmentPassMark,
+        }),
+        ...(data.retakesAllowed !== undefined && {
+          retakesAllowed: data.retakesAllowed,
+        }),
+        ...(nextCpdCatalogId !== undefined && {
+          cpdCatalogId: nextCpdCatalogId,
+        }),
         // These fields are outside the Zod schema but valid on the model
         ...(body.thumbnail !== undefined && { thumbnail: body.thumbnail }),
         ...(body.previewVideoUrl !== undefined && {

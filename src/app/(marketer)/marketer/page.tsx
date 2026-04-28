@@ -1,3 +1,4 @@
+import Link from "next/link"
 import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -10,136 +11,207 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { Users, Ticket, MousePointerClick } from "lucide-react"
+import {
+  Activity,
+  DollarSign,
+  MousePointerClick,
+  Ticket,
+  Users,
+  Wallet,
+} from "lucide-react"
+import { formatMinor, marketerLifetimeCommission } from "@/lib/marketer"
 
 /**
- * Marketer performance dashboard.
- *
- * Tracks promo code conversions only. Commission/payout amounts were
- * removed when payments were taken out of scope.
+ * Marketer overview. Spec §5 — clicks (not yet tracked), conversions,
+ * commission earned, and pending payable. No learner PII beyond the
+ * promo-code-driven attribution.
  */
-
-export default async function MarketerDashboardPage() {
+export default async function MarketerOverviewPage() {
   const session = await auth()
   if (!session?.user) return null
   const userId = session.user.id
 
-  const [codes, activeCodes] = await Promise.all([
-    prisma.promoCode.findMany({
-      where: { marketerUserId: userId },
-      orderBy: { createdAt: "desc" },
-      select: {
-        id: true,
-        code: true,
-        marketerCommissionBps: true,
-        learnerDiscountBps: true,
-        usageCount: true,
-        usageLimit: true,
-        isActive: true,
-        validFrom: true,
-        validTo: true,
-        academy: { select: { name: true } },
-      },
-    }),
+  const [codes, activeCodes, lifetime, recentLegs] = await Promise.all([
+    prisma.promoCode.count({ where: { marketerUserId: userId } }),
     prisma.promoCode.count({
       where: { marketerUserId: userId, isActive: true },
     }),
+    marketerLifetimeCommission(userId),
+    // Most recent commission events to show what's coming through. We
+    // intentionally do NOT join through the User table — attribution only.
+    prisma.ledgerEntry.findMany({
+      where: {
+        beneficiaryUserId: userId,
+        entryType: { in: ["MARKETER", "REFUND_MARKETER"] },
+      },
+      orderBy: { createdAt: "desc" },
+      take: 8,
+      select: {
+        id: true,
+        createdAt: true,
+        entryType: true,
+        amountMinor: true,
+        currency: true,
+        productType: true,
+        parentTxnId: true,
+        promoCode: { select: { code: true } },
+      },
+    }),
+    // Conversion totals come from PromoCode.usageCount, summed below.
   ])
 
-  const totalConversions = codes.reduce((a, c) => a + c.usageCount, 0)
+  // Sum of usage on every code assigned to this marketer = lifetime conversions.
+  const usageRows = await prisma.promoCode.findMany({
+    where: { marketerUserId: userId },
+    select: { usageCount: true },
+  })
+  const totalConversions = usageRows.reduce((a, c) => a + c.usageCount, 0)
 
   return (
     <div className="container max-w-6xl py-8 space-y-8">
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Performance</h1>
         <p className="text-muted-foreground mt-1">
-          Spec §5. Campaign metrics tied to your promo codes. No access to
-          learner personal data beyond attribution.
+          Spec §5. Conversions and commission tied to your promo codes. You
+          have no access to learner personal data — only the attribution
+          itself.
         </p>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-        <Stat
-          icon={Users}
-          label="Conversions"
-          value={String(totalConversions)}
-          hint={`${activeCodes} active code${activeCodes === 1 ? "" : "s"}`}
-        />
-        <Stat
-          icon={Ticket}
-          label="Active codes"
-          value={String(activeCodes)}
-          hint="Promo codes you can share"
-        />
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <Stat
           icon={MousePointerClick}
           label="Clicks"
           value="—"
           hint="Not tracked yet"
         />
+        <Stat
+          icon={Users}
+          label="Conversions"
+          value={String(totalConversions)}
+          hint={`across ${codes} code${codes === 1 ? "" : "s"}`}
+        />
+        <Stat
+          icon={DollarSign}
+          label="Lifetime commission"
+          value={formatMinor(lifetime.totalMinor, lifetime.currency)}
+          hint="Net of refunds"
+        />
+        <Stat
+          icon={Wallet}
+          label="Pending payable"
+          value={formatMinor(lifetime.unbatchedMinor, lifetime.currency)}
+          hint="Not yet in a payout batch"
+        />
       </div>
 
       <Card>
-        <CardHeader>
+        <CardHeader className="pb-3 flex flex-row items-center justify-between">
           <CardTitle className="text-base flex items-center gap-2">
-            <Ticket className="h-4 w-4" /> Your promo codes
+            <Activity className="h-4 w-4" /> Recent commission events
           </CardTitle>
+          <Link
+            href="/marketer/conversions"
+            className="text-xs text-muted-foreground hover:text-foreground"
+          >
+            View all conversions →
+          </Link>
         </CardHeader>
         <CardContent className="p-0">
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead>Date</TableHead>
                 <TableHead>Code</TableHead>
-                <TableHead>Academy</TableHead>
-                <TableHead>Commission</TableHead>
-                <TableHead>Discount</TableHead>
-                <TableHead className="text-right">Uses</TableHead>
-                <TableHead>Status</TableHead>
+                <TableHead>Product</TableHead>
+                <TableHead>Type</TableHead>
+                <TableHead className="text-right">Amount</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {codes.length === 0 ? (
+              {recentLegs.length === 0 ? (
                 <TableRow>
                   <TableCell
-                    colSpan={6}
+                    colSpan={5}
                     className="text-center text-sm text-muted-foreground py-8"
                   >
-                    No promo codes assigned yet. An Academy Admin creates codes
-                    and assigns you as the marketer.
+                    No commission events yet. They appear here as soon as a
+                    learner checks out with one of your codes.
                   </TableCell>
                 </TableRow>
               ) : (
-                codes.map((c) => (
-                  <TableRow key={c.id}>
-                    <TableCell className="font-mono text-xs">
-                      {c.code}
-                    </TableCell>
-                    <TableCell className="text-xs">{c.academy.name}</TableCell>
-                    <TableCell className="font-mono text-xs">
-                      {(c.marketerCommissionBps / 100).toFixed(2)}%
-                    </TableCell>
-                    <TableCell className="font-mono text-xs">
-                      {(c.learnerDiscountBps / 100).toFixed(2)}%
-                    </TableCell>
-                    <TableCell className="text-right font-mono text-xs">
-                      {c.usageCount}
-                      {c.usageLimit != null ? ` / ${c.usageLimit}` : ""}
-                    </TableCell>
-                    <TableCell>
-                      {c.isActive ? (
-                        <Badge variant="default">Active</Badge>
-                      ) : (
-                        <Badge variant="secondary">Inactive</Badge>
-                      )}
-                    </TableCell>
-                  </TableRow>
-                ))
+                recentLegs.map((leg) => {
+                  const isRefund = leg.entryType === "REFUND_MARKETER"
+                  const display = isRefund ? leg.amountMinor : -leg.amountMinor
+                  return (
+                    <TableRow key={leg.id}>
+                      <TableCell className="text-xs text-muted-foreground">
+                        {new Date(leg.createdAt).toLocaleDateString()}
+                      </TableCell>
+                      <TableCell className="font-mono text-xs">
+                        {leg.promoCode?.code ?? "—"}
+                      </TableCell>
+                      <TableCell className="text-xs">
+                        {leg.productType}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={isRefund ? "destructive" : "secondary"}>
+                          {isRefund ? "Refund" : "Commission"}
+                        </Badge>
+                      </TableCell>
+                      <TableCell
+                        className={`text-right font-mono ${
+                          display < 0 ? "text-destructive" : ""
+                        }`}
+                      >
+                        {formatMinor(display, leg.currency)}
+                      </TableCell>
+                    </TableRow>
+                  )
+                })
               )}
             </TableBody>
           </Table>
         </CardContent>
       </Card>
 
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base flex items-center gap-2">
+            <Ticket className="h-4 w-4" /> Quick links
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="text-sm space-y-2">
+          <div>
+            <Link
+              href="/marketer/promo-codes"
+              className="text-primary hover:underline"
+            >
+              Promo Codes
+            </Link>{" "}
+            — codes assigned to you, with discount and commission rates.
+          </div>
+          <div>
+            <Link
+              href="/marketer/conversions"
+              className="text-primary hover:underline"
+            >
+              Conversions
+            </Link>{" "}
+            — every commission event with attribution. No learner PII.
+          </div>
+          <div>
+            <Link
+              href="/marketer/payouts"
+              className="text-primary hover:underline"
+            >
+              Payouts
+            </Link>{" "}
+            — immutable ledger of what you&apos;ve earned and when each batch
+            was paid.
+          </div>
+        </CardContent>
+      </Card>
     </div>
   )
 }

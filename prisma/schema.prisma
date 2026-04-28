@@ -127,6 +127,19 @@ model Academy {
   // invoice alongside the TaxRate's label (GST/VAT/Sales Tax).
   taxRegistrationNumber String?
   aiEnabled        Boolean @default(false)
+
+  // Phase 7 — per-tenant Claude credentials for the Claude Agent SDK.
+  // Encrypted at rest with AES-256-GCM (key in CREDENTIAL_ENCRYPTION_KEY).
+  // When present, runAgentQuery uses this token; otherwise it falls back
+  // to the global ANTHROPIC_API_KEY env var. sk-ant-oat… tokens auto-route
+  // to CLAUDE_CODE_OAUTH_TOKEN; other prefixes route to ANTHROPIC_API_KEY.
+  aiClaudeTokenCipher String?
+  aiClaudeTokenIv     String?
+  aiClaudeTokenTag    String?
+  aiClaudeTokenLast4  String?
+  aiClaudeTokenSetAt  DateTime?
+  aiClaudeTokenSetBy  String?
+
   isActive         Boolean @default(true)
   // Spec §4.1 — admin-configurable banner carousel rotation interval, in ms.
   bannerRotationMs Int     @default(6000)
@@ -142,10 +155,28 @@ model Academy {
   // PlatformSettings.defaultDeveloperSplitBps; default 50/50.
   defaultDeveloperSplitBps Int @default(5000)
 
-  // Editable page templates — Academy Admin can customise via /academy/templates.
+  // Editable page templates — Academy Admin can customise via /academy/settings.
   refundPolicyHtml  String? @db.Text
   privacyPolicyHtml String? @db.Text
   termsHtml         String? @db.Text
+
+  // Footer pages — written-up copy for the public site, all editable from the
+  // Academy Admin settings "Pages" tab. *Html fields hold sanitised HTML.
+  aboutHtml             String? @db.Text
+  aboutHeroImageUrl     String?
+  aboutStoryImageUrl    String?
+  aboutTeamJson         Json?    // [{ name, role, imageUrl }]
+  helpCenterHtml        String? @db.Text
+  faqJson               Json?    // [{ q, a }]
+  contactHtml           String? @db.Text
+  contactEmail          String?
+  contactPhone          String?
+  contactAddress        String?
+  careersHtml           String? @db.Text
+  becomeDeveloperHtml      String? @db.Text
+  becomeDeveloperHeroImageUrl String?
+  coursesIntroHtml      String? @db.Text
+  categoriesIntroHtml   String? @db.Text
 
   // Email templates — short-form body used by sendEmail(). Supports {name},
   // {courseName}, {days}, {invoiceNumber} interpolation at send time.
@@ -153,6 +184,17 @@ model Academy {
   emailInvoiceHtml        String? @db.Text
   emailCertificateHtml    String? @db.Text
   emailExpiryReminderHtml String? @db.Text
+
+  // Integrations — per-academy outbound email config. Stored as JSON so we
+  // can grow the providers list without migrations. Today: gmail (OAuth2)
+  // and smtp. Secrets are stored as-is; restrict ACADEMY_ADMIN role only.
+  // Shape:
+  // {
+  //   gmail?: { enabled: bool, clientId, clientSecret, refreshToken, fromEmail }
+  //   smtp?:  { enabled: bool, host, port, username, password, fromEmail, secure }
+  //   activeProvider?: "gmail" | "smtp" | null
+  // }
+  integrations Json?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -251,6 +293,17 @@ model PasswordResetToken {
   createdAt DateTime @default(now())
 
   @@index([email])
+}
+
+model EmailChangeToken {
+  id        String   @id @default(cuid())
+  userId    String
+  newEmail  String
+  token     String   @unique
+  expires   DateTime
+  createdAt DateTime @default(now())
+
+  @@index([userId])
 }
 
 // ==================== INSTRUCTOR APPLICATIONS ====================
@@ -1241,12 +1294,14 @@ model TaxRate {
 // Spec §8.1 — capabilities the AI assist layer exposes. Each `/api/ai/*`
 // route writes one row per call so all drafts are auditable per §8.3.
 enum AiCapability {
-  OUTLINE      // course scoping & outlines
-  OBJECTIVES   // learning objectives
-  VOICE_OVER   // per-slide voice-over text
-  QUIZ         // quiz question drafts
-  METADATA     // title / description / tags optimisation
-  SUMMARISE    // content summarisation
+  OUTLINE         // course outlines (sections + lectures)
+  OBJECTIVES      // learning objectives
+  VOICE_OVER      // per-slide voice-over text
+  QUIZ            // quiz question drafts
+  METADATA        // title / description / tags optimisation
+  SUMMARISE       // content summarisation
+  COURSE_SCOPING  // multi-step scope brief (target hours, modules, prerequisites)
+  MEDIA_CURATION  // licence-aware media curator (Openverse + Wikimedia)
 }
 
 // Spec §8.3 governance: AI usage is logged for audit, never trains external

@@ -1,4 +1,5 @@
 import type { Metadata } from "next"
+import Image from "next/image"
 import Link from "next/link"
 import { redirect } from "next/navigation"
 import { auth } from "@/lib/auth"
@@ -65,6 +66,17 @@ export default async function BecomeInstructorPage() {
 
   const isLoggedIn = !!session?.user
 
+  // Editable copy & hero image — set per-academy in /academy/settings → Pages.
+  const academy = await prisma.academy.findFirst({
+    where: { isActive: true },
+    select: {
+      becomeDeveloperHtml: true,
+      becomeDeveloperHeroImageUrl: true,
+    },
+  })
+  const developerHtml = academy?.becomeDeveloperHtml || null
+  const developerHeroImage = academy?.becomeDeveloperHeroImageUrl || null
+
   // Determine application state for logged-in students
   let appState: ApplicationState = { type: "logged-out" }
 
@@ -100,6 +112,17 @@ export default async function BecomeInstructorPage() {
             {/* Left: Illustration area */}
             <div className="hidden md:flex flex-col items-center justify-center">
               <div className="relative w-full max-w-sm">
+                {developerHeroImage ? (
+                  <div className="relative w-full aspect-square rounded-2xl overflow-hidden bg-muted">
+                    <Image
+                      src={developerHeroImage}
+                      alt="Become a Course Developer"
+                      fill
+                      className="object-cover"
+                      unoptimized
+                    />
+                  </div>
+                ) : (
                 <div className="bg-purple-100 dark:bg-purple-950/30 rounded-2xl p-8 flex items-center justify-center aspect-square">
                   <svg
                     viewBox="0 0 200 200"
@@ -122,6 +145,7 @@ export default async function BecomeInstructorPage() {
                     <rect x="150" cy="80" width="12" height="12" rx="2" fill="currentColor" opacity="0.15" transform="rotate(15 156 86)" />
                   </svg>
                 </div>
+                )}
               </div>
             </div>
 
@@ -177,6 +201,18 @@ export default async function BecomeInstructorPage() {
           </div>
         </div>
       </section>
+
+      {/* Editable academy copy */}
+      {developerHtml && (
+        <section className="py-12 md:py-16 border-b">
+          <div className="container max-w-4xl">
+            <div
+              className="prose prose-slate max-w-none prose-headings:text-foreground prose-p:text-muted-foreground prose-li:text-muted-foreground prose-strong:text-foreground prose-a:text-primary"
+              dangerouslySetInnerHTML={{ __html: developerHtml }}
+            />
+          </div>
+        </section>
+      )}
 
       {/* Resource Cards */}
       <section className="py-12 md:py-16">

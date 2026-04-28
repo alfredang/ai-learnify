@@ -7,6 +7,7 @@ const publicRoutes = [
   "/register",
   "/forgot-password",
   "/verify-email",
+  "/verify-email-change",
   "/verify", // Phase 5: public certificate verification page (spec §13 QR)
   "/courses",
   "/categories",

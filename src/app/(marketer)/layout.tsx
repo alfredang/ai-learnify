@@ -17,6 +17,9 @@ export default async function MarketerLayout({
 
   const items: RoleSidebarItem[] = [
     { href: "/marketer", iconName: "LayoutDashboard", label: "Performance", matchExact: true },
+    { href: "/marketer/promo-codes", iconName: "Megaphone", label: "Promo Codes" },
+    { href: "/marketer/conversions", iconName: "Activity", label: "Conversions" },
+    { href: "/marketer/payouts", iconName: "DollarSign", label: "Payouts" },
   ]
 
   return (

@@ -70,7 +70,7 @@ export function UserMenu({ user }: UserMenuProps) {
                 {t("nav.myProfile")}
               </Link>
               <Link
-                href="/learner"
+                href="/account"
                 onClick={() => setIsOpen(false)}
                 className="flex items-center gap-3 px-3 py-2.5 text-sm rounded-md hover:bg-muted/50 transition-colors"
               >

@@ -1,6 +1,24 @@
 import QRCode from "qrcode"
 import type { Certificate, CertificateTemplate } from "@prisma/client"
 
+/**
+ * Spec §13 layout knobs surfaced by the academy-admin template editor.
+ * Stored on `CertificateTemplate.layoutJson` (Prisma Json column) and
+ * snapshotted onto each issued Certificate so historical certs remain
+ * pixel-stable when an academy retemplates.
+ *
+ * Keep the field set small — these all need a UI control AND need to be
+ * mirrored in the server-side PDF renderer (src/lib/certificate-pdf.tsx).
+ */
+export type CertificateLayoutJson = {
+  accentColor?: string
+  fontFamily?: "serif" | "sans"
+  signatureImageUrl?: string | null
+  watermarkText?: string | null
+  watermarkOpacity?: number
+  borderStyle?: "solid" | "double" | "none"
+}
+
 export type CertificateRenderData = Pick<
   Certificate,
   | "certificateId"
@@ -25,9 +43,10 @@ export type CertificateRenderData = Pick<
  * Spec §13: Customisable layout, up to 2 logos, Name to Be Called, course
  * title, completion date, CPD name & value, optional ID, QR/reference code.
  *
- * Returns a standalone HTML document. Learners hit "Print → Save as PDF"
- * from the browser, which matches the current download UX and skips the
- * pdf-lib dependency chain. The verify QR points to /verify/:certificateId.
+ * Returns a standalone HTML document. Used for the in-app preview and the
+ * `?format=html` download fallback. The default `application/pdf` download
+ * goes through `renderCertificatePdf` instead — keep both consumers in sync
+ * when changing layout.
  */
 export async function renderCertificateHtml(data: CertificateRenderData): Promise<string> {
   const displayName =
@@ -41,8 +60,19 @@ export async function renderCertificateHtml(data: CertificateRenderData): Promis
   const qrDataUrl = await QRCode.toDataURL(data.verifyUrl, { margin: 0, width: 140 })
 
   const layout =
-    (data.template?.layoutJson as { accentColor?: string } | null) ?? null
+    (data.template?.layoutJson as CertificateLayoutJson | null) ?? null
   const accent = layout?.accentColor ?? "#1a365d"
+  const fontFamily = layout?.fontFamily ?? "serif"
+  const headingFont =
+    fontFamily === "sans"
+      ? "'Open Sans', sans-serif"
+      : "'Playfair Display', serif"
+  const signatureImageUrl = layout?.signatureImageUrl ?? null
+  const watermarkText = layout?.watermarkText ?? null
+  const watermarkOpacity = clamp(layout?.watermarkOpacity ?? 0.08, 0.05, 0.25)
+  const borderStyle = layout?.borderStyle ?? "solid"
+  const borderWidth = borderStyle === "double" ? "6px" : borderStyle === "none" ? "0" : "3px"
+
   const primaryLogo = data.template?.primaryLogoUrl
   const secondaryLogo = data.template?.secondaryLogoUrl
   const cpdLine = data.cpdName
@@ -62,29 +92,43 @@ export async function renderCertificateHtml(data: CertificateRenderData): Promis
     body { font-family: 'Open Sans', sans-serif; background: #f5f5f5; padding: 20px; color: #2d3748; }
     .certificate {
       width: 1000px; min-height: 700px; margin: 0 auto; background: white;
-      position: relative; padding: 48px 56px; border: 3px solid ${accent};
+      position: relative; padding: 48px 56px;
+      border: ${borderWidth} ${borderStyle === "double" ? "double" : "solid"} ${borderStyle === "none" ? "transparent" : accent};
     }
     .certificate::before {
       content: ''; position: absolute; inset: 10px;
       border: 1px solid #cbd5e0; pointer-events: none;
+      ${borderStyle === "none" ? "display: none;" : ""}
     }
-    .logos { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; min-height: 64px; }
+    .watermark {
+      position: absolute; inset: 0; display: flex; align-items: center;
+      justify-content: center; pointer-events: none; overflow: hidden;
+    }
+    .watermark span {
+      font-family: ${headingFont}; font-size: 140px; font-weight: 700;
+      color: ${accent}; opacity: ${watermarkOpacity};
+      transform: rotate(-30deg); white-space: nowrap; letter-spacing: 12px;
+      text-transform: uppercase;
+    }
+    .logos { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; min-height: 64px; position: relative; z-index: 1; }
     .logo-primary, .logo-secondary { max-height: 64px; max-width: 180px; object-fit: contain; }
-    .header { text-align: center; margin-bottom: 24px; }
-    .title { font-family: 'Playfair Display', serif; font-size: 40px; color: ${accent}; }
+    .header { text-align: center; margin-bottom: 24px; position: relative; z-index: 1; }
+    .title { font-family: ${headingFont}; font-size: 40px; color: ${accent}; }
     .subtitle { font-size: 14px; color: #718096; text-transform: uppercase; letter-spacing: 3px; margin-top: 4px; }
-    .content { text-align: center; padding: 24px 40px; }
+    .content { text-align: center; padding: 24px 40px; position: relative; z-index: 1; }
     .presented { font-size: 13px; color: #718096; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 14px; }
-    .recipient { font-family: 'Playfair Display', serif; font-size: 40px; color: #2d3748; margin-bottom: 16px; padding-bottom: 8px; border-bottom: 2px solid #e2e8f0; display: inline-block; }
+    .recipient { font-family: ${headingFont}; font-size: 40px; color: #2d3748; margin-bottom: 16px; padding-bottom: 8px; border-bottom: 2px solid #e2e8f0; display: inline-block; }
     .called { font-size: 13px; color: #718096; margin-bottom: 24px; font-style: italic; }
     .completion { font-size: 14px; color: #718096; margin-bottom: 12px; }
-    .course-name { font-family: 'Playfair Display', serif; font-size: 26px; color: ${accent}; margin-bottom: 14px; }
+    .course-name { font-family: ${headingFont}; font-size: 26px; color: ${accent}; margin-bottom: 14px; }
     .cpd { display: inline-block; background: #ebf4ff; color: ${accent}; padding: 6px 14px; border-radius: 999px; font-size: 13px; font-weight: 600; }
     .footer {
       display: grid; grid-template-columns: 1fr auto 1fr;
       align-items: end; gap: 20px; padding: 32px 40px 0;
+      position: relative; z-index: 1;
     }
     .signature { text-align: center; }
+    .signature-image { max-height: 56px; max-width: 200px; margin: 0 auto 4px; display: block; }
     .signature-line { width: 220px; border-top: 1px solid #a0aec0; margin: 0 auto 6px; }
     .signature-name { font-size: 14px; font-weight: 600; }
     .signature-title { font-size: 12px; color: #718096; }
@@ -94,7 +138,7 @@ export async function renderCertificateHtml(data: CertificateRenderData): Promis
     .date-info { text-align: center; }
     .date-label { font-size: 12px; color: #718096; margin-bottom: 4px; }
     .date-value { font-size: 14px; font-weight: 600; }
-    .cert-id { text-align: center; margin-top: 22px; font-size: 11px; color: #a0aec0; letter-spacing: 0.5px; }
+    .cert-id { text-align: center; margin-top: 22px; font-size: 11px; color: #a0aec0; letter-spacing: 0.5px; position: relative; z-index: 1; }
     .id-number { font-size: 11px; color: #a0aec0; margin-top: 4px; }
     .print-btn {
       display: block; margin: 20px auto; padding: 12px 30px; background: ${accent};
@@ -103,7 +147,7 @@ export async function renderCertificateHtml(data: CertificateRenderData): Promis
     .print-btn:hover { filter: brightness(1.1); }
     @media print {
       body { background: white; padding: 0; }
-      .certificate { border-color: ${accent}; box-shadow: none; }
+      .certificate { box-shadow: none; }
       .print-btn { display: none; }
     }
   </style>
@@ -112,6 +156,8 @@ export async function renderCertificateHtml(data: CertificateRenderData): Promis
   <button class="print-btn" onclick="window.print()">Download as PDF</button>
 
   <div class="certificate">
+    ${watermarkText ? `<div class="watermark"><span>${escapeHtml(watermarkText)}</span></div>` : ""}
+
     <div class="logos">
       ${primaryLogo ? `<img class="logo-primary" src="${escapeAttr(primaryLogo)}" alt="Primary logo"/>` : '<div></div>'}
       ${secondaryLogo ? `<img class="logo-secondary" src="${escapeAttr(secondaryLogo)}" alt="Secondary logo"/>` : '<div></div>'}
@@ -133,6 +179,7 @@ export async function renderCertificateHtml(data: CertificateRenderData): Promis
 
     <div class="footer">
       <div class="signature">
+        ${signatureImageUrl ? `<img class="signature-image" src="${escapeAttr(signatureImageUrl)}" alt="Signature"/>` : ""}
         <div class="signature-line"></div>
         <div class="signature-name">${escapeHtml(signatoryName)}</div>
         <div class="signature-title">${escapeHtml(signatoryTitle)}</div>
@@ -167,4 +214,9 @@ function escapeHtml(s: string): string {
 
 function escapeAttr(s: string): string {
   return escapeHtml(s)
+}
+
+function clamp(n: number, min: number, max: number): number {
+  if (Number.isNaN(n)) return min
+  return Math.max(min, Math.min(max, n))
 }

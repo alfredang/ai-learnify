@@ -102,7 +102,7 @@ export async function POST(request: Request) {
     M2_END: 0,
     T_MINUS_14: 0,
   }
-  const emailConfigured = Boolean(
+  const resendConfigured = Boolean(
     process.env.RESEND_API_KEY && process.env.EMAIL_FROM
   )
 
@@ -121,14 +121,16 @@ export async function POST(request: Request) {
         user: {
           select: { id: true, email: true, nameToBeCalled: true, name: true },
         },
-        course: { select: { title: true } },
-        programme: { select: { title: true } },
+        course: { select: { title: true, academyId: true } },
+        programme: { select: { title: true, academyId: true } },
       },
     })
 
     for (const g of grants) {
       const productName =
         g.course?.title ?? g.programme?.title ?? "your content"
+      const academyId =
+        g.course?.academyId ?? g.programme?.academyId ?? null
       const daysLeft = Math.round(
         (g.expiresAt.getTime() - now.getTime()) / dayMs
       )
@@ -138,6 +140,7 @@ export async function POST(request: Request) {
         resourceType: "accessGrant",
         resourceId: g.id,
         userId: g.userId,
+        ...(academyId ? { academyId } : {}),
         metadata: {
           reminderType: w.tag,
           daysLeft,
@@ -146,8 +149,9 @@ export async function POST(request: Request) {
       })
       processed[w.tag]++
 
-      // Actually send if configured. Email helper audits its own outcome.
-      if (emailConfigured && g.user.email) {
+      // sendEmail will use the academy's configured provider when
+      // available, else fall back to Resend env vars, else log + skip.
+      if (g.user.email) {
         const subject = TAG_COPY[w.tag].subject.replace(
           "{product}",
           productName
@@ -170,6 +174,7 @@ export async function POST(request: Request) {
           subject,
           html,
           purpose,
+          ...(academyId ? { academyId } : {}),
           context: {
             accessGrantId: g.id,
             userId: g.userId,
@@ -185,9 +190,10 @@ export async function POST(request: Request) {
   return NextResponse.json({
     processed,
     sent,
-    emailConfigured,
-    note: emailConfigured
-      ? "Reminders sent via Resend"
-      : "Logged only — set RESEND_API_KEY + EMAIL_FROM to enable sending",
+    resendFallbackConfigured: resendConfigured,
+    note:
+      "Each reminder is dispatched via the academy's configured provider " +
+      "(Gmail / SMTP) when available, else the platform Resend fallback, " +
+      "else logged only. See email.send / email.skip audit entries.",
   })
 }

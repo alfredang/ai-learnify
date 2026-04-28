@@ -181,8 +181,16 @@ async function getFilterData() {
 }
 
 export default async function CoursesPage({ searchParams }: CoursesPageProps) {
-  const [{ courses, total, totalPages, currentPage }, filterData, session] =
-    await Promise.all([getCourses(searchParams), getFilterData(), auth()])
+  const [{ courses, total, totalPages, currentPage }, filterData, session, academy] =
+    await Promise.all([
+      getCourses(searchParams),
+      getFilterData(),
+      auth(),
+      prisma.academy.findFirst({
+        where: { isActive: true },
+        select: { coursesIntroHtml: true },
+      }),
+    ])
   const [favouritedCourseIds, cartCourseIds, enrolledCourseMap] = await Promise.all([
     getFavouritedCourseIds(session?.user?.id),
     getCartItemCourseIds(session?.user?.id),
@@ -201,6 +209,12 @@ export default async function CoursesPage({ searchParams }: CoursesPageProps) {
       <div className="mb-8">
         <h1 className="text-3xl font-bold mb-2">All Courses</h1>
         <p className="text-muted-foreground">{total} courses available</p>
+        {academy?.coursesIntroHtml && (
+          <div
+            className="prose prose-sm prose-slate max-w-3xl mt-3 prose-p:text-muted-foreground prose-a:text-primary"
+            dangerouslySetInnerHTML={{ __html: academy.coursesIntroHtml }}
+          />
+        )}
       </div>
 
       <div className="mb-8">
