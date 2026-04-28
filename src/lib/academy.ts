@@ -9,7 +9,11 @@ export type MembershipSummary = {
 
 export type RoleContext = {
   userId: string
+  // Highest-priority single platform role, kept for backward compat with
+  // the many call sites that still do `platformRole === "PLATFORM_OWNER"`.
   platformRole: PlatformRole
+  // Canonical multi-role list — a user can be both Owner and Support.
+  platformRoles: PlatformRole[]
   memberships: MembershipSummary[]
 }
 
@@ -24,6 +28,7 @@ export async function loadRoleContext(userId: string): Promise<RoleContext | nul
     select: {
       id: true,
       platformRole: true,
+      platformRoles: true,
       isActive: true,
       academyMemberships: {
         select: {
@@ -37,9 +42,18 @@ export async function loadRoleContext(userId: string): Promise<RoleContext | nul
 
   if (!user || !user.isActive) return null
 
+  // Derive the legacy single platformRole from platformRoles when present
+  // (Owner outranks Support). Falls back to the legacy column otherwise.
+  const derivedPlatformRole: PlatformRole = user.platformRoles.includes("PLATFORM_OWNER")
+    ? "PLATFORM_OWNER"
+    : user.platformRoles.includes("PLATFORM_SUPPORT")
+    ? "PLATFORM_SUPPORT"
+    : user.platformRole
+
   return {
     userId: user.id,
-    platformRole: user.platformRole,
+    platformRole: derivedPlatformRole,
+    platformRoles: user.platformRoles,
     memberships: user.academyMemberships
       .filter((m) => m.academy.isActive)
       .map((m) => ({

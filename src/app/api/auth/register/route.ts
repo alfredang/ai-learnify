@@ -51,7 +51,9 @@ export async function POST(request: Request) {
       password,
     } = validatedData.data
 
-    const role = body.role === "INSTRUCTOR" ? "INSTRUCTOR" : "STUDENT"
+    // Spec section 1 — every new sign-up starts as a Learner. Other roles
+    // are granted afterwards by a Platform Owner via /platform/users.
+    const role = "STUDENT" as const
 
     const existingUser = await prisma.user.findUnique({
       where: { email },
@@ -87,7 +89,7 @@ export async function POST(request: Request) {
               academyMemberships: {
                 create: {
                   academyId: defaultAcademy.id,
-                  role: role === "INSTRUCTOR" ? "COURSE_DEVELOPER" : "LEARNER",
+                  role: "LEARNER",
                 },
               },
             }

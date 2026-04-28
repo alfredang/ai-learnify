@@ -20,8 +20,14 @@ async function main() {
   })
 
   await prisma.academyMembership.upsert({
-    where: { userId_academyId: { userId: marketer.id, academyId: academy.id } },
-    update: { role: "MARKETER" },
+    where: {
+      userId_academyId_role: {
+        userId: marketer.id,
+        academyId: academy.id,
+        role: "MARKETER",
+      },
+    },
+    update: {},
     create: { userId: marketer.id, academyId: academy.id, role: "MARKETER" },
   })
 

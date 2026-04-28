@@ -131,6 +131,7 @@ async function main() {
       name: "Admin User",
       role: UserRole.ADMIN,
       platformRole: "PLATFORM_OWNER",
+      platformRoles: ["PLATFORM_OWNER"],
       image: "https://randomuser.me/api/portraits/men/1.jpg",
       academyMemberships: {
         create: { academyId: defaultAcademy.id, role: "ACADEMY_ADMIN" },

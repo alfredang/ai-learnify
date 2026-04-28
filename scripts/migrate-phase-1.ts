@@ -59,7 +59,13 @@ async function backfillUsers(academyId: string) {
     const mapped = mapLegacyRole(u.role)
 
     await prisma.academyMembership.upsert({
-      where: { userId_academyId: { userId: u.id, academyId } },
+      where: {
+        userId_academyId_role: {
+          userId: u.id,
+          academyId,
+          role: mapped.academy,
+        },
+      },
       create: { userId: u.id, academyId, role: mapped.academy },
       update: {},
     })

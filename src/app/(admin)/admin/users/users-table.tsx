@@ -6,6 +6,7 @@ import { Loader2, Pencil } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { Checkbox } from "@/components/ui/checkbox"
 import {
   Dialog,
   DialogContent,
@@ -14,13 +15,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
 import {
   Table,
   TableBody,
@@ -31,28 +25,60 @@ import {
 } from "@/components/ui/table"
 
 type LegacyRole = "STUDENT" | "INSTRUCTOR" | "ADMIN"
-type PlatformRole = "NONE" | "PLATFORM_OWNER" | "PLATFORM_SUPPORT"
+type PlatformRoleValue = "PLATFORM_OWNER" | "PLATFORM_SUPPORT"
 type AcademyRole = "LEARNER" | "COURSE_DEVELOPER" | "ACADEMY_ADMIN" | "MARKETER"
 
-// One unified picker covering all six spec roles. Two of them are
-// stored on User.platformRole, the other four live as
-// AcademyMembership.role.
-type UnifiedRole =
-  | "PLATFORM_OWNER"
-  | "PLATFORM_SUPPORT"
-  | "ACADEMY_ADMIN"
-  | "COURSE_DEVELOPER"
-  | "MARKETER"
-  | "LEARNER"
+// All six roles can be held independently per spec section 1.
+type UnifiedRole = PlatformRoleValue | AcademyRole
 
-const UNIFIED_ROLE_OPTIONS: { value: UnifiedRole; label: string }[] = [
-  { value: "PLATFORM_OWNER", label: "Platform Owner" },
-  { value: "PLATFORM_SUPPORT", label: "Platform Support" },
-  { value: "ACADEMY_ADMIN", label: "Academy Admin" },
-  { value: "COURSE_DEVELOPER", label: "Course Developer" },
-  { value: "MARKETER", label: "Marketer / Affiliate" },
-  { value: "LEARNER", label: "Learner" },
+const UNIFIED_ROLE_OPTIONS: {
+  value: UnifiedRole
+  label: string
+  description: string
+}[] = [
+  {
+    value: "PLATFORM_OWNER",
+    label: "Platform Owner",
+    description: "Commercial owner, monetisation policy",
+  },
+  {
+    value: "PLATFORM_SUPPORT",
+    label: "Platform Support",
+    description: "Security, uptime, technical support",
+  },
+  {
+    value: "ACADEMY_ADMIN",
+    label: "Academy Admin",
+    description: "Organisation / Academy administrator",
+  },
+  {
+    value: "COURSE_DEVELOPER",
+    label: "Course Developer",
+    description: "Content creation & maintenance",
+  },
+  {
+    value: "MARKETER",
+    label: "Marketer / Affiliate",
+    description: "Promotion via promo codes",
+  },
+  {
+    value: "LEARNER",
+    label: "Learner",
+    description: "End-user consumer",
+  },
 ]
+
+const PLATFORM_GROUP: PlatformRoleValue[] = ["PLATFORM_OWNER", "PLATFORM_SUPPORT"]
+const ACADEMY_GROUP: AcademyRole[] = [
+  "ACADEMY_ADMIN",
+  "COURSE_DEVELOPER",
+  "MARKETER",
+  "LEARNER",
+]
+
+function isPlatformRole(r: UnifiedRole): r is PlatformRoleValue {
+  return (PLATFORM_GROUP as UnifiedRole[]).includes(r)
+}
 
 type Membership = {
   academyId: string
@@ -66,21 +92,14 @@ type User = {
   email: string
   image: string | null
   role: LegacyRole
-  platformRole: PlatformRole
+  platformRole: "NONE" | PlatformRoleValue
+  platformRoles: PlatformRoleValue[]
   createdAt: string
   academyMemberships: Membership[]
   _count: { courses: number; enrollments: number }
 }
 
 type Academy = { id: string; name: string; slug: string }
-
-// One badge per row. We collapse platformRole + academyMembership +
-// legacy `role` into a single canonical label, picking the highest
-// priority signal each user has so the column scans cleanly.
-type DisplayRole = {
-  label: string
-  className: string
-}
 
 const ROLE_STYLES: Record<UnifiedRole, string> = {
   PLATFORM_OWNER: "bg-purple-100 text-purple-800",
@@ -95,31 +114,38 @@ const ROLE_LABELS: Record<UnifiedRole, string> = Object.fromEntries(
   UNIFIED_ROLE_OPTIONS.map((o) => [o.value, o.label])
 ) as Record<UnifiedRole, string>
 
-function deriveUnifiedRole(user: User): UnifiedRole {
-  if (user.platformRole === "PLATFORM_OWNER") return "PLATFORM_OWNER"
-  if (user.platformRole === "PLATFORM_SUPPORT") return "PLATFORM_SUPPORT"
-  const m = user.academyMemberships[0]
-  if (m) return m.role
-  // Legacy fallbacks: ADMIN ≈ Academy Admin, INSTRUCTOR ≈ Course Developer,
-  // STUDENT ≈ Learner. These rows can be re-saved through the dialog to
-  // commit the canonical role to the new schema.
-  if (user.role === "ADMIN") return "ACADEMY_ADMIN"
-  if (user.role === "INSTRUCTOR") return "COURSE_DEVELOPER"
-  return "LEARNER"
+// Every role a user currently holds. platformRoles[] is the canonical
+// source for platform roles; academyMemberships hold the rest. Falls
+// back to a single legacy-derived role for rows that pre-date the new
+// schema.
+function deriveUnifiedRoles(user: User): UnifiedRole[] {
+  const roles = new Set<UnifiedRole>()
+  for (const r of user.platformRoles) roles.add(r)
+  // If platformRoles[] is empty but legacy platformRole isn't, surface
+  // it so the dialog opens with the right boxes ticked.
+  if (
+    user.platformRoles.length === 0 &&
+    user.platformRole !== "NONE"
+  ) {
+    roles.add(user.platformRole)
+  }
+  for (const m of user.academyMemberships) roles.add(m.role)
+  if (roles.size > 0) return [...roles]
+  // Legacy fallback when neither new field is populated.
+  if (user.role === "ADMIN") return ["ACADEMY_ADMIN"]
+  if (user.role === "INSTRUCTOR") return ["COURSE_DEVELOPER"]
+  return ["LEARNER"]
 }
 
-function toApiPayload(role: UnifiedRole, academyId: string) {
-  // Platform-scoped roles have no academy membership. Tenant-scoped roles
-  // wipe the platform role and set a single membership of the chosen kind.
-  if (role === "PLATFORM_OWNER" || role === "PLATFORM_SUPPORT") {
-    return {
-      platformRole: role,
-      academyMemberships: [],
-    }
-  }
+function toApiPayload(roles: UnifiedRole[], academyId: string) {
+  const platformRoles = roles.filter(isPlatformRole)
+  const academyRoles = roles.filter((r): r is AcademyRole => !isPlatformRole(r))
   return {
-    platformRole: "NONE" as const,
-    academyMemberships: [{ academyId, role }],
+    platformRoles,
+    academyMemberships:
+      academyId && academyRoles.length > 0
+        ? academyRoles.map((role) => ({ academyId, role }))
+        : [],
   }
 }
 
@@ -136,12 +162,22 @@ export function UsersTable({
 }) {
   const [users, setUsers] = useState<User[]>(initialUsers)
   const [editing, setEditing] = useState<User | null>(null)
-  const [draftRole, setDraftRole] = useState<UnifiedRole>("LEARNER")
+  const [draftRoles, setDraftRoles] = useState<Set<UnifiedRole>>(new Set())
   const [saving, setSaving] = useState(false)
 
   function openEdit(user: User) {
     setEditing(user)
-    setDraftRole(deriveUnifiedRole(user))
+    setDraftRoles(new Set(deriveUnifiedRoles(user)))
+  }
+
+  // Each role is independent — clicking just toggles that role on or off.
+  function toggleRole(role: UnifiedRole) {
+    setDraftRoles((prev) => {
+      const next = new Set(prev)
+      if (next.has(role)) next.delete(role)
+      else next.add(role)
+      return next
+    })
   }
 
   async function save() {
@@ -150,7 +186,7 @@ export function UsersTable({
     try {
       const academyId =
         editing.academyMemberships[0]?.academyId ?? academies[0]?.id ?? ""
-      const payload = toApiPayload(draftRole, academyId)
+      const payload = toApiPayload([...draftRoles], academyId)
 
       const res = await fetch(`/api/platform/users/${editing.id}/roles`, {
         method: "PATCH",
@@ -168,6 +204,7 @@ export function UsersTable({
             ? {
                 ...u,
                 platformRole: data.user.platformRole,
+                platformRoles: data.user.platformRoles ?? [],
                 academyMemberships: data.user.academyMemberships,
               }
             : u
@@ -198,7 +235,7 @@ export function UsersTable({
           </TableHeader>
           <TableBody>
             {users.map((user) => {
-              const role = deriveUnifiedRole(user)
+              const roles = deriveUnifiedRoles(user)
               return (
                 <TableRow key={user.id}>
                   <TableCell>
@@ -218,9 +255,17 @@ export function UsersTable({
                     </div>
                   </TableCell>
                   <TableCell>
-                    <Badge variant="secondary" className={ROLE_STYLES[role]}>
-                      {ROLE_LABELS[role]}
-                    </Badge>
+                    <div className="flex flex-wrap gap-1.5">
+                      {roles.map((r) => (
+                        <Badge
+                          key={r}
+                          variant="secondary"
+                          className={ROLE_STYLES[r]}
+                        >
+                          {ROLE_LABELS[r]}
+                        </Badge>
+                      ))}
+                    </div>
                   </TableCell>
                   <TableCell>{user._count.courses}</TableCell>
                   <TableCell>{user._count.enrollments}</TableCell>
@@ -263,24 +308,31 @@ export function UsersTable({
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-1.5 py-2">
-            <label className="text-sm font-medium">Role</label>
-            <Select
-              value={draftRole}
-              onValueChange={(v) => setDraftRole(v as UnifiedRole)}
-              disabled={saving}
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {UNIFIED_ROLE_OPTIONS.map((o) => (
-                  <SelectItem key={o.value} value={o.value}>
+          <div className="space-y-2 py-2">
+            <p className="text-xs text-muted-foreground">
+              Tick every role this user holds. Each role is independent.
+            </p>
+            {UNIFIED_ROLE_OPTIONS.map((o) => (
+              <label
+                key={o.value}
+                className="flex items-start gap-2.5 rounded-md border px-3 py-2 cursor-pointer hover:bg-muted/50"
+              >
+                <Checkbox
+                  checked={draftRoles.has(o.value)}
+                  onCheckedChange={() => toggleRole(o.value)}
+                  disabled={saving}
+                  className="mt-0.5"
+                />
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-medium leading-tight">
                     {o.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+                  </p>
+                  <p className="text-xs text-muted-foreground leading-snug mt-0.5">
+                    {o.description}
+                  </p>
+                </div>
+              </label>
+            ))}
           </div>
 
           <DialogFooter>

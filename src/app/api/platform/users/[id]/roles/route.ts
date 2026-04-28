@@ -5,7 +5,14 @@ import { prisma } from "@/lib/prisma"
 import { audit, getRequestIp } from "@/lib/audit"
 
 const patchSchema = z.object({
+  // Legacy single-platform-role field (kept for backward compat).
   platformRole: z.enum(["NONE", "PLATFORM_OWNER", "PLATFORM_SUPPORT"]).optional(),
+  // New canonical multi-role array. When provided, replaces platformRoles
+  // wholesale and the legacy platformRole is auto-synced to the highest-
+  // priority entry (Owner > Support > NONE).
+  platformRoles: z
+    .array(z.enum(["PLATFORM_OWNER", "PLATFORM_SUPPORT"]))
+    .optional(),
   academyMemberships: z
     .array(
       z.object({
@@ -39,7 +46,7 @@ export async function PATCH(
   // could lock themselves out.
   const target = await prisma.user.findUnique({
     where: { id },
-    select: { id: true, platformRole: true },
+    select: { id: true, platformRole: true, platformRoles: true },
   })
   if (!target) {
     return NextResponse.json({ error: "User not found" }, { status: 404 })
@@ -53,18 +60,24 @@ export async function PATCH(
     )
   }
 
-  if (
-    parsed.data.platformRole !== undefined &&
-    parsed.data.platformRole !== "PLATFORM_OWNER" &&
-    target.id === session.user.id
-  ) {
-    return NextResponse.json(
-      {
-        error: "You cannot remove your own Platform Owner role.",
-        code: "SELF_DEMOTION",
-      },
-      { status: 400 }
-    )
+  // Self-demotion guard: actor cannot remove their own Owner status from
+  // either the legacy single field or the new multi-role array.
+  if (target.id === session.user.id) {
+    const droppingViaLegacy =
+      parsed.data.platformRole !== undefined &&
+      parsed.data.platformRole !== "PLATFORM_OWNER"
+    const droppingViaArray =
+      parsed.data.platformRoles !== undefined &&
+      !parsed.data.platformRoles.includes("PLATFORM_OWNER")
+    if (droppingViaLegacy || droppingViaArray) {
+      return NextResponse.json(
+        {
+          error: "You cannot remove your own Platform Owner role.",
+          code: "SELF_DEMOTION",
+        },
+        { status: 400 }
+      )
+    }
   }
 
   // If memberships are being replaced, every academyId must exist.
@@ -84,10 +97,32 @@ export async function PATCH(
   }
 
   const updated = await prisma.$transaction(async (tx) => {
-    if (parsed.data.platformRole !== undefined) {
+    // platformRoles[] is the canonical write path. We auto-derive the
+    // legacy platformRole single-value field from the highest priority
+    // entry (Owner > Support > NONE) so old `=== "PLATFORM_OWNER"` checks
+    // continue to work.
+    if (parsed.data.platformRoles !== undefined) {
+      const derivedLegacy = parsed.data.platformRoles.includes("PLATFORM_OWNER")
+        ? "PLATFORM_OWNER"
+        : parsed.data.platformRoles.includes("PLATFORM_SUPPORT")
+        ? "PLATFORM_SUPPORT"
+        : "NONE"
       await tx.user.update({
         where: { id },
-        data: { platformRole: parsed.data.platformRole },
+        data: {
+          platformRoles: parsed.data.platformRoles,
+          platformRole: derivedLegacy,
+        },
+      })
+    } else if (parsed.data.platformRole !== undefined) {
+      // Legacy single-field write path: sync platformRoles[] to match.
+      await tx.user.update({
+        where: { id },
+        data: {
+          platformRole: parsed.data.platformRole,
+          platformRoles:
+            parsed.data.platformRole === "NONE" ? [] : [parsed.data.platformRole],
+        },
       })
     }
 
@@ -113,6 +148,7 @@ export async function PATCH(
         email: true,
         name: true,
         platformRole: true,
+        platformRoles: true,
         academyMemberships: {
           select: {
             academyId: true,

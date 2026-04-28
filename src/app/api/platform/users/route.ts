@@ -42,6 +42,7 @@ export async function GET(request: Request) {
       name: true,
       image: true,
       platformRole: true,
+      platformRoles: true,
       academyMemberships: {
         select: {
           academyId: true,

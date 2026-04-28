@@ -30,6 +30,7 @@ declare module "next-auth" {
       role: UserRole
       // Phase 1 additions — consume these in new code.
       platformRole: PlatformRole
+      platformRoles: PlatformRole[]
       memberships: MembershipSummary[]
     }
   }
@@ -40,6 +41,7 @@ declare module "@auth/core/jwt" {
     id: string
     role: UserRole
     platformRole: PlatformRole
+    platformRoles: PlatformRole[]
     memberships: MembershipSummary[]
   }
 }
@@ -47,6 +49,7 @@ declare module "@auth/core/jwt" {
 function ctxToJwtPatch(ctx: RoleContext | null) {
   return {
     platformRole: (ctx?.platformRole ?? "NONE") as PlatformRole,
+    platformRoles: (ctx?.platformRoles ?? []) as PlatformRole[],
     memberships: ctx?.memberships ?? [],
     role: legacyRoleFromContext(ctx) as UserRole,
   }
@@ -208,6 +211,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         session.user.id = token.id as string
         session.user.role = (token.role as UserRole) ?? "STUDENT"
         session.user.platformRole = (token.platformRole as PlatformRole) ?? "NONE"
+        session.user.platformRoles = (token.platformRoles as PlatformRole[]) ?? []
         session.user.memberships = (token.memberships as MembershipSummary[]) ?? []
       }
       return session

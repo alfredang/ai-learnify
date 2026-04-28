@@ -18,6 +18,7 @@ async function getUsers() {
         image: true,
         role: true,
         platformRole: true,
+        platformRoles: true,
         createdAt: true,
         academyMemberships: {
           select: {

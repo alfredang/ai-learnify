@@ -48,6 +48,10 @@ model User {
   // nameToBeCalled is shown throughout the LMS and on certificates (spec §3.1).
   // certificateName is what we print on PDFs; certificateIdNumber is optional per §3.1.
   platformRole        PlatformRole @default(NONE)
+  // Multi-role support. platformRoles is the canonical list; platformRole
+  // above is kept in sync as the highest-priority entry so existing checks
+  // (`platformRole === "PLATFORM_OWNER"`) keep working until a sweep.
+  platformRoles       PlatformRole[] @default([])
   nameToBeCalled      String?
   certificateName     String?
   certificateIdNumber String?
@@ -180,7 +184,10 @@ model AcademyMembership {
   user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
   academy Academy @relation(fields: [academyId], references: [id], onDelete: Cascade)
 
-  @@unique([userId, academyId])
+  // Multi-role: a user can hold several different academy roles in the
+  // same academy (e.g. Course Developer + Learner). The unique tuple is
+  // now (user, academy, role) so we still prevent duplicate assignments.
+  @@unique([userId, academyId, role])
   @@index([userId])
   @@index([academyId])
   @@index([role])
