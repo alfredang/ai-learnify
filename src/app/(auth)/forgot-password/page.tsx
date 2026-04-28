@@ -15,7 +15,12 @@ export default function ForgotPasswordPage() {
     <div className="w-full max-w-md space-y-8 rounded-2xl bg-white p-8 shadow-xl sm:p-10">
       <div className="flex flex-col space-y-2 text-center">
         <Link href="/" className="mx-auto">
-          <span className="text-2xl font-bold">Learnify</span>
+          <img
+            src="/images/ies-logo.svg"
+            alt="IES Digital Academy"
+            width={64}
+            height={64}
+          />
         </Link>
         <h1 className="text-2xl font-semibold tracking-tight">
           Forgot your password?
