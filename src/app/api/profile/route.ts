@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { profileSchema } from "@/lib/validations/user"
+import { audit, getRequestIp } from "@/lib/audit"
 
 export async function GET() {
   try {
@@ -137,6 +138,20 @@ export async function PUT(request: Request) {
         certificateIdNumber: true,
         username: true,
       },
+    })
+
+    await audit({
+      action: "user.profile.update",
+      resourceType: "user",
+      resourceId: session.user.id,
+      userId: session.user.id,
+      metadata: {
+        fields: Object.keys(result.data).filter(
+          (k) => result.data[k as keyof typeof result.data] !== undefined
+        ),
+      },
+      ip: getRequestIp(request),
+      userAgent: request.headers.get("user-agent") ?? undefined,
     })
 
     return NextResponse.json(updated)

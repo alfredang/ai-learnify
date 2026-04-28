@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { sectionSchema } from "@/lib/validations/course"
+import { audit, getRequestIp } from "@/lib/audit"
 
 async function verifyCourseOwner(courseId: string, userId: string, role: string) {
   const course = await prisma.course.findUnique({
@@ -66,6 +67,16 @@ export async function PUT(
       include: { lectures: { orderBy: { position: "asc" } } },
     })
 
+    await audit({
+      action: "section.update",
+      resourceType: "section",
+      resourceId: sectionId,
+      userId: session.user.id,
+      metadata: { courseId, fields: Object.keys(validated.data) },
+      ip: getRequestIp(request),
+      userAgent: request.headers.get("user-agent") ?? undefined,
+    })
+
     return NextResponse.json({ section })
   } catch (error) {
     console.error("[SECTION_PUT]", error)
@@ -118,6 +129,16 @@ export async function DELETE(
     await prisma.section.updateMany({
       where: { courseId, position: { gt: section.position } },
       data: { position: { decrement: 1 } },
+    })
+
+    await audit({
+      action: "section.delete",
+      resourceType: "section",
+      resourceId: sectionId,
+      userId: session.user.id,
+      metadata: { courseId },
+      ip: getRequestIp(request),
+      userAgent: request.headers.get("user-agent") ?? undefined,
     })
 
     return NextResponse.json({ message: "Section deleted successfully" })

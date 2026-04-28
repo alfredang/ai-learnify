@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { becomeInstructorSchema } from "@/lib/validations/user"
+import { audit, getRequestIp } from "@/lib/audit"
 
 export async function GET() {
   try {
@@ -79,6 +80,15 @@ export async function POST(request: Request) {
         headline: validatedData.data.headline,
         bio: validatedData.data.bio,
       },
+    })
+
+    await audit({
+      action: "instructor-application.submit",
+      resourceType: "instructor-application",
+      resourceId: application.id,
+      userId: session.user.id,
+      ip: getRequestIp(request),
+      userAgent: request.headers.get("user-agent") ?? undefined,
     })
 
     return NextResponse.json({ application }, { status: 201 })

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { courseCreateSchema } from "@/lib/validations/course"
+import { audit, getRequestIp } from "@/lib/audit"
 import slugify from "slugify"
 
 export async function GET(request: Request) {
@@ -111,6 +112,17 @@ export async function POST(request: Request) {
         price: 0,
         isFree: true,
       },
+    })
+
+    await audit({
+      action: "course.create",
+      resourceType: "course",
+      resourceId: course.id,
+      userId: session.user.id,
+      academyId: course.academyId ?? null,
+      metadata: { title: course.title, slug: course.slug, categoryId },
+      ip: getRequestIp(request),
+      userAgent: request.headers.get("user-agent") ?? undefined,
     })
 
     return NextResponse.json(course, { status: 201 })

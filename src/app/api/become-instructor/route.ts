@@ -3,13 +3,14 @@ import { cookies } from "next/headers"
 import { encode, decode } from "next-auth/jwt"
 import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
+import { audit, getRequestIp } from "@/lib/audit"
 
 const COOKIE_NAME =
   process.env.NODE_ENV === "production"
     ? "__Secure-authjs.session-token"
     : "authjs.session-token"
 
-export async function POST() {
+export async function POST(request: Request) {
   try {
     const session = await auth()
     if (!session?.user) {
@@ -29,6 +30,16 @@ export async function POST() {
     await prisma.user.update({
       where: { id: session.user.id },
       data: { role: "INSTRUCTOR" },
+    })
+
+    await audit({
+      action: "user.role.promote",
+      resourceType: "user",
+      resourceId: session.user.id,
+      userId: session.user.id,
+      metadata: { from: "STUDENT", to: "INSTRUCTOR", path: "self-promote" },
+      ip: getRequestIp(request),
+      userAgent: request.headers.get("user-agent") ?? undefined,
     })
 
     // Update the JWT cookie with the new role so the middleware

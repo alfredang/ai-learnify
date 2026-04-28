@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { reviewSchema } from "@/lib/validations/course"
 import { recalculateCourseRating } from "@/lib/reviews"
+import { audit, getRequestIp } from "@/lib/audit"
 import { ITEMS_PER_PAGE } from "@/lib/constants"
 
 export async function GET(
@@ -173,6 +174,16 @@ export async function POST(
     })
 
     await recalculateCourseRating(courseId)
+
+    await audit({
+      action: "review.create",
+      resourceType: "review",
+      resourceId: review.id,
+      userId: session.user.id,
+      metadata: { courseId, rating: review.rating },
+      ip: getRequestIp(request),
+      userAgent: request.headers.get("user-agent") ?? undefined,
+    })
 
     return NextResponse.json({ review }, { status: 201 })
   } catch (error) {

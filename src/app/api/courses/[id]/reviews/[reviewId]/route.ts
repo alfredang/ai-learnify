@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { reviewSchema } from "@/lib/validations/course"
 import { recalculateCourseRating } from "@/lib/reviews"
+import { audit, getRequestIp } from "@/lib/audit"
 
 export async function PUT(
   request: Request,
@@ -65,6 +66,16 @@ export async function PUT(
 
     await recalculateCourseRating(courseId)
 
+    await audit({
+      action: "review.update",
+      resourceType: "review",
+      resourceId: reviewId,
+      userId: session.user.id,
+      metadata: { courseId, rating: updated.rating },
+      ip: getRequestIp(request),
+      userAgent: request.headers.get("user-agent") ?? undefined,
+    })
+
     return NextResponse.json({ review: updated })
   } catch (error) {
     console.error("Error updating review:", error)
@@ -117,6 +128,16 @@ export async function DELETE(
     })
 
     await recalculateCourseRating(courseId)
+
+    await audit({
+      action: "review.delete",
+      resourceType: "review",
+      resourceId: reviewId,
+      userId: session.user.id,
+      metadata: { courseId },
+      ip: getRequestIp(request),
+      userAgent: request.headers.get("user-agent") ?? undefined,
+    })
 
     return NextResponse.json({ message: "Review deleted successfully" })
   } catch (error) {

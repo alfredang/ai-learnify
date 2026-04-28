@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { sectionSchema } from "@/lib/validations/course"
+import { audit, getRequestIp } from "@/lib/audit"
 
 export async function POST(
   request: Request,
@@ -68,6 +69,16 @@ export async function POST(
         position: (lastSection?.position ?? -1) + 1,
       },
       include: { lectures: true },
+    })
+
+    await audit({
+      action: "section.create",
+      resourceType: "section",
+      resourceId: section.id,
+      userId: session.user.id,
+      metadata: { courseId, title: section.title, position: section.position },
+      ip: getRequestIp(request),
+      userAgent: request.headers.get("user-agent") ?? undefined,
     })
 
     return NextResponse.json({ section }, { status: 201 })

@@ -6,6 +6,7 @@ import {
   validateImageUrl,
   explainImageUrlReason,
 } from "@/lib/image-hosts"
+import { audit, getRequestIp } from "@/lib/audit"
 import slugify from "slugify"
 
 export async function GET(
@@ -96,7 +97,7 @@ export async function PUT(
 
     const existingCourse = await prisma.course.findUnique({
       where: { id },
-      select: { instructorId: true, slug: true, status: true },
+      select: { instructorId: true, slug: true, status: true, academyId: true },
     })
 
     if (!existingCourse) {
@@ -206,6 +207,22 @@ export async function PUT(
       },
     })
 
+    const statusChanged = body.status && body.status !== existingCourse.status
+    await audit({
+      action: statusChanged
+        ? `course.status.${String(body.status).toLowerCase()}`
+        : "course.update",
+      resourceType: "course",
+      resourceId: id,
+      userId: session.user.id,
+      academyId: existingCourse.academyId ?? null,
+      metadata: statusChanged
+        ? { from: existingCourse.status, to: body.status }
+        : { fields: Object.keys(data) },
+      ip: getRequestIp(request),
+      userAgent: request.headers.get("user-agent") ?? undefined,
+    })
+
     // Phase 6 — spec §7.2: snapshot on DRAFT → PUBLISHED transition.
     // Fire-and-forget so a snapshot failure doesn't block the publish
     // response; errors surface in logs + AuditLog.
@@ -258,6 +275,8 @@ export async function DELETE(
       where: { id },
       select: {
         instructorId: true,
+        academyId: true,
+        title: true,
         _count: { select: { enrollments: true } },
       },
     })
@@ -291,6 +310,17 @@ export async function DELETE(
     }
 
     await prisma.course.delete({ where: { id } })
+
+    await audit({
+      action: "course.delete",
+      resourceType: "course",
+      resourceId: id,
+      userId: session.user.id,
+      academyId: course.academyId ?? null,
+      metadata: { title: course.title },
+      ip: getRequestIp(request),
+      userAgent: request.headers.get("user-agent") ?? undefined,
+    })
 
     return NextResponse.json({ message: "Course deleted successfully" })
   } catch (error) {

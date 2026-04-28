@@ -4,6 +4,7 @@ import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { lectureSchema } from "@/lib/validations/course"
 import { deleteAsset } from "@/lib/cloudinary"
+import { audit, getRequestIp } from "@/lib/audit"
 
 export async function PUT(
   request: Request,
@@ -103,6 +104,20 @@ export async function PUT(
       },
     })
 
+    await audit({
+      action: "lecture.update",
+      resourceType: "lecture",
+      resourceId: lectureId,
+      userId: session.user.id,
+      metadata: {
+        courseId,
+        sectionId,
+        fields: Object.keys(validated.data),
+      },
+      ip: getRequestIp(request),
+      userAgent: request.headers.get("user-agent") ?? undefined,
+    })
+
     return NextResponse.json({ lecture })
   } catch (error) {
     console.error("[LECTURE_PUT]", error)
@@ -183,6 +198,16 @@ export async function DELETE(
     await prisma.course.update({
       where: { id: courseId },
       data: { totalLectures },
+    })
+
+    await audit({
+      action: "lecture.delete",
+      resourceType: "lecture",
+      resourceId: lectureId,
+      userId: session.user.id,
+      metadata: { courseId, sectionId },
+      ip: getRequestIp(request),
+      userAgent: request.headers.get("user-agent") ?? undefined,
     })
 
     return NextResponse.json({ message: "Lecture deleted successfully" })

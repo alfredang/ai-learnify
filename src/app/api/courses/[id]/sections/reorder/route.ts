@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
+import { audit, getRequestIp } from "@/lib/audit"
 
 export async function PUT(
   request: Request,
@@ -55,6 +56,16 @@ export async function PUT(
         })
       )
     )
+
+    await audit({
+      action: "section.reorder",
+      resourceType: "course",
+      resourceId: courseId,
+      userId: session.user.id,
+      metadata: { count: orderedIds.length },
+      ip: getRequestIp(request),
+      userAgent: request.headers.get("user-agent") ?? undefined,
+    })
 
     return NextResponse.json({ message: "Sections reordered successfully" })
   } catch (error) {

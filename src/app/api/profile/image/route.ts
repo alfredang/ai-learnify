@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { z } from "zod"
 import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
+import { audit, getRequestIp } from "@/lib/audit"
 
 const imageSchema = z.object({
   image: z.string().url("Invalid image URL"),
@@ -28,6 +29,15 @@ export async function PUT(request: Request) {
       where: { id: session.user.id },
       data: { image: result.data.image },
       select: { id: true, image: true },
+    })
+
+    await audit({
+      action: "user.image.update",
+      resourceType: "user",
+      resourceId: session.user.id,
+      userId: session.user.id,
+      ip: getRequestIp(request),
+      userAgent: request.headers.get("user-agent") ?? undefined,
     })
 
     return NextResponse.json(updated)

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { lectureSchema } from "@/lib/validations/course"
+import { audit, getRequestIp } from "@/lib/audit"
 
 export async function POST(
   request: Request,
@@ -97,6 +98,21 @@ export async function POST(
     await prisma.course.update({
       where: { id: courseId },
       data: { totalLectures },
+    })
+
+    await audit({
+      action: "lecture.create",
+      resourceType: "lecture",
+      resourceId: lecture.id,
+      userId: session.user.id,
+      metadata: {
+        courseId,
+        sectionId,
+        type: lecture.type,
+        title: lecture.title,
+      },
+      ip: getRequestIp(request),
+      userAgent: request.headers.get("user-agent") ?? undefined,
     })
 
     return NextResponse.json({ lecture }, { status: 201 })

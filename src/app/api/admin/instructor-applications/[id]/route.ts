@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { reviewApplicationSchema } from "@/lib/validations/user"
+import { audit, getRequestIp } from "@/lib/audit"
 
 export async function PATCH(
   request: Request,
@@ -82,6 +83,23 @@ export async function PATCH(
       }
 
       return updated
+    })
+
+    await audit({
+      action:
+        status === "APPROVED"
+          ? "instructor-application.approve"
+          : "instructor-application.reject",
+      resourceType: "instructor-application",
+      resourceId: id,
+      userId: session.user.id,
+      metadata: {
+        applicantUserId: application.userId,
+        adminNote: adminNote ?? null,
+        roleGrant: status === "APPROVED" ? "INSTRUCTOR" : null,
+      },
+      ip: getRequestIp(request),
+      userAgent: request.headers.get("user-agent") ?? undefined,
     })
 
     return NextResponse.json({ application: result })

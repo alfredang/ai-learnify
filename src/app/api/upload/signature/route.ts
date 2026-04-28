@@ -16,9 +16,16 @@ export async function GET() {
       )
     }
 
-    if (session.user.role !== "INSTRUCTOR" && session.user.role !== "ADMIN") {
+    const legacyAllowed =
+      session.user.role === "INSTRUCTOR" || session.user.role === "ADMIN"
+    const isPlatformOwner = session.user.platformRole === "PLATFORM_OWNER"
+    const isAcademyAdmin = (session.user.memberships ?? []).some(
+      (m) => m.role === "ACADEMY_ADMIN"
+    )
+
+    if (!legacyAllowed && !isPlatformOwner && !isAcademyAdmin) {
       return NextResponse.json(
-        { error: "Only instructors can upload files", code: "ROLE_FORBIDDEN" },
+        { error: "You do not have permission to upload files", code: "ROLE_FORBIDDEN" },
         { status: 403 }
       )
     }

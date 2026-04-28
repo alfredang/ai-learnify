@@ -1,7 +1,6 @@
 "use client"
 
 import { useState } from "react"
-import Image from "next/image"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -9,7 +8,8 @@ import { Label } from "@/components/ui/label"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Switch } from "@/components/ui/switch"
-import { Trash2, Plus, Loader2 } from "lucide-react"
+import { ImageUpload } from "@/components/courses/image-upload"
+import { Trash2, Loader2 } from "lucide-react"
 
 type Banner = {
   id: string
@@ -31,6 +31,8 @@ export function BannerManager({ initialBanners, initialRotationMs }: BannerManag
   const [newTitle, setNewTitle] = useState("")
   const [newTargetUrl, setNewTargetUrl] = useState("")
   const [creating, setCreating] = useState(false)
+  const [uploading, setUploading] = useState(false)
+  const limitReached = banners.length >= 10
   const [rotationSeconds, setRotationSeconds] = useState(
     Math.round(initialRotationMs / 1000)
   )
@@ -67,7 +69,7 @@ export function BannerManager({ initialBanners, initialRotationMs }: BannerManag
 
   async function handleCreate() {
     if (!newImageUrl) {
-      toast.error("Image URL is required")
+      toast.error("Please upload an image first")
       return
     }
     setCreating(true)
@@ -166,16 +168,36 @@ export function BannerManager({ initialBanners, initialRotationMs }: BannerManag
         </CardContent>
       </Card>
       <Card>
-        <CardContent className="p-5 space-y-3">
-          <h2 className="font-semibold text-sm">Add a banner</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            <div className="md:col-span-2">
-              <Label htmlFor="imageUrl" className="text-xs">Image URL</Label>
+        <CardContent className="p-5 space-y-4">
+          <div>
+            <h2 className="font-semibold text-sm">Add a banner</h2>
+            <p className="text-xs text-muted-foreground">
+              Upload an image (max 10MB). {banners.length}/10 used.
+            </p>
+          </div>
+
+          <div>
+            <Label className="text-xs mb-1.5 block">Banner image</Label>
+            <ImageUpload
+              key={newImageUrl || "empty"}
+              disabled={creating || limitReached}
+              onUploadStart={() => setUploading(true)}
+              onUploadCancel={() => setUploading(false)}
+              onUploadComplete={({ imageUrl }) => {
+                setNewImageUrl(imageUrl)
+                setUploading(false)
+              }}
+            />
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div>
+              <Label htmlFor="title" className="text-xs">Title overlay (optional)</Label>
               <Input
-                id="imageUrl"
-                value={newImageUrl}
-                onChange={(e) => setNewImageUrl(e.target.value)}
-                placeholder="https://images.unsplash.com/..."
+                id="title"
+                value={newTitle}
+                onChange={(e) => setNewTitle(e.target.value)}
+                placeholder="Summer promo"
                 disabled={creating}
               />
             </div>
@@ -189,24 +211,18 @@ export function BannerManager({ initialBanners, initialRotationMs }: BannerManag
                 disabled={creating}
               />
             </div>
-            <div className="md:col-span-3">
-              <Label htmlFor="title" className="text-xs">Title overlay (optional)</Label>
-              <Input
-                id="title"
-                value={newTitle}
-                onChange={(e) => setNewTitle(e.target.value)}
-                placeholder="Summer promo"
-                disabled={creating}
-              />
-            </div>
           </div>
+
           <div className="flex justify-end">
-            <Button onClick={handleCreate} disabled={creating || banners.length >= 10}>
-              {creating ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Plus className="h-4 w-4 mr-1" />}
+            <Button
+              onClick={handleCreate}
+              disabled={creating || uploading || limitReached || !newImageUrl}
+            >
+              {creating && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
               Add banner
             </Button>
           </div>
-          {banners.length >= 10 && (
+          {limitReached && (
             <p className="text-xs text-destructive">
               Banner limit reached (10). Delete one to add another.
             </p>

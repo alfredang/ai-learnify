@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
+import { audit, getRequestIp } from "@/lib/audit"
 import { nanoid } from "nanoid"
 
 export async function POST(request: Request) {
@@ -80,6 +81,21 @@ export async function POST(request: Request) {
         courseName: enrollment.course.title,
         instructorName: enrollment.course.instructor.name || "Instructor",
       },
+    })
+
+    await audit({
+      action: "certificate.issue",
+      resourceType: "certificate",
+      resourceId: certificate.id,
+      userId: session.user.id,
+      metadata: {
+        certificateId: certificate.certificateId,
+        courseId,
+        courseName: enrollment.course.title,
+        path: "manual-generate-endpoint",
+      },
+      ip: getRequestIp(request),
+      userAgent: request.headers.get("user-agent") ?? undefined,
     })
 
     return NextResponse.redirect(new URL("/certificates", request.url))
