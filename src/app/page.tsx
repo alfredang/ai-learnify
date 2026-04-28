@@ -104,7 +104,7 @@ export default async function HomePage() {
     getStats(),
     auth(),
   ])
-  const isInstructor = session?.user?.role === "INSTRUCTOR" || session?.user?.role === "ADMIN"
+  const isCourseDeveloper = session?.user?.role === "INSTRUCTOR" || session?.user?.role === "ADMIN"
   let favouritedCourseIds = new Set<string>()
   let cartCourseIds = new Set<string>()
   let enrolledCourseMap = new Map<string, number>()
@@ -144,8 +144,8 @@ export default async function HomePage() {
                   </Link>
                 </Button>
                 <Button size="lg" variant="outline" className="border-primary text-primary font-semibold hover:bg-primary hover:text-primary-foreground" asChild>
-                  <Link href={isInstructor ? "/instructor" : "/become-instructor"}>
-                    {isInstructor ? "Go to Instructor Dashboard" : "Become an Instructor"}
+                  <Link href={isCourseDeveloper ? "/instructor" : "/become-instructor"}>
+                    {isCourseDeveloper ? "Go to Course Developer" : "Become a Course Developer"}
                     <ArrowRight className="ml-2 h-5 w-5" />
                   </Link>
                 </Button>
@@ -220,7 +220,7 @@ export default async function HomePage() {
                   ? `${stats.totalInstructors.toLocaleString()}+`
                   : "200+"}
               </div>
-              <div className="text-muted-foreground">Instructors</div>
+              <div className="text-muted-foreground">Experts</div>
             </div>
             <div className="text-center">
               <div className="flex justify-center mb-2">
@@ -309,8 +309,8 @@ export default async function HomePage() {
                 CPD-accredited courses in civil engineering, sustainability, and GenAI.
               </p>
               <button className="inline-flex items-center justify-center gap-3 rounded-xl bg-white text-primary font-extrabold text-lg md:text-xl px-10 md:px-14 py-5 md:py-6 shadow-lg shadow-white/10 transition-all duration-300 hover:scale-105 hover:shadow-xl hover:shadow-white/20 active:scale-100">
-                <Link href={isInstructor ? "/instructor" : "/become-instructor"} className="flex items-center gap-3">
-                  {isInstructor ? "Go to Instructor Dashboard" : "Start Teaching Today"}
+                <Link href={isCourseDeveloper ? "/instructor" : "/become-instructor"} className="flex items-center gap-3">
+                  {isCourseDeveloper ? "Go to Course Developer" : "Start Creating Courses"}
                   <ArrowRight className="h-6 w-6" />
                 </Link>
               </button>
