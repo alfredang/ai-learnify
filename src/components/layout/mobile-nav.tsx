@@ -130,7 +130,7 @@ export function MobileNav() {
       {!isAuthenticated && (
         <div className="flex flex-col space-y-2 px-4 pt-4 border-t">
           <Button asChild>
-            <Link href="/login">Log in</Link>
+            <Link href="/select-role">Log in</Link>
           </Button>
           <Button variant="outline" asChild>
             <Link href="/register">Sign up</Link>

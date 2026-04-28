@@ -4,6 +4,7 @@ import { NextResponse } from "next/server"
 const publicRoutes = [
   "/",
   "/login",
+  "/select-role",
   "/register",
   "/forgot-password",
   "/verify-email",
@@ -17,7 +18,7 @@ const publicRoutes = [
   "/become-instructor",
 ]
 
-const authRoutes = ["/login", "/register", "/forgot-password"]
+const authRoutes = ["/login", "/select-role", "/register", "/forgot-password"]
 
 const studentRoutes = ["/my-courses", "/favourites", "/purchases", "/profile", "/learner"]
 const instructorRoutes = ["/instructor"]

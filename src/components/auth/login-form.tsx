@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { signIn } from "next-auth/react"
 import { useForm } from "react-hook-form"
@@ -18,7 +18,6 @@ import {
   FormMessage,
 } from "@/components/ui/form"
 import { loginSchema, type LoginInput } from "@/lib/validations/auth"
-import { SocialButtons } from "./social-buttons"
 import Link from "next/link"
 
 export function LoginForm() {
@@ -35,17 +34,6 @@ export function LoginForm() {
       password: "",
     },
   })
-
-  // Surface the learner-OAuth block (spec §3.1) when NextAuth redirects
-  // back to /login?error=OAuthLearnerBlocked.
-  useEffect(() => {
-    const err = searchParams.get("error")
-    if (err === "OAuthLearnerBlocked") {
-      toast.error(
-        "Learners must sign in with email and password. Social login is available for staff accounts only."
-      )
-    }
-  }, [searchParams])
 
   async function onSubmit(data: LoginInput) {
     setIsLoading(true)
@@ -145,32 +133,19 @@ export function LoginForm() {
           />
           <Button
             type="submit"
-            className="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold"
+            className="w-full bg-[#1e2a5e] hover:bg-[#162148] text-white font-semibold"
             size="lg"
             disabled={isLoading}
           >
             {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Log in
+            Login
           </Button>
         </form>
       </Form>
 
-      <div className="relative">
-        <div className="absolute inset-0 flex items-center">
-          <span className="w-full border-t" />
-        </div>
-        <div className="relative flex justify-center text-xs uppercase">
-          <span className="bg-background px-2 text-muted-foreground">
-            Other log in options
-          </span>
-        </div>
-      </div>
-
-      <SocialButtons isLoading={isLoading} callbackUrl={callbackUrl} />
-
       <p className="text-center text-sm text-muted-foreground">
         Don&apos;t have an account?{" "}
-        <Link href="/register" className="text-primary font-medium hover:underline">
+        <Link href="/register" className="font-semibold text-foreground hover:underline">
           Sign up
         </Link>
       </p>

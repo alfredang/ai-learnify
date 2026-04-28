@@ -19,7 +19,6 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form"
-import { SocialButtons } from "./social-buttons"
 import Link from "next/link"
 
 // IESA LMS spec §3.1 / §5.1 required fields. certificateIdNumber is optional.
@@ -221,7 +220,7 @@ export function RegisterForm() {
           />
           <Button
             type="submit"
-            className="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold"
+            className="w-full bg-[#1e2a5e] hover:bg-[#162148] text-white font-semibold"
             size="lg"
             disabled={isLoading}
           >
@@ -230,19 +229,6 @@ export function RegisterForm() {
           </Button>
         </form>
       </Form>
-
-      <div className="relative">
-        <div className="absolute inset-0 flex items-center">
-          <span className="w-full border-t" />
-        </div>
-        <div className="relative flex justify-center text-xs uppercase">
-          <span className="bg-background px-2 text-muted-foreground">
-            Other sign up options
-          </span>
-        </div>
-      </div>
-
-      <SocialButtons isLoading={isLoading} callbackUrl={callbackUrl} />
 
       <p className="text-xs text-center text-muted-foreground">
         By signing up, you agree to our{" "}

@@ -2,10 +2,17 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { Search, Menu, Heart } from "lucide-react"
+import { Search, Menu, Heart, Bell, User as UserIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
+import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { UserMenu } from "./user-menu"
 import { MobileNav } from "./mobile-nav"
 import { useAuth } from "@/hooks/use-auth"
@@ -128,12 +135,31 @@ export function Header() {
             </>
           ) : (
             <>
-              <Button variant="ghost" size="sm" asChild>
-                <Link href="/login">Log in</Link>
+              <Button variant="ghost" size="icon" aria-label="Notifications">
+                <Bell className="h-5 w-5" />
               </Button>
-              <Button size="sm" asChild>
-                <Link href="/register">Sign up</Link>
-              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    className="rounded-full outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                    aria-label="Account menu"
+                  >
+                    <Avatar className="h-9 w-9">
+                      <AvatarFallback className="bg-muted text-muted-foreground">
+                        <UserIcon className="h-5 w-5" />
+                      </AvatarFallback>
+                    </Avatar>
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-44">
+                  <DropdownMenuItem asChild>
+                    <Link href="/select-role">Log in</Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link href="/register">Sign up</Link>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </>
           )}
         </div>

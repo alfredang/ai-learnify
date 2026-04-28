@@ -12,10 +12,10 @@ export const metadata: Metadata = {
 
 export default function ForgotPasswordPage() {
   return (
-    <>
+    <div className="w-full max-w-md space-y-8 rounded-2xl bg-white p-8 shadow-xl sm:p-10">
       <div className="flex flex-col space-y-2 text-center">
         <Link href="/" className="mx-auto">
-          <span className="font-bold text-2xl">Learnify</span>
+          <span className="text-2xl font-bold">Learnify</span>
         </Link>
         <h1 className="text-2xl font-semibold tracking-tight">
           Forgot your password?
@@ -46,6 +46,6 @@ export default function ForgotPasswordPage() {
         <ArrowLeft className="mr-2 h-4 w-4" />
         Back to login
       </Link>
-    </>
+    </div>
   )
 }
