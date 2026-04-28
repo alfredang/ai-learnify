@@ -99,6 +99,9 @@ async function getCourse(slug: string, userId?: string) {
             },
           },
           category: true,
+          cpdCatalog: {
+            select: { id: true, name: true, points: true, badgeUrl: true },
+          },
           sections: {
             orderBy: { position: "asc" },
             include: {
