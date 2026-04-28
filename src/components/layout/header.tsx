@@ -40,8 +40,8 @@ export function Header() {
     }
   }
 
-  // Hide on instructor/admin routes (they have their own layout)
-  if (pathname.startsWith("/instructor") || pathname.startsWith("/admin")) {
+  // Hide on instructor routes (they have their own layout)
+  if (pathname.startsWith("/instructor")) {
     return null
   }
 

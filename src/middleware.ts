@@ -150,11 +150,9 @@ export default auth((req) => {
     }
   }
 
-  // Legacy admin routes (unchanged)
+  // Legacy admin routes → redirect to Academy Admin dashboard
   if (isAdminRoute) {
-    if (userRole !== "ADMIN") {
-      return NextResponse.redirect(new URL("/", nextUrl))
-    }
+    return NextResponse.redirect(new URL("/academy", nextUrl))
   }
 
   return NextResponse.next()

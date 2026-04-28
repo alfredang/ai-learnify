@@ -32,7 +32,7 @@ export function getAvailableRoles(
 
   const academyRoles = new Set(memberships.map((m) => m.role))
 
-  if (academyRoles.has("ACADEMY_ADMIN") || platformRole === "PLATFORM_OWNER") roles.push("academy-admin")
+  if (academyRoles.has("ACADEMY_ADMIN") || platformRole === "PLATFORM_OWNER" || legacyRole === "ADMIN") roles.push("academy-admin")
   if (academyRoles.has("COURSE_DEVELOPER") || legacyRole === "INSTRUCTOR" || legacyRole === "ADMIN") roles.push("course-developer")
   if (academyRoles.has("MARKETER") || platformRole === "PLATFORM_OWNER") roles.push("marketer")
 
@@ -49,6 +49,6 @@ export function detectActiveRole(pathname: string): ViewAsRole {
   if (pathname.startsWith("/instructor")) return "course-developer"
   if (pathname.startsWith("/marketer")) return "marketer"
   if (pathname.startsWith("/learner")) return "learner"
-  if (pathname.startsWith("/admin")) return "platform-owner"
+  if (pathname.startsWith("/admin")) return "academy-admin"
   return "learner"
 }
