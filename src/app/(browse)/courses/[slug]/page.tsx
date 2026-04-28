@@ -602,9 +602,9 @@ export default async function CoursePage({ params, searchParams }: CoursePagePro
                 </div>
               )}
 
-              {/* Instructor */}
+              {/* Partner */}
               <div>
-                <h2 className="text-2xl font-bold mb-4">Instructor</h2>
+                <h2 className="text-2xl font-bold mb-4">Partner</h2>
                 <Card>
                   <CardContent className="p-6">
                     <div className="flex gap-4">

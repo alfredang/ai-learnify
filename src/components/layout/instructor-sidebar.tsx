@@ -5,11 +5,9 @@ import { usePathname } from "next/navigation"
 import { useState } from "react"
 import {
   MonitorPlay,
-  MessageSquare,
   BarChart3,
   Wrench,
   HelpCircle,
-  UserCircle,
 } from "lucide-react"
 import {
   Tooltip,
@@ -20,9 +18,7 @@ import {
 import { cn } from "@/lib/utils"
 
 const sidebarItems = [
-  { href: "/instructor/profile", icon: UserCircle, label: "Profile" },
   { href: "/instructor", icon: MonitorPlay, label: "Courses" },
-  { href: "/instructor/communication", icon: MessageSquare, label: "Communication" },
   { href: "/instructor/performance", icon: BarChart3, label: "Performance" },
   { href: "/instructor/tools", icon: Wrench, label: "Tools" },
   { href: "/instructor/resources", icon: HelpCircle, label: "Resources" },

@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { Search, Menu, Heart, Bell, User as UserIcon } from "lucide-react"
+import { Search, Menu, Bell, User as UserIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
@@ -16,7 +16,6 @@ import {
 import { UserMenu } from "./user-menu"
 import { MobileNav } from "./mobile-nav"
 import { RoleSwitcher } from "./role-switcher"
-import { HeaderDateTime } from "./header-datetime"
 import { useAuth } from "@/hooks/use-auth"
 import { cn } from "@/lib/utils"
 import { useState } from "react"
@@ -42,7 +41,7 @@ export function Header() {
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="container flex h-16 items-center">
+      <div className="flex h-16 items-center px-4">
         {/* Mobile menu */}
         <Sheet>
           <SheetTrigger asChild>
@@ -115,14 +114,7 @@ export function Header() {
                     className="w-9 h-9 rounded-full object-cover ring-2 ring-offset-1 ring-primary"
                   />
                 ) : null}
-                <HeaderDateTime />
               </div>
-              <Button variant="ghost" size="icon" asChild>
-                <Link href="/favourites">
-                  <Heart className="h-5 w-5" />
-                  <span className="sr-only">Favourites</span>
-                </Link>
-              </Button>
               <UserMenu user={user} />
             </>
           ) : (
