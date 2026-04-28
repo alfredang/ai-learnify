@@ -236,7 +236,7 @@ export default async function HomePage() {
 
       {/* Categories Section */}
       {categories.length > 0 && (
-        <section className="py-12 md:py-16 lg:py-24">
+        <section className="pt-12 md:pt-16 lg:pt-24 pb-6 md:pb-8">
           <div className="container">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
               <div className="text-center sm:text-left">
@@ -279,7 +279,7 @@ export default async function HomePage() {
 
       {/* Featured Courses Section */}
       {featuredCourses.length > 0 && (
-        <section className="py-12 md:py-16 lg:py-24 bg-muted/30">
+        <section className="pt-6 md:pt-8 pb-12 md:pb-16 lg:pb-24">
           <div className="container">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
               <div className="text-center sm:text-left">
