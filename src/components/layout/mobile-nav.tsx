@@ -9,6 +9,9 @@ import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { useState } from "react"
 import { useRouter } from "next/navigation"
+import { LanguageSwitcher } from "./language-switcher"
+import { CurrencySwitcher } from "./currency-switcher"
+import { useT } from "@/hooks/use-t"
 
 const navItems = [
   { href: "/", label: "Home", icon: Home },
@@ -27,6 +30,7 @@ export function MobileNav() {
   const { isAuthenticated, isInstructor, isAdmin } = useAuth()
   const [searchQuery, setSearchQuery] = useState("")
   const router = useRouter()
+  const t = useT()
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault()
@@ -137,6 +141,21 @@ export function MobileNav() {
           </Button>
         </div>
       )}
+
+      <div className="px-4 pt-4 border-t space-y-3">
+        <div className="flex items-center justify-between">
+          <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+            {t("nav.language")}
+          </span>
+          <LanguageSwitcher />
+        </div>
+        <div className="flex items-center justify-between">
+          <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+            {t("nav.currency")}
+          </span>
+          <CurrencySwitcher />
+        </div>
+      </div>
     </div>
   )
 }

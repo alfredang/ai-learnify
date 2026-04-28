@@ -4,6 +4,8 @@ import "./globals.css"
 import { Providers } from "@/providers"
 import { Header } from "@/components/layout/header"
 import { Footer } from "@/components/layout/footer"
+import { getLocale } from "@/lib/i18n-server"
+import { getCurrency } from "@/lib/currency-server"
 
 const inter = Inter({
   subsets: ["latin"],
@@ -26,15 +28,16 @@ export const metadata: Metadata = {
   ],
 }
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode
 }>) {
+  const [locale, currency] = await Promise.all([getLocale(), getCurrency()])
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang={locale} suppressHydrationWarning>
       <body className={`${inter.variable} font-sans antialiased bg-white`}>
-        <Providers>
+        <Providers initialLocale={locale} initialCurrency={currency}>
           <div className="relative flex min-h-screen flex-col bg-white">
             <Header />
             <main className="flex-1">{children}</main>

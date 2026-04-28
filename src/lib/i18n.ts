@@ -1,6 +1,8 @@
 import en from "@/i18n/messages/en.json"
 import zh from "@/i18n/messages/zh.json"
 import ms from "@/i18n/messages/ms.json"
+import th from "@/i18n/messages/th.json"
+import vi from "@/i18n/messages/vi.json"
 
 /**
  * Phase 9 — Spec §18 internationalisation **scaffold**.
@@ -16,15 +18,17 @@ import ms from "@/i18n/messages/ms.json"
  * task — it needs Noto Sans CJK embedded in the HTML-to-PDF pipeline.
  */
 
-export type Locale = "en" | "zh" | "ms"
+export type Locale = "en" | "zh" | "ms" | "th" | "vi"
 
 const BUNDLES: Record<Locale, Record<string, unknown>> = {
   en: en as Record<string, unknown>,
   zh: zh as Record<string, unknown>,
   ms: ms as Record<string, unknown>,
+  th: th as Record<string, unknown>,
+  vi: vi as Record<string, unknown>,
 }
 
-export const SUPPORTED_LOCALES: Locale[] = ["en", "zh", "ms"]
+export const SUPPORTED_LOCALES: Locale[] = ["en", "zh", "ms", "th", "vi"]
 export const DEFAULT_LOCALE: Locale = "en"
 
 export function isSupportedLocale(l: string): l is Locale {
