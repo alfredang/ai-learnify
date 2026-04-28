@@ -48,10 +48,20 @@ export function InstructorSidebar() {
         {/* Brand mark */}
         <div className="flex items-center h-14 px-4 border-b">
           <Link href="/instructor" className="flex items-center gap-2">
-            <img src="/images/ies-logo.svg" alt="IES Logo" width={28} height={28} className="shrink-0" />
+            <svg
+              width="24"
+              height="24"
+              viewBox="0 0 28 28"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+              className="shrink-0"
+            >
+              <circle cx="14" cy="14" r="14" className="fill-foreground" />
+              <path d="M8.5 19L14 7.5L19.5 19H8.5Z" className="fill-background" />
+            </svg>
             {expanded && (
               <span className="text-sm font-bold whitespace-nowrap overflow-hidden">
-                IES Digital Academy
+                Course Developer
               </span>
             )}
           </Link>
