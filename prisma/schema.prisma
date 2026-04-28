@@ -142,8 +142,17 @@ model Academy {
   // PlatformSettings.defaultDeveloperSplitBps; default 50/50.
   defaultDeveloperSplitBps Int @default(5000)
 
-  // Refund policy — editable rich-text by Academy Admin. Shown on /refund-policy.
-  refundPolicyHtml String? @db.Text
+  // Editable page templates — Academy Admin can customise via /academy/templates.
+  refundPolicyHtml  String? @db.Text
+  privacyPolicyHtml String? @db.Text
+  termsHtml         String? @db.Text
+
+  // Email templates — short-form body used by sendEmail(). Supports {name},
+  // {courseName}, {days}, {invoiceNumber} interpolation at send time.
+  emailWelcomeHtml        String? @db.Text
+  emailInvoiceHtml        String? @db.Text
+  emailCertificateHtml    String? @db.Text
+  emailExpiryReminderHtml String? @db.Text
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
