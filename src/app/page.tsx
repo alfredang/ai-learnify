@@ -133,8 +133,8 @@ export default async function HomePage() {
                 <span className="text-primary">e&#8209;Learning</span>
               </h1>
               <p className="text-lg md:text-xl text-muted-foreground max-w-lg mx-auto lg:mx-0">
-                Master civil engineering, sustainability, and GenAI at your own
-                pace. Industry-accredited courses with CPD points from IES.
+                Professional learning content created by subject matter experts
+                in civil engineering, sustainability, and GenAI. Earn CPD points at your own pace.
               </p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
                 <Button size="lg" asChild>
