@@ -21,7 +21,16 @@ export function DashboardTopBar({ user, platformRole, memberships }: DashboardTo
   return (
     <div className="hidden md:flex items-center justify-end gap-4 px-6 py-3 border-b bg-white">
       <RoleSwitcher platformRole={platformRole} memberships={memberships} legacyRole={user.role} />
-      <HeaderDateTime />
+      <div className="flex items-center gap-3">
+        {user.image ? (
+          <img
+            src={user.image}
+            alt={user.name ?? "Profile"}
+            className="w-9 h-9 rounded-full object-cover ring-2 ring-offset-1 ring-primary"
+          />
+        ) : null}
+        <HeaderDateTime />
+      </div>
       <UserMenu user={user} />
     </div>
   )

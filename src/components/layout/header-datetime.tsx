@@ -1,37 +1,42 @@
 "use client"
 
-import { useState, useEffect } from "react"
-
-function formatDateTime(date: Date): string {
-  const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
-  const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
-
-  const day = days[date.getDay()]
-  const dd = date.getDate()
-  const month = months[date.getMonth()]
-
-  let hours = date.getHours()
-  const minutes = date.getMinutes().toString().padStart(2, "0")
-  const ampm = hours >= 12 ? "PM" : "AM"
-  hours = hours % 12 || 12
-
-  return `${day} ${dd} ${month}  ${hours}:${minutes} ${ampm}`
-}
+import { useState, useEffect, useMemo } from "react"
 
 export function HeaderDateTime() {
   const [now, setNow] = useState<Date | null>(null)
 
   useEffect(() => {
     setNow(new Date())
-    const interval = setInterval(() => setNow(new Date()), 60_000)
+    const interval = setInterval(() => setNow(new Date()), 15_000)
     return () => clearInterval(interval)
   }, [])
+
+  const { dateStr, timeStr } = useMemo(() => {
+    if (!now) return { dateStr: "", timeStr: "" }
+
+    const dateStr = new Intl.DateTimeFormat("en-GB", {
+      timeZone: "Asia/Singapore",
+      weekday: "short",
+      day: "2-digit",
+      month: "short",
+    }).format(now)
+
+    const timeStr = new Intl.DateTimeFormat("en-US", {
+      timeZone: "Asia/Singapore",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: true,
+    }).format(now)
+
+    return { dateStr, timeStr }
+  }, [now])
 
   if (!now) return null
 
   return (
-    <span className="text-sm text-muted-foreground whitespace-nowrap tabular-nums" suppressHydrationWarning>
-      {formatDateTime(now)}
-    </span>
+    <div className="hidden sm:flex flex-col items-end text-sm tabular-nums" suppressHydrationWarning>
+      <span className="text-muted-foreground text-xs">{dateStr}</span>
+      <span className="font-mono font-semibold text-xs">{timeStr}</span>
+    </div>
   )
 }

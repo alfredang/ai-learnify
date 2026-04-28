@@ -113,6 +113,13 @@ export function Header() {
                   memberships={((user as Record<string, unknown>)?.memberships as { academyId: string; role: string }[]) ?? []}
                   legacyRole={user?.role}
                 />
+                {user?.image ? (
+                  <img
+                    src={user.image}
+                    alt={user?.name ?? "Profile"}
+                    className="w-9 h-9 rounded-full object-cover ring-2 ring-offset-1 ring-primary"
+                  />
+                ) : null}
                 <HeaderDateTime />
               </div>
               <Button variant="ghost" size="icon" asChild>
