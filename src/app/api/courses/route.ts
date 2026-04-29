@@ -94,7 +94,19 @@ export async function POST(request: Request) {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 })
     }
 
-    if (session.user.role !== "INSTRUCTOR" && session.user.role !== "ADMIN") {
+    // Accept either the legacy role check OR the new role system. The new
+    // model means a user with a COURSE_DEVELOPER / ACADEMY_ADMIN academy
+    // membership, or a Platform Owner, can create courses even if their
+    // legacy `role` field is still STUDENT (which happens when an account
+    // has memberships but no legacy mapping).
+    const legacyAllowed =
+      session.user.role === "INSTRUCTOR" || session.user.role === "ADMIN"
+    const isPlatformOwner = session.user.platformRole === "PLATFORM_OWNER"
+    const memberships = session.user.memberships ?? []
+    const isCourseDeveloper = memberships.some(
+      (m) => m.role === "COURSE_DEVELOPER" || m.role === "ACADEMY_ADMIN"
+    )
+    if (!legacyAllowed && !isPlatformOwner && !isCourseDeveloper) {
       return NextResponse.json({ message: "Forbidden" }, { status: 403 })
     }
 
