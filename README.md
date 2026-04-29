@@ -32,6 +32,7 @@ IESA LMS is a multi-tenant, self-paced Learning Management System built on Next.
 - **8 Lecture Types** — Video, Text, Quiz, PDF, SCORM 1.2/2004, xAPI, Voice-Over Slides, Downloadable
 - **5 Quiz Question Types** — Multiple choice, multiple select, true/false, drag-and-drop ordering, open-ended
 - **4-Way Revenue Distribution** — Marketer commission → Platform support fee → Discount → Academy/Developer split (default 50/50)
+- **Catalogue Governance** — Academy Admins approve or reject Course Developer submissions with author-visible rejection reasons; full audit trail on every state transition
 - **Immutable Double-Entry Ledger** — Every money movement writes append-only ledger entries; refunds are reversal entries; nightly invariant cron asserts every transaction sums to zero
 - **Auto-Issued Certificates** — Gated by >=50% content + >=80% assessment + survey + before expiry; PDF with QR verification
 - **Gen-AI Authoring** — Per-tenant toggle, author-approval-gated drafts via Anthropic Claude (outlines, objectives, quizzes, voice-over text, metadata)
