@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { CheckCircle2, Circle, ChevronDown, AlertTriangle } from "lucide-react"
+import { CheckCircle2, Circle, ChevronDown, AlertTriangle, Clock, XCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 
@@ -46,9 +46,11 @@ interface EditorSidebarProps {
   completionStatus: Record<string, boolean>
   onSubmitForReview: () => void
   onUnpublish: () => void
+  onWithdraw?: () => void
   canSubmit: boolean
   courseStatus: string
   hasEnrollments: boolean
+  rejectionReason?: string | null
 }
 
 export function EditorSidebar({
@@ -57,9 +59,11 @@ export function EditorSidebar({
   completionStatus,
   onSubmitForReview,
   onUnpublish,
+  onWithdraw,
   canSubmit,
   courseStatus,
   hasEnrollments,
+  rejectionReason,
 }: EditorSidebarProps) {
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
     "Plan your course": true,
@@ -140,7 +144,7 @@ export function EditorSidebar({
         ))}
       </nav>
 
-      {/* Publish / Unpublish */}
+      {/* Status banners + Publish controls (spec §4 step 3) */}
       <div className="p-4 border-t space-y-3">
         {courseStatus === "PUBLISHED" && hasEnrollments && (
           <div className="flex items-start gap-2 rounded-md border border-yellow-200 bg-yellow-50 p-2.5 text-xs text-yellow-800 dark:border-yellow-900 dark:bg-yellow-950/30 dark:text-yellow-200">
@@ -148,13 +152,29 @@ export function EditorSidebar({
             <span>Students are enrolled. This course can no longer be deleted.</span>
           </div>
         )}
+        {courseStatus === "PENDING_REVIEW" && (
+          <div className="flex items-start gap-2 rounded-md border border-blue-200 bg-blue-50 p-2.5 text-xs text-blue-800 dark:border-blue-900 dark:bg-blue-950/30 dark:text-blue-200">
+            <Clock className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+            <span>Awaiting Academy Admin approval.</span>
+          </div>
+        )}
+        {courseStatus === "REJECTED" && rejectionReason && (
+          <div className="flex items-start gap-2 rounded-md border border-red-200 bg-red-50 p-2.5 text-xs text-red-800 dark:border-red-900 dark:bg-red-950/30 dark:text-red-200">
+            <XCircle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+            <div>
+              <div className="font-semibold mb-0.5">Rejected by reviewer</div>
+              <div className="opacity-90">{rejectionReason}</div>
+            </div>
+          </div>
+        )}
+
         {courseStatus === "PUBLISHED" ? (
-          <Button
-            onClick={onUnpublish}
-            variant="outline"
-            className="w-full"
-          >
+          <Button onClick={onUnpublish} variant="outline" className="w-full">
             Unpublish
+          </Button>
+        ) : courseStatus === "PENDING_REVIEW" ? (
+          <Button onClick={onWithdraw} variant="outline" className="w-full">
+            Withdraw submission
           </Button>
         ) : (
           <Button
@@ -162,7 +182,7 @@ export function EditorSidebar({
             disabled={!canSubmit}
             className="w-full bg-purple-600 hover:bg-purple-700 text-white disabled:opacity-50"
           >
-            Publish
+            {courseStatus === "REJECTED" ? "Resubmit for review" : "Submit for review"}
           </Button>
         )}
       </div>

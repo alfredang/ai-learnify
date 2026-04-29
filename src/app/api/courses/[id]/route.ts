@@ -7,6 +7,7 @@ import {
   explainImageUrlReason,
 } from "@/lib/image-hosts"
 import { audit, getRequestIp } from "@/lib/audit"
+import { loadRoleContext, hasAcademyRole, hasPlatformRole } from "@/lib/academy"
 import slugify from "slugify"
 
 export async function GET(
@@ -125,6 +126,40 @@ export async function PUT(
 
     const body = await request.json()
 
+    // Spec §4 step 3 — status transitions are gated by role. Developers may
+    // submit drafts for review and unpublish their own courses; only Academy
+    // Admin (or Platform Owner) can flip PENDING_REVIEW → PUBLISHED.
+    if (body.status && body.status !== existingCourse.status) {
+      const ctx = await loadRoleContext(session.user.id)
+      const isPlatformPrivileged = hasPlatformRole(ctx, "PLATFORM_OWNER", "PLATFORM_SUPPORT")
+      const isAcademyAdmin =
+        !!existingCourse.academyId &&
+        hasAcademyRole(ctx, existingCourse.academyId, "ACADEMY_ADMIN")
+      const isApprover = isPlatformPrivileged || isAcademyAdmin
+
+      const from = existingCourse.status
+      const to = body.status as string
+      const developerAllowed: Record<string, string[]> = {
+        DRAFT: ["PENDING_REVIEW", "ARCHIVED"],
+        PENDING_REVIEW: ["DRAFT"], // withdraw submission
+        PUBLISHED: ["DRAFT"], // unpublish
+        REJECTED: ["DRAFT", "PENDING_REVIEW"],
+      }
+      const allowedForRole = isApprover ? null : developerAllowed[from] ?? []
+      if (allowedForRole && !allowedForRole.includes(to)) {
+        return NextResponse.json(
+          {
+            error:
+              to === "PUBLISHED"
+                ? "Only an Academy Admin can publish a course. Submit it for review instead."
+                : `Transition ${from} → ${to} is not permitted for your role.`,
+            code: "STATUS_TRANSITION_FORBIDDEN",
+          },
+          { status: 403 }
+        )
+      }
+    }
+
     // Use partial validation — all fields optional for updates
     const validatedData = courseSchema.partial().safeParse(body)
 
@@ -234,6 +269,16 @@ export async function PUT(
           previewVideoUrl: body.previewVideoUrl,
         }),
         ...(body.status && { status: body.status }),
+        // Stamp publishedAt on first publish; clear rejectionReason once the
+        // course leaves REJECTED so a stale message doesn't haunt the editor.
+        ...(body.status === "PUBLISHED" &&
+          existingCourse.status !== "PUBLISHED" && {
+            publishedAt: new Date(),
+            rejectionReason: null,
+          }),
+        ...(body.status &&
+          body.status !== "REJECTED" &&
+          existingCourse.status === "REJECTED" && { rejectionReason: null }),
       },
       include: {
         category: true,

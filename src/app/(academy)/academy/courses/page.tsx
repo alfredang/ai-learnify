@@ -11,6 +11,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
+import { ReviewActions } from "./review-actions"
 
 async function resolveAcademyId(userId: string, platformRole: string) {
   if (platformRole === "PLATFORM_OWNER") {
@@ -34,7 +35,7 @@ export default async function AcademyCoursesPage() {
   )
   if (!academyId) return null
 
-  const [pending, published] = await Promise.all([
+  const [pending, published, rejected] = await Promise.all([
     prisma.course.findMany({
       where: { academyId, status: "PENDING_REVIEW" },
       orderBy: { createdAt: "asc" },
@@ -59,6 +60,19 @@ export default async function AcademyCoursesPage() {
         totalStudents: true,
         averageRating: true,
         instructor: { select: { name: true } },
+      },
+    }),
+    prisma.course.findMany({
+      where: { academyId, status: "REJECTED" },
+      orderBy: { updatedAt: "desc" },
+      take: 50,
+      select: {
+        id: true,
+        title: true,
+        slug: true,
+        updatedAt: true,
+        rejectionReason: true,
+        instructor: { select: { name: true, email: true } },
       },
     }),
   ])
@@ -111,8 +125,8 @@ export default async function AcademyCoursesPage() {
                     <TableCell className="text-sm text-muted-foreground">
                       {new Date(c.createdAt).toLocaleDateString()}
                     </TableCell>
-                    <TableCell className="text-right text-sm text-muted-foreground">
-                      Review UI ships Phase 8c
+                    <TableCell className="text-right">
+                      <ReviewActions courseId={c.id} courseTitle={c.title} />
                     </TableCell>
                   </TableRow>
                 ))}
@@ -121,6 +135,52 @@ export default async function AcademyCoursesPage() {
           )}
         </CardContent>
       </Card>
+
+      {rejected.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">
+              Rejected <Badge variant="outline">{rejected.length}</Badge>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-0">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Title</TableHead>
+                  <TableHead>Author</TableHead>
+                  <TableHead>Reason</TableHead>
+                  <TableHead className="text-right">Action</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {rejected.map((c) => (
+                  <TableRow key={c.id}>
+                    <TableCell className="font-medium">
+                      <Link href={`/courses/${c.slug}`} className="hover:underline">
+                        {c.title}
+                      </Link>
+                    </TableCell>
+                    <TableCell className="text-sm">
+                      {c.instructor.name ?? c.instructor.email}
+                    </TableCell>
+                    <TableCell className="text-sm text-muted-foreground max-w-md">
+                      {c.rejectionReason ?? "—"}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <ReviewActions
+                        courseId={c.id}
+                        courseTitle={c.title}
+                        mode="rejected"
+                      />
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardHeader>

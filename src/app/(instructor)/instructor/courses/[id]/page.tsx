@@ -101,7 +101,7 @@ export default function CourseEditorPage() {
   }, [course, totalLectures])
 
   const canSubmitForReview =
-    course?.status === "DRAFT" &&
+    (course?.status === "DRAFT" || course?.status === "REJECTED") &&
     completionStatus["intended-learners"] &&
     completionStatus["curriculum"] &&
     completionStatus["landing-page"]
@@ -147,10 +147,14 @@ export default function CourseEditorPage() {
 
   function confirmPublish() {
     setShowPublishDialog(false)
-    toggleStatus("PUBLISHED")
+    toggleStatus("PENDING_REVIEW")
   }
 
   function handleUnpublish() {
+    toggleStatus("DRAFT")
+  }
+
+  function handleWithdraw() {
     toggleStatus("DRAFT")
   }
 
@@ -260,9 +264,11 @@ export default function CourseEditorPage() {
           completionStatus={completionStatus}
           onSubmitForReview={handlePublish}
           onUnpublish={handleUnpublish}
+          onWithdraw={handleWithdraw}
           canSubmit={!!canSubmitForReview}
           courseStatus={course.status}
           hasEnrollments={(course._count?.enrollments ?? 0) > 0}
+          rejectionReason={course.rejectionReason}
         />
 
         {/* Main content */}
@@ -330,21 +336,22 @@ export default function CourseEditorPage() {
         </main>
       </div>
 
-      {/* Publish confirmation dialog */}
+      {/* Submit-for-review dialog (spec §4 step 3) */}
       <Dialog open={showPublishDialog} onOpenChange={setShowPublishDialog}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Publish your course?</DialogTitle>
+            <DialogTitle>Submit course for review?</DialogTitle>
             <DialogDescription>
-              Your course will be publicly visible and available for students to
-              enroll.
+              An Academy Admin will review your course and either approve it
+              for publication or send it back with feedback. The course is not
+              visible to learners until approved.
             </DialogDescription>
           </DialogHeader>
           <div className="rounded-md border border-yellow-200 bg-yellow-50 p-3 text-sm text-yellow-800 dark:border-yellow-900 dark:bg-yellow-950/30 dark:text-yellow-200">
             <p>
-              <strong>Warning:</strong> If at least 1 student enrols in your
-              course, it can no longer be deleted. Make sure your content,
-              pricing, and landing page are ready before publishing.
+              <strong>Heads up:</strong> Once published and a student enrols,
+              the course can no longer be deleted. Double-check content,
+              pricing, and landing page before submitting.
             </p>
           </div>
           <DialogFooter>
@@ -363,7 +370,7 @@ export default function CourseEditorPage() {
               {isSaving && (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               )}
-              Publish Course
+              Submit for review
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -1,109 +1,78 @@
 import { NextResponse } from "next/server"
 import { auth } from "@/lib/auth"
-import { prisma } from "@/lib/prisma"
-import { audit, getRequestIp } from "@/lib/audit"
-import { nanoid } from "nanoid"
+import { maybeIssueCertificate, checkCertEligibility } from "@/lib/certification"
 
+// Spec §11 requires fully automated issuance. Auto-issue already runs from
+// progress / quiz / survey routes. This endpoint is a safety-valve "recheck"
+// for learners who think they've satisfied every gate but haven't seen a
+// certificate appear — it never bypasses the CertificateRule engine.
 export async function POST(request: Request) {
   try {
     const session = await auth()
-
     if (!session?.user) {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 })
     }
 
-    const formData = await request.formData()
-    const courseId = formData.get("courseId") as string
+    const contentType = request.headers.get("content-type") ?? ""
+    let courseId: string | null = null
+    if (contentType.includes("application/json")) {
+      const body = (await request.json().catch(() => null)) as { courseId?: string } | null
+      courseId = body?.courseId ?? null
+    } else {
+      const formData = await request.formData()
+      const raw = formData.get("courseId")
+      courseId = typeof raw === "string" ? raw : null
+    }
 
     if (!courseId) {
-      return NextResponse.json(
-        { message: "Course ID is required" },
-        { status: 400 }
-      )
+      return NextResponse.json({ message: "Course ID is required" }, { status: 400 })
     }
 
-    // Check if user is enrolled
-    const enrollment = await prisma.enrollment.findUnique({
-      where: {
-        userId_courseId: { userId: session.user.id, courseId },
-      },
-      include: {
-        course: {
-          include: {
-            instructor: { select: { name: true } },
-            sections: {
-              include: { lectures: true },
-            },
+    const result = await maybeIssueCertificate(session.user.id, courseId)
+
+    if (result.issued) {
+      if (contentType.includes("application/json")) {
+        return NextResponse.json({
+          issued: true,
+          certificate: {
+            id: result.certificate?.id,
+            certificateId: result.certificate?.certificateId,
           },
+        })
+      }
+      return NextResponse.redirect(new URL("/certificates", request.url), 303)
+    }
+
+    if (result.reason === "ALREADY_ISSUED") {
+      if (contentType.includes("application/json")) {
+        return NextResponse.json({
+          issued: false,
+          reason: "ALREADY_ISSUED",
+          certificate: {
+            id: result.certificate?.id,
+            certificateId: result.certificate?.certificateId,
+          },
+        })
+      }
+      return NextResponse.redirect(new URL("/certificates", request.url), 303)
+    }
+
+    const eligibility = result.eligibility ?? (await checkCertEligibility(session.user.id, courseId))
+    return NextResponse.json(
+      {
+        issued: false,
+        reason: result.reason,
+        eligibility: {
+          contentPct: eligibility.contentPct,
+          assessmentPct: eligibility.assessmentPct,
+          surveyDone: eligibility.surveyDone,
+          rule: eligibility.rule,
         },
       },
-    })
-
-    if (!enrollment) {
-      return NextResponse.json(
-        { message: "Not enrolled in this course" },
-        { status: 403 }
-      )
-    }
-
-    // Check if course is completed
-    const allLectures = enrollment.course.sections.flatMap((s) => s.lectures)
-    const completedProgress = await prisma.lectureProgress.count({
-      where: {
-        userId: session.user.id,
-        lectureId: { in: allLectures.map((l) => l.id) },
-        isCompleted: true,
-      },
-    })
-
-    if (completedProgress < allLectures.length) {
-      return NextResponse.json(
-        { message: "Course not completed yet" },
-        { status: 400 }
-      )
-    }
-
-    // Check if certificate already exists
-    const existingCert = await prisma.certificate.findFirst({
-      where: { userId: session.user.id, courseId },
-    })
-
-    if (existingCert) {
-      return NextResponse.redirect(new URL("/certificates", request.url))
-    }
-
-    // Generate certificate
-    const certificate = await prisma.certificate.create({
-      data: {
-        certificateId: `CERT-${nanoid(10).toUpperCase()}`,
-        userId: session.user.id,
-        courseId,
-        courseName: enrollment.course.title,
-        instructorName: enrollment.course.instructor.name || "Instructor",
-      },
-    })
-
-    await audit({
-      action: "certificate.issue",
-      resourceType: "certificate",
-      resourceId: certificate.id,
-      userId: session.user.id,
-      metadata: {
-        certificateId: certificate.certificateId,
-        courseId,
-        courseName: enrollment.course.title,
-        path: "manual-generate-endpoint",
-      },
-      ip: getRequestIp(request),
-      userAgent: request.headers.get("user-agent") ?? undefined,
-    })
-
-    return NextResponse.redirect(new URL("/certificates", request.url))
-  } catch (error) {
-    console.error("Certificate generation error:", error)
-    return NextResponse.json(
-      { message: "Failed to generate certificate" },
-      { status: 500 }
+      { status: 409 }
     )
+  } catch (error) {
+    console.error("Certificate recheck error:", error)
+    return NextResponse.json({ message: "Failed to recheck certificate" }, { status: 500 })
   }
 }
