@@ -11,9 +11,43 @@ import { cn } from "@/lib/utils"
 const MAX_FILE_SIZE_MB = 50
 const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024
 
-// Dev-only fallback when Cloudinary isn't configured. Posts to the
-// /api/upload/local route which writes to /public/uploads/videos.
-// Production refuses to write so this branch never activates there.
+// Production-friendly fallback when Cloudinary isn't configured. Tries
+// Vercel Blob client-direct upload first (works for any size — bypasses
+// the 4.5MB serverless function body cap). Falls back to /api/upload/local
+// (dev only) if Blob isn't configured.
+async function uploadVideoFallback(
+  file: File,
+  onProgress: (pct: number) => void,
+  attachXhr: (xhr: XMLHttpRequest) => void
+): Promise<{ url: string; publicId: string }> {
+  // Try Vercel Blob first — works in production with no body-size cap.
+  try {
+    const { upload } = await import("@vercel/blob/client")
+    const blob = await upload(`videos/${Date.now()}-${file.name}`, file, {
+      access: "public",
+      handleUploadUrl: "/api/upload/blob",
+      onUploadProgress: (event) => {
+        if (event.total) {
+          onProgress(Math.round((event.loaded / event.total) * 100))
+        }
+      },
+    })
+    return { url: blob.url, publicId: blob.pathname }
+  } catch (error) {
+    // If Blob isn't configured (no token), fall through to local.
+    const message = error instanceof Error ? error.message : ""
+    const isBlobMissing =
+      message.includes("BLOB_NOT_CONFIGURED") ||
+      message.toLowerCase().includes("token") ||
+      message.includes("503")
+    if (!isBlobMissing) throw error
+  }
+
+  // Local-disk fallback (dev only). Posts to /api/upload/local which
+  // writes to /public/uploads/videos. Production returns 503 here.
+  return uploadVideoLocal(file, onProgress, attachXhr)
+}
+
 async function uploadVideoLocal(
   file: File,
   onProgress: (pct: number) => void,
@@ -166,20 +200,19 @@ export function VideoUpload({
       const sigRes = await fetch("/api/upload/signature")
       if (!sigRes.ok) {
         const sigErr = await sigRes.json().catch(() => ({}))
-        // Cloudinary isn't configured — fall back to /api/upload/local
-        // (dev/demo only). Production refuses local uploads.
+        // Cloudinary isn't configured — try Vercel Blob client-direct
+        // upload first (works in production, no body-size cap), then
+        // fall back to /api/upload/local for dev.
         if (sigErr.code === "CLOUDINARY_NOT_CONFIGURED") {
-          const local = await uploadVideoLocal(file, setProgress, (xhr) => {
+          const result = await uploadVideoFallback(file, setProgress, (xhr) => {
             xhrRef.current = xhr
           })
-          // Read duration from the file in the browser so we still have
-          // metadata even though the local route doesn't run ffprobe.
           const duration = await readVideoDuration(file).catch(() => 0)
           xhrRef.current = null
           setUploadState("success")
           onUploadComplete({
-            videoUrl: local.url,
-            videoPublicId: local.publicId,
+            videoUrl: result.url,
+            videoPublicId: result.publicId,
             videoDuration: Math.round(duration),
           })
           return
