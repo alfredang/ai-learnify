@@ -167,9 +167,17 @@ export default auth((req) => {
     return NextResponse.next()
   }
 
-  // Legacy instructor routes (unchanged)
+  // Legacy instructor routes — accept either the legacy role OR a real
+  // Course Developer / Academy Admin membership / Platform Owner. This
+  // mirrors the new check in /api/courses POST so the wizard and the
+  // submit don't disagree about who counts as a course author.
   if (isInstructorRoute) {
-    if (userRole !== "INSTRUCTOR" && userRole !== "ADMIN") {
+    const legacyAllowed = userRole === "INSTRUCTOR" || userRole === "ADMIN"
+    const isPlatformOwner = platformRole === "PLATFORM_OWNER"
+    const isDeveloper = memberships.some(
+      (m) => m.role === "COURSE_DEVELOPER" || m.role === "ACADEMY_ADMIN"
+    )
+    if (!legacyAllowed && !isPlatformOwner && !isDeveloper) {
       return NextResponse.redirect(new URL("/become-instructor", nextUrl))
     }
   }
