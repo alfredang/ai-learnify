@@ -2,27 +2,40 @@
 
 import { useState, useEffect, useRef } from "react"
 import { toast } from "sonner"
+import { Loader2, Sparkles } from "lucide-react"
+import { Button } from "@/components/ui/button"
 import { EditableListField } from "@/components/shared/editable-list-field"
-import { AiAssistButton } from "@/components/shared/ai-assist-button"
 
 interface IntendedLearnersProps {
   courseId: string
   academyId?: string | null
+  courseTitle?: string | null
+  courseSubtitle?: string | null
+  courseDescription?: string | null
   learningOutcomes: string[]
   requirements: string[]
   targetAudience: string[]
   onSaved: () => void
 }
 
+type AssistResponse = {
+  rawText: string
+  parsed: unknown | null
+}
+
 export function IntendedLearnersSection({
   courseId,
   academyId,
+  courseTitle,
+  courseSubtitle,
+  courseDescription,
   learningOutcomes: initialOutcomes,
   requirements: initialRequirements,
   targetAudience: initialAudience,
   onSaved,
 }: IntendedLearnersProps) {
   const [isSaving, setIsSaving] = useState(false)
+  const [aiBusy, setAiBusy] = useState(false)
   const [learningOutcomes, setLearningOutcomes] = useState<string[]>(initialOutcomes || [])
   const [requirements, setRequirements] = useState<string[]>(initialRequirements || [])
   const [targetAudience, setTargetAudience] = useState<string[]>(initialAudience || [])
@@ -31,7 +44,6 @@ export function IntendedLearnersSection({
   const onSavedRef = useRef(onSaved)
   onSavedRef.current = onSaved
 
-  // Debounced auto-save
   useEffect(() => {
     if (!hasInitialized.current) {
       hasInitialized.current = true
@@ -62,6 +74,89 @@ export function IntendedLearnersSection({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [learningOutcomes, requirements, targetAudience, courseId])
 
+  async function handleAiAssist() {
+    if (!academyId) return
+    if (aiBusy) return
+
+    const titleClean = (courseTitle ?? "").trim()
+    if (!titleClean) {
+      toast.error("Set the course title on the Course landing page first — the AI uses it as context.")
+      return
+    }
+
+    const descriptionClean = (courseDescription ?? "")
+      .replace(/<[^>]+>/g, " ")
+      .replace(/\s+/g, " ")
+      .trim()
+      .slice(0, 1500)
+
+    const userPrompt = [
+      `Course title: ${titleClean}`,
+      courseSubtitle ? `Subtitle: ${courseSubtitle.trim()}` : null,
+      descriptionClean ? `Existing description: ${descriptionClean}` : null,
+      "",
+      "Draft the Intended Learners section: 4–7 learning objectives, 1–4 requirements/prerequisites, 1–4 target audience profiles. Return the JSON shape specified in the system prompt.",
+    ]
+      .filter(Boolean)
+      .join("\n")
+
+    setAiBusy(true)
+    try {
+      const res = await fetch("/api/ai/assist", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          capability: "OBJECTIVES",
+          academyId,
+          userPrompt,
+          context: { courseId, source: "intended-learners-one-click" },
+        }),
+      })
+      const data: AssistResponse & { error?: string; interactionId?: string } = await res.json()
+      if (!res.ok) throw new Error(data.error ?? "AI Assist failed")
+
+      const parsed = (data.parsed && typeof data.parsed === "object")
+        ? (data.parsed as Record<string, unknown>)
+        : null
+      const objectives = Array.isArray(parsed?.objectives)
+        ? (parsed!.objectives as unknown[]).filter((v) => typeof v === "string") as string[]
+        : []
+      const reqs = Array.isArray(parsed?.requirements)
+        ? (parsed!.requirements as unknown[]).filter((v) => typeof v === "string") as string[]
+        : []
+      const aud = Array.isArray(parsed?.audience)
+        ? (parsed!.audience as unknown[]).filter((v) => typeof v === "string") as string[]
+        : []
+
+      if (objectives.length === 0 && reqs.length === 0 && aud.length === 0) {
+        throw new Error("AI returned no draft fields")
+      }
+
+      if (objectives.length > 0) setLearningOutcomes(objectives)
+      if (reqs.length > 0) setRequirements(reqs)
+      if (aud.length > 0) setTargetAudience(aud)
+
+      if (data.interactionId) {
+        void fetch("/api/ai/approve", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ interactionId: data.interactionId }),
+        }).catch(() => {})
+      }
+
+      const counts = [
+        objectives.length && `${objectives.length} objectives`,
+        reqs.length && `${reqs.length} requirements`,
+        aud.length && `${aud.length} audience entries`,
+      ].filter(Boolean).join(", ")
+      toast.success(`Drafted ${counts} — review and edit before saving`)
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "AI Assist failed")
+    } finally {
+      setAiBusy(false)
+    }
+  }
+
   return (
     <div className="max-w-3xl space-y-8">
       <div className="flex items-start justify-between gap-3">
@@ -75,30 +170,24 @@ export function IntendedLearnersSection({
           </p>
         </div>
         {academyId && (
-          <AiAssistButton
-            capability="OBJECTIVES"
-            academyId={academyId}
-            label="Draft learning objectives"
-            description="Describe the course topic and target audience; the AI drafts 4–7 action-verb objectives you can edit before saving."
-            placeholder="Topic / audience / end state (e.g. 'Beginners with no coding experience will be able to build a personal portfolio site in React.')"
-            context={{ courseId }}
-            onAccept={({ parsed }) => {
-              const obj =
-                parsed && typeof parsed === "object"
-                  ? (parsed as Record<string, unknown>)
-                  : null
-              const arr = Array.isArray(obj?.objectives) ? obj.objectives : null
-              if (arr && arr.every((v) => typeof v === "string")) {
-                setLearningOutcomes((prev) => [
-                  ...prev.filter((v) => v.trim().length > 0),
-                  ...(arr as string[]),
-                ])
-                toast.success(`Added ${arr.length} draft objectives`)
-              } else {
-                toast.error("Couldn't parse objectives — check the draft format")
-              }
-            }}
-          />
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleAiAssist}
+            disabled={aiBusy}
+            title={
+              courseTitle?.trim()
+                ? "Draft objectives, requirements, and audience using the course title as context."
+                : "Set the course title first."
+            }
+          >
+            {aiBusy ? (
+              <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
+            ) : (
+              <Sparkles className="h-3.5 w-3.5 mr-1" />
+            )}
+            AI Assist
+          </Button>
         )}
       </div>
 

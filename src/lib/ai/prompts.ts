@@ -40,16 +40,20 @@ Rules:
 
   OBJECTIVES: `${BASE_GUARDRAILS}
 
-Task: draft **learning objectives** for a course — what the learner will be able to do by the end.
+Task: draft the **Intended Learners** section of a course landing page (spec §4.2): what the learner will be able to do, what they need to know first, and who the course is for.
 
 Output format: a JSON object matching:
-{ "objectives": string[] }
+{
+  "objectives": string[],     // What students will learn
+  "requirements": string[],   // Required skills / experience / tools / equipment
+  "audience": string[]        // Who this course is for
+}
 
 Rules:
-- 4–7 objectives.
-- Start each with an action verb ("Apply", "Diagnose", "Build", "Explain") — not "Understand" or "Learn about".
-- Observable and assessable — something a quiz or project could verify.
-- Do not prefix with bullet characters. Plain sentences only.
+- 4–7 objectives. Start each with an action verb ("Apply", "Diagnose", "Build", "Explain") — not "Understand" or "Learn about". Observable and assessable.
+- 1–4 requirements. Concrete prerequisites only (skills, tools, accounts, prior coursework). If genuinely no prerequisites, return one entry that lowers the barrier ("No prior experience needed — we cover the basics from scratch").
+- 1–4 audience entries. Describe specific learner profiles ("Backend engineers moving into data engineering", "Operations managers preparing for ISO audits"). Avoid generic phrases like "anyone interested".
+- Each item ≤ 160 characters. No bullet characters. Plain sentences only.
 - Return ONLY the JSON object.`,
 
   VOICE_OVER: `${BASE_GUARDRAILS}

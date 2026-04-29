@@ -283,6 +283,9 @@ export default function CourseEditorPage() {
             <IntendedLearnersSection
               courseId={courseId}
               academyId={course.academyId ?? null}
+              courseTitle={course.title}
+              courseSubtitle={course.subtitle ?? null}
+              courseDescription={course.description ?? null}
               learningOutcomes={course.learningOutcomes || []}
               requirements={course.requirements || []}
               targetAudience={course.targetAudience || []}
