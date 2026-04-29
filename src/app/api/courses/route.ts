@@ -117,12 +117,30 @@ export async function POST(request: Request) {
       slug = `${slug}-${Date.now()}`
     }
 
+    // Pick an academy to scope this course under. Without one, the course
+    // is orphaned (academyId null) and the Academy Admin review queue
+    // can't see it. Prefer the user's first non-LEARNER membership; fall
+    // back to the only existing academy if they have no other membership.
+    const memberships = session.user.memberships ?? []
+    const authorAcademy = memberships.find(
+      (m) => m.role === "ACADEMY_ADMIN" || m.role === "COURSE_DEVELOPER"
+    )
+    let academyId: string | null = authorAcademy?.academyId ?? null
+    if (!academyId) {
+      const fallback = await prisma.academy.findFirst({
+        select: { id: true },
+        orderBy: { createdAt: "asc" },
+      })
+      academyId = fallback?.id ?? null
+    }
+
     const course = await prisma.course.create({
       data: {
         title,
         slug,
         categoryId,
         instructorId: session.user.id,
+        academyId: academyId ?? undefined,
         level: "ALL_LEVELS",
         language: "English",
         price: 0,
