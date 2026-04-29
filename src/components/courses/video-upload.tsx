@@ -11,6 +11,68 @@ import { cn } from "@/lib/utils"
 const MAX_FILE_SIZE_MB = 50
 const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024
 
+// Dev-only fallback when Cloudinary isn't configured. Posts to the
+// /api/upload/local route which writes to /public/uploads/videos.
+// Production refuses to write so this branch never activates there.
+async function uploadVideoLocal(
+  file: File,
+  onProgress: (pct: number) => void,
+  attachXhr: (xhr: XMLHttpRequest) => void
+): Promise<{ url: string; publicId: string }> {
+  const formData = new FormData()
+  formData.append("file", file)
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest()
+    attachXhr(xhr)
+    xhr.upload.addEventListener("progress", (event) => {
+      if (event.lengthComputable) {
+        onProgress(Math.round((event.loaded / event.total) * 100))
+      }
+    })
+    xhr.addEventListener("load", () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        try {
+          const body = JSON.parse(xhr.responseText)
+          resolve({ url: body.url ?? body.secure_url, publicId: body.public_id })
+        } catch {
+          reject(new Error("Local upload returned invalid response"))
+        }
+      } else {
+        try {
+          const errBody = JSON.parse(xhr.responseText)
+          reject(new Error(errBody.error || `Local upload failed (${xhr.status})`))
+        } catch {
+          reject(new Error(`Local upload failed with status ${xhr.status}`))
+        }
+      }
+    })
+    xhr.addEventListener("error", () => reject(new Error("Network error during upload")))
+    xhr.addEventListener("abort", () => reject(new Error("Upload cancelled")))
+    xhr.open("POST", "/api/upload/local")
+    xhr.send(formData)
+  })
+}
+
+// Read duration from a video file in the browser by loading it into a
+// hidden <video> element. Used when the local upload route can't run
+// ffprobe so we still have metadata for the lecture record.
+function readVideoDuration(file: File): Promise<number> {
+  return new Promise((resolve, reject) => {
+    const video = document.createElement("video")
+    video.preload = "metadata"
+    video.onloadedmetadata = () => {
+      const d = video.duration
+      URL.revokeObjectURL(video.src)
+      Number.isFinite(d) ? resolve(d) : reject(new Error("No duration"))
+    }
+    video.onerror = () => {
+      URL.revokeObjectURL(video.src)
+      reject(new Error("Failed to read video metadata"))
+    }
+    video.src = URL.createObjectURL(file)
+  })
+}
+
 interface VideoUploadProps {
   onUploadComplete: (data: {
     videoUrl: string
@@ -21,6 +83,7 @@ interface VideoUploadProps {
   onUploadCancel?: () => void
   existingVideoUrl?: string | null
   existingThumbnail?: string | null
+  title?: string | null
   disabled?: boolean
 }
 
@@ -32,6 +95,7 @@ export function VideoUpload({
   onUploadCancel,
   existingVideoUrl,
   existingThumbnail,
+  title,
   disabled = false,
 }: VideoUploadProps) {
   const [uploadState, setUploadState] = useState<UploadState>("idle")
@@ -102,6 +166,24 @@ export function VideoUpload({
       const sigRes = await fetch("/api/upload/signature")
       if (!sigRes.ok) {
         const sigErr = await sigRes.json().catch(() => ({}))
+        // Cloudinary isn't configured — fall back to /api/upload/local
+        // (dev/demo only). Production refuses local uploads.
+        if (sigErr.code === "CLOUDINARY_NOT_CONFIGURED") {
+          const local = await uploadVideoLocal(file, setProgress, (xhr) => {
+            xhrRef.current = xhr
+          })
+          // Read duration from the file in the browser so we still have
+          // metadata even though the local route doesn't run ffprobe.
+          const duration = await readVideoDuration(file).catch(() => 0)
+          xhrRef.current = null
+          setUploadState("success")
+          onUploadComplete({
+            videoUrl: local.url,
+            videoPublicId: local.publicId,
+            videoDuration: Math.round(duration),
+          })
+          return
+        }
         throw new Error(sigErr.error || `Signature request failed (${sigRes.status})`)
       }
       const { timestamp, signature, cloudName, apiKey } = await sigRes.json()
@@ -221,13 +303,22 @@ export function VideoUpload({
               alt="Video thumbnail"
               className="w-full h-44 object-cover"
             />
+          ) : existingVideoUrl ? (
+            <video
+              src={existingVideoUrl}
+              className="w-full h-44 object-contain bg-black"
+              controls
+              preload="metadata"
+            />
           ) : (
             <div className="flex items-center justify-center h-44">
               <Film className="h-12 w-12 text-muted-foreground" />
             </div>
           )}
-          <div className="absolute bottom-0 inset-x-0 bg-black/60 px-3 py-2 flex items-center justify-between">
-            <span className="text-white text-xs truncate">Current video</span>
+          <div className="absolute bottom-0 inset-x-0 bg-black/60 px-3 py-2 flex items-center justify-between gap-3">
+            <span className="text-white text-xs truncate flex-1" title={title ?? undefined}>
+              {title?.trim() ? title : "Current video"}
+            </span>
             <Button
               type="button"
               variant="ghost"

@@ -55,6 +55,12 @@ const nextConfig: NextConfig = {
       hostname: h.hostname,
     })),
   },
+  // Bump the middleware body limit so /api/upload/local can accept video
+  // files up to 100MB (matches the route's own size cap). Default is 10MB
+  // which truncates any reasonable video upload.
+  experimental: {
+    proxyClientMaxBodySize: "100mb",
+  },
   async headers() {
     return [
       {

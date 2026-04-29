@@ -93,8 +93,14 @@ export async function POST(request: Request) {
       )
     }
 
+    // Demo fallback: when Stripe isn't configured (any environment),
+    // treat paid courses as free so the "Enroll for Free" flow works.
+    // Once real Stripe keys are set, this branch never runs because
+    // isStripeConfigured() returns true.
+    const treatAsFree = course.isFree || !isStripeConfigured()
+
     // For free courses, create enrollment directly
-    if (course.isFree) {
+    if (treatAsFree) {
       await prisma.enrollment.create({
         data: {
           userId: session.user.id,

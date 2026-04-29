@@ -132,6 +132,20 @@ export function SurveySection({ courseId, onSaved }: Props) {
         })
         if (!res.ok) {
           const err = await res.json().catch(() => ({}))
+          // Surface the specific Zod issue (e.g. "questions.0.prompt must
+          // be at most 500 characters") so the author can fix the field
+          // instead of guessing what's wrong.
+          if (Array.isArray(err.issues) && err.issues.length > 0) {
+            const first = err.issues[0]
+            const path = Array.isArray(first.path) ? first.path.join(".") : ""
+            const pretty = path
+              .replace(/^questions\.(\d+)\.(.+)$/, (_m, n, f) => `Question ${Number(n) + 1} – ${f}`)
+              .replace(/^title$/, "Survey title")
+              .replace(/^description$/, "Survey description")
+            throw new Error(
+              `${pretty || "Invalid input"}: ${first.message}`
+            )
+          }
           throw new Error(err.error ?? "Failed to save")
         }
         setHasData(true)

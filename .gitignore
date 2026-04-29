@@ -64,3 +64,6 @@ homepage-*.png
 .claude/skills/marketplace
 .claude/skills/pdf/
 skills-lock.json
+
+# Local-disk upload fallback (dev only — Cloudinary handles prod)
+/public/uploads/

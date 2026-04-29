@@ -96,6 +96,12 @@ export default function CourseEditorPage() {
         !!course.description &&
         !!course.thumbnail &&
         !!course.categoryId,
+      assessment:
+        typeof course.assessmentPassMark === "number" &&
+        course.assessmentPassMark >= 50 &&
+        course.assessmentPassMark <= 100 &&
+        typeof course.retakesAllowed === "number" &&
+        course.retakesAllowed >= -1,
       pricing: true,
     }
   }, [course, totalLectures])

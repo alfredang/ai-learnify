@@ -61,6 +61,22 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     signIn: "/login",
     error: "/login",
   },
+  logger: {
+    // Stale JWT cookies (e.g. after rotating AUTH_SECRET) trigger a noisy
+    // JWTSessionError on every request even though auth() correctly returns
+    // null. Treat it as a benign "no session" signal so the dev overlay and
+    // server logs stay clean. Real auth errors still surface.
+    error(error) {
+      if (error?.name === "JWTSessionError" || error?.name === "JWEDecryptionFailed") return
+      console.error(error)
+    },
+    warn(code) {
+      console.warn(code)
+    },
+    debug(message, metadata) {
+      if (process.env.NODE_ENV !== "production") console.debug(message, metadata)
+    },
+  },
   providers: [
     Credentials({
       name: "credentials",

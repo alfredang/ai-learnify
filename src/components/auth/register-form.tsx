@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -114,12 +114,16 @@ export function RegisterForm() {
 
   // When the user types a "name to be called" we auto-fill certificate name
   // on first keystroke so they don't have to type it twice — they can still
-  // edit it after.
+  // edit it after. Run inside useEffect so the setValue commits AFTER render;
+  // calling it during render triggers a setState-in-render warning from RHF.
   const nameToBeCalled = form.watch("nameToBeCalled")
   const certificateName = form.watch("certificateName")
-  if (nameToBeCalled && !certificateName && !form.formState.dirtyFields.certificateName) {
-    form.setValue("certificateName", nameToBeCalled, { shouldDirty: false })
-  }
+  const certificateNameDirty = form.formState.dirtyFields.certificateName
+  useEffect(() => {
+    if (nameToBeCalled && !certificateName && !certificateNameDirty) {
+      form.setValue("certificateName", nameToBeCalled, { shouldDirty: false })
+    }
+  }, [nameToBeCalled, certificateName, certificateNameDirty, form])
 
   return (
     <div className="space-y-6">

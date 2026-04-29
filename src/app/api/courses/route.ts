@@ -37,8 +37,24 @@ export async function GET(request: Request) {
     const limit = parseInt(searchParams.get("limit") || "12")
     const skip = (page - 1) * limit
 
+    // Optional free-text search against title / subtitle / description.
+    // Empty string falls through to "everything published".
+    const search = (searchParams.get("search") ?? "").trim()
+    const where = {
+      status: "PUBLISHED" as const,
+      ...(search
+        ? {
+            OR: [
+              { title: { contains: search, mode: "insensitive" as const } },
+              { subtitle: { contains: search, mode: "insensitive" as const } },
+              { description: { contains: search, mode: "insensitive" as const } },
+            ],
+          }
+        : {}),
+    }
+
     const courses = await prisma.course.findMany({
-      where: { status: "PUBLISHED" },
+      where,
       include: {
         instructor: {
           select: { id: true, name: true, image: true, headline: true },
@@ -50,7 +66,7 @@ export async function GET(request: Request) {
       take: limit,
     })
 
-    const total = await prisma.course.count({ where: { status: "PUBLISHED" } })
+    const total = await prisma.course.count({ where })
 
     return NextResponse.json({
       courses,

@@ -95,6 +95,49 @@ async function fetchCpdOptions(courseId: string): Promise<CpdOption[]> {
 
 type UploadState = "idle" | "uploading" | "success" | "error"
 
+// Dev fallback when Cloudinary isn't configured — POSTs to /api/upload/local
+// and returns a /uploads/... path. Reuses XHR so progress tracking + cancel
+// behave the same as the Cloudinary path.
+async function uploadLocal(
+  file: File,
+  onProgress: (pct: number) => void,
+  attachXhr: (xhr: XMLHttpRequest) => void
+): Promise<{ url: string; publicId: string }> {
+  const formData = new FormData()
+  formData.append("file", file)
+
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest()
+    attachXhr(xhr)
+    xhr.upload.addEventListener("progress", (event) => {
+      if (event.lengthComputable) {
+        onProgress(Math.round((event.loaded / event.total) * 100))
+      }
+    })
+    xhr.addEventListener("load", () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        try {
+          const body = JSON.parse(xhr.responseText)
+          resolve({ url: body.url ?? body.secure_url, publicId: body.public_id })
+        } catch {
+          reject(new Error("Local upload returned invalid response"))
+        }
+      } else {
+        try {
+          const errBody = JSON.parse(xhr.responseText)
+          reject(new Error(errBody.error || `Local upload failed (${xhr.status})`))
+        } catch {
+          reject(new Error(`Local upload failed with status ${xhr.status}`))
+        }
+      }
+    })
+    xhr.addEventListener("error", () => reject(new Error("Network error")))
+    xhr.addEventListener("abort", () => reject(new Error("Upload cancelled")))
+    xhr.open("POST", "/api/upload/local")
+    xhr.send(formData)
+  })
+}
+
 function useCloudinaryUpload(resourceType: "image" | "video") {
   const [uploadState, setUploadState] = useState<UploadState>("idle")
   const [progress, setProgress] = useState(0)
@@ -126,20 +169,27 @@ function useCloudinaryUpload(resourceType: "image" | "video") {
       try {
         const sigRes = await fetch("/api/upload/signature")
         if (!sigRes.ok) {
-          // Surface the cloudinary-not-configured case clearly so the
-          // editor doesn't show the cryptic "cloud_name is disabled"
-          // message that comes from Cloudinary's own widget when the
-          // env vars are empty.
           let body: { error?: string; code?: string } = {}
           try {
             body = await sigRes.json()
           } catch {
             // ignore
           }
+          // Cloudinary isn't configured — fall back to local-disk upload
+          // (dev/demo only). Production returns 503 from the local route.
           if (body.code === "CLOUDINARY_NOT_CONFIGURED") {
-            throw new Error(
-              "Uploads aren't enabled on this site yet. Paste an image URL below instead, or contact the administrator to set up Cloudinary."
+            const local = await uploadLocal(
+              file,
+              setProgress,
+              (xhr) => { xhrRef.current = xhr }
             )
+            xhrRef.current = null
+            setUploadState("success")
+            return {
+              url: local.url,
+              publicId: local.publicId,
+              duration: undefined,
+            }
           }
           throw new Error(body.error || `Signature request failed (${sigRes.status})`)
         }

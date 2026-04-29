@@ -747,6 +747,10 @@ export function CourseContentEditor({
   function getThumbnailUrl(publicId: string | null): string | null {
     if (!publicId) return null
     const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME
+    // No Cloudinary configured → no derived thumbnail. Local uploads
+    // don't have a separate thumbnail asset; the VideoUpload component
+    // renders the video directly when this returns null.
+    if (!cloudName) return null
     return `https://res.cloudinary.com/${cloudName}/video/upload/w_640,h_360,c_fill,so_0/${publicId}.jpg`
   }
 
@@ -1327,6 +1331,7 @@ export function CourseContentEditor({
                     existingThumbnail={getThumbnailUrl(
                       editingLecture?.lecture.videoPublicId ?? null
                     )}
+                    title={editingLecture?.lecture.title}
                     disabled={lectureLoading}
                   />
                 </div>

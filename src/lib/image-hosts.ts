@@ -14,6 +14,9 @@
  */
 
 export type AllowedImageHost = {
+  // Either an exact hostname, or a "*.example.com" wildcard matching any
+  // single-level or deeper subdomain. The asterisk MUST be the leftmost
+  // label — wildcards in the middle are not supported.
   hostname: string
   pathPrefix?: string
 }
@@ -24,6 +27,16 @@ export const ALLOWED_IMAGE_HOSTS: AllowedImageHost[] = [
   { hostname: "randomuser.me" },
   { hostname: "lh3.googleusercontent.com" },
   { hostname: "avatars.githubusercontent.com" },
+  // Free placeholder services — useful when Cloudinary isn't configured
+  // (dev/demo environments). Safe to keep in production: they only serve
+  // images, no user uploads, and Next.js still does image optimisation.
+  { hostname: "picsum.photos" },
+  { hostname: "placehold.co" },
+  { hostname: "via.placeholder.com" },
+  { hostname: "loremflickr.com" },
+  // Vercel Blob storage — used by /api/upload/local in production.
+  // Each project gets a unique <store-id> subdomain, so wildcard.
+  { hostname: "*.public.blob.vercel-storage.com" },
 ]
 
 export const ALLOWED_IMAGE_HOST_LIST = ALLOWED_IMAGE_HOSTS.map((h) => h.hostname)
@@ -39,9 +52,16 @@ export type ImageUrlValidation =
  */
 export function validateImageUrl(input: string | null | undefined): ImageUrlValidation {
   if (!input || input.trim() === "") return { ok: true, url: "" }
+  const trimmed = input.trim()
+
+  // Local uploads served from /public — see /api/upload/local.
+  if (trimmed.startsWith("/uploads/")) {
+    return { ok: true, url: trimmed }
+  }
+
   let parsed: URL
   try {
-    parsed = new URL(input.trim())
+    parsed = new URL(trimmed)
   } catch {
     return { ok: false, reason: "INVALID_URL" }
   }
@@ -50,11 +70,20 @@ export function validateImageUrl(input: string | null | undefined): ImageUrlVali
   }
   const match = ALLOWED_IMAGE_HOSTS.find(
     (h) =>
-      h.hostname === parsed.hostname &&
+      hostnameMatches(h.hostname, parsed.hostname) &&
       (!h.pathPrefix || parsed.pathname.startsWith(h.pathPrefix))
   )
   if (!match) return { ok: false, reason: "BLOCKED_HOST" }
   return { ok: true, url: parsed.toString() }
+}
+
+function hostnameMatches(pattern: string, actual: string): boolean {
+  if (pattern === actual) return true
+  if (pattern.startsWith("*.")) {
+    const suffix = pattern.slice(1) // ".example.com"
+    return actual.endsWith(suffix) && actual.length > suffix.length
+  }
+  return false
 }
 
 export function explainImageUrlReason(reason: Exclude<ImageUrlValidation, { ok: true }>["reason"]): string {
