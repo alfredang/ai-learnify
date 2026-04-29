@@ -139,7 +139,7 @@ export function SurveySection({ courseId, onSaved }: Props) {
             const first = err.issues[0]
             const path = Array.isArray(first.path) ? first.path.join(".") : ""
             const pretty = path
-              .replace(/^questions\.(\d+)\.(.+)$/, (_m, n, f) => `Question ${Number(n) + 1} – ${f}`)
+              .replace(/^questions\.(\d+)\.(.+)$/, (_m: string, n: string, f: string) => `Question ${Number(n) + 1} – ${f}`)
               .replace(/^title$/, "Survey title")
               .replace(/^description$/, "Survey description")
             throw new Error(
