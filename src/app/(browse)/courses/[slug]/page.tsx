@@ -336,13 +336,11 @@ export default async function CoursePage({ params, searchParams }: CoursePagePro
               Continue Learning
             </Link>
           </Button>
-        ) : isOwner ? (
-          <Button className="w-full" size="lg" asChild>
-            <Link href={`/instructor/courses/${course.id}`}>
-              Edit Course
-            </Link>
-          </Button>
         ) : (
+          // The public course page is the learner-facing CTA. Owners get
+          // an "Edit Course" affordance via the owner banner at the top of
+          // the page so the View-As: Learner experience matches what real
+          // learners see.
           <BuyNowButton
             courseId={course.id}
             courseSlug={slug}
@@ -351,7 +349,7 @@ export default async function CoursePage({ params, searchParams }: CoursePagePro
           />
         )}
 
-        {!isEnrolled && !isOwner && (
+        {!isEnrolled && (
           <FavouriteButton
             courseId={course.id}
             initialFavourited={isFavourited}
@@ -399,18 +397,26 @@ export default async function CoursePage({ params, searchParams }: CoursePagePro
 
   return (
     <div className="min-h-screen pb-20 lg:pb-0">
-      {/* Owner preview banner */}
-      {isOwnerPreview && (
+      {/* Owner banner — surfaces the Edit Course affordance regardless of
+          publish status, so the public CTA below stays consistent with the
+          View-As: Learner experience. */}
+      {isOwner && (
         <div className="bg-blue-50 border-b border-blue-200 dark:bg-blue-950/20 dark:border-blue-800">
           <div className="container py-3 flex items-center justify-center gap-2 text-sm text-blue-800 dark:text-blue-200">
             <Eye className="h-4 w-4" />
             <span>
-              You are previewing this course. It is currently{" "}
-              <strong>{course.status.replace("_", " ").toLowerCase()}</strong> and not visible to students.
+              {isOwnerPreview ? (
+                <>
+                  You are previewing this course. It is currently{" "}
+                  <strong>{course.status.replace("_", " ").toLowerCase()}</strong> and not visible to students.
+                </>
+              ) : (
+                <>You are the instructor of this course — viewing the public learner page.</>
+              )}
             </span>
             <Button variant="outline" size="sm" className="ml-2 h-7 text-xs" asChild>
               <Link href={`/instructor/courses/${course.id}`}>
-                Back to Editor
+                {isOwnerPreview ? "Back to Editor" : "Edit Course"}
               </Link>
             </Button>
           </div>
@@ -743,7 +749,7 @@ export default async function CoursePage({ params, searchParams }: CoursePagePro
       </section>
 
       {/* Mobile Fixed Bottom Bar */}
-      {!isEnrolled && !isOwner && (
+      {!isEnrolled && (
         <MobileBottomBar courseId={course.id} courseSlug={slug} />
       )}
     </div>
