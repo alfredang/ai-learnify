@@ -55,3 +55,12 @@ next-env.d.ts
 localhost-*.png
 vercel-*.png
 homepage-*.png
+
+# Per-developer IDE / agent tooling — each contributor has their own
+.agents/
+.trae/
+.windsurf/
+.claude/scheduled_tasks.lock
+.claude/skills/marketplace
+.claude/skills/pdf/
+skills-lock.json

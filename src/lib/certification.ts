@@ -41,7 +41,11 @@ export async function checkCertEligibility(
       sections: {
         select: { lectures: { select: { id: true, type: true } } },
       },
-      survey: { select: { id: true } },
+      // Spec §17 — surveys are soft-disabled, never deleted. Disabled
+      // surveys are treated as "no survey" by the gate below so prior
+      // responses still count and a disabled survey doesn't indefinitely
+      // block certification.
+      survey: { select: { id: true, isActive: true } },
     },
   })
 
@@ -111,38 +115,31 @@ export async function checkCertEligibility(
     assessmentPct = Math.round(scores.reduce((a, b) => a + b, 0) / scores.length)
   }
 
-  // Survey done?
+  // Survey done? An inactive (soft-disabled) survey is treated as if no
+  // survey exists, so the gate falls through to "satisfied" rather than
+  // blocking forever on a removed survey.
+  const activeSurvey = course.survey?.isActive ? course.survey : null
   let surveyDone = !effective.requiresSurvey
-  if (course.survey && effective.requiresSurvey) {
+  if (activeSurvey && effective.requiresSurvey) {
     const response = await prisma.surveyResponse.findFirst({
-      where: { surveyId: course.survey.id, userId },
+      where: { surveyId: activeSurvey.id, userId },
       select: { id: true },
     })
     surveyDone = !!response
-  } else if (!course.survey && effective.requiresSurvey) {
-    // No survey authored yet — treat as blocking only if rule requires it
-    // and a survey exists on the course. Missing survey means no way to
-    // complete requirement, so we treat it as satisfied to avoid
-    // indefinitely blocking certification on a content-editor omission.
+  } else if (!activeSurvey && effective.requiresSurvey) {
+    // No active survey on the course — treat the requirement as satisfied
+    // so cert isn't blocked by a content-editor omission or a soft-disable.
     surveyDone = true
   }
 
-  // Spec §6.1 / §6.2 — certificates are issued only for paid content.
-  // Free E-courses (course.isFree) and access via the Complimentary
-  // Programme (grant.productType === "COMPLIMENTARY") never qualify.
-  if (course.isFree) {
-    return {
-      eligible: false,
-      reason: "NOT_PAID",
-      contentPct,
-      assessmentPct,
-      surveyDone,
-      rule: effective,
-    }
-  }
-
-  // Access window — also surfaces the COMPLIMENTARY-source gate.
+  // Spec §6 — certificates issue ONLY for paid content. The grant's
+  // productType is the source of truth: a learner with a PROGRAMME grant
+  // paid for the bundle, so per-course certs MUST issue inside a paid
+  // programme even when the individual course is `isFree`. A direct
+  // COURSE grant on an `isFree` course did not pay, so cert is blocked.
+  // COMPLIMENTARY grants never qualify.
   const access = await checkCourseAccess(userId, courseId)
+
   if (effective.mustBeBeforeExpiry && !access.allowed) {
     return {
       eligible: false,
@@ -153,7 +150,34 @@ export async function checkCertEligibility(
       rule: effective,
     }
   }
-  if (access.allowed && access.grant.productType === "COMPLIMENTARY") {
+
+  // Without an active grant we cannot determine paid-vs-complimentary.
+  if (!access.allowed) {
+    return {
+      eligible: false,
+      reason: "NO_ACCESS",
+      contentPct,
+      assessmentPct,
+      surveyDone,
+      rule: effective,
+    }
+  }
+
+  if (access.grant.productType === "COMPLIMENTARY") {
+    return {
+      eligible: false,
+      reason: "NOT_PAID",
+      contentPct,
+      assessmentPct,
+      surveyDone,
+      rule: effective,
+    }
+  }
+
+  // Direct course grant on a free course — never paid for, no cert.
+  // (Programme grants pass through; per spec §6.3 each course inside a
+  // paid programme issues its own cert.)
+  if (access.grant.productType === "COURSE" && course.isFree) {
     return {
       eligible: false,
       reason: "NOT_PAID",

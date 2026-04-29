@@ -155,6 +155,33 @@ async function checkFavourite(courseId: string, userId?: string) {
   }
 }
 
+/**
+ * Spec §7.4 — when the survey author opts in (showRatingPublicly=true),
+ * compute the aggregated learner survey star rating and surface it on the
+ * public course detail page. Returns null when the toggle is off, the
+ * survey is soft-disabled, or no responses exist yet.
+ */
+async function getPublicSurveyRating(courseId: string) {
+  const survey = await prisma.survey.findUnique({
+    where: { courseId },
+    select: { id: true, isActive: true, showRatingPublicly: true },
+  })
+  if (!survey || !survey.isActive || !survey.showRatingPublicly) return null
+
+  const agg = await prisma.surveyResponse.aggregate({
+    where: { surveyId: survey.id },
+    _avg: { starRating: true },
+    _count: { _all: true },
+  })
+
+  if (!agg._count._all) return null
+
+  return {
+    averageStars: Number(agg._avg.starRating ?? 0),
+    responseCount: agg._count._all,
+  }
+}
+
 async function getCourseReviews(courseId: string) {
   const [reviews, distribution, total] = await Promise.all([
     prisma.review.findMany({
@@ -230,12 +257,13 @@ export default async function CoursePage({ params, searchParams }: CoursePagePro
 
   const isOwnerPreview = course.status !== "PUBLISHED" && course.instructorId === session?.user?.id
 
-  const [isEnrolled, isFavourited, reviewData, userReview] =
+  const [isEnrolled, isFavourited, reviewData, userReview, publicSurveyRating] =
     await Promise.all([
       checkEnrollment(course.id, session?.user?.id),
       checkFavourite(course.id, session?.user?.id),
       getCourseReviews(course.id),
       getUserReview(course.id, session?.user?.id),
+      getPublicSurveyRating(course.id),
     ])
   const isOwner = session?.user?.id === course.instructorId
 
@@ -425,6 +453,21 @@ export default async function CoursePage({ params, searchParams }: CoursePagePro
                   ({course._count.reviews.toLocaleString()} reviews)
                 </span>
               </div>
+              {publicSurveyRating && (
+                <div
+                  className="flex items-center gap-1"
+                  title="Average rating from the post-course survey (spec §7.4)"
+                >
+                  <StarRating rating={publicSurveyRating.averageStars} size="sm" />
+                  <span className="font-medium">
+                    {publicSurveyRating.averageStars.toFixed(1)}
+                  </span>
+                  <span className="text-slate-400">
+                    ({publicSurveyRating.responseCount.toLocaleString()} learner survey
+                    {publicSurveyRating.responseCount === 1 ? "" : "s"})
+                  </span>
+                </div>
+              )}
               <div className="flex items-center gap-1 text-slate-300">
                 <Users className="h-4 w-4" />
                 <span>

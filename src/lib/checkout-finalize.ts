@@ -55,6 +55,17 @@ export async function finalizePurchase(input: FinalizeInput) {
   const settings = await prisma.platformSettings.findFirst()
   const platformSupportFixed = settings?.platformSupportFixedFeeMinor ?? 50
 
+  // Spec §16 — ledger is append-only. Stripe ids are stamped on the CHARGE
+  // leg at WRITE time (never via post-hoc UPDATE) so duplicate webhook
+  // deliveries can be detected via the metadata path query.
+  const chargeMetadata: Prisma.InputJsonValue | null =
+    input.stripeSessionId || input.stripePaymentIntentId
+      ? {
+          stripeSessionId: input.stripeSessionId ?? null,
+          stripePaymentIntentId: input.stripePaymentIntentId ?? null,
+        }
+      : null
+
   const dist = computeLegs({
     academyId: input.academyId,
     productType: input.productType,
@@ -69,6 +80,7 @@ export async function finalizePurchase(input: FinalizeInput) {
     taxBps: input.taxBps ?? 0,
     taxJurisdiction: input.taxJurisdiction,
     platformSupportFixedFeeMinor: platformSupportFixed,
+    chargeMetadata,
   })
 
   const result = await prisma.$transaction(async (tx) => {
@@ -86,26 +98,11 @@ export async function finalizePurchase(input: FinalizeInput) {
       taxBps: input.taxBps,
       platformSupportFixedFeeMinor: platformSupportFixed,
       promoCodeId: input.promoCodeId ?? null,
+      chargeMetadata,
     }
 
-    // 1. Write ledger legs.
-    const entries = await writeLedger(purchaseInput, dist, tx)
-
-    // Stamp the CHARGE leg with Stripe ids so we can detect duplicates on retry.
-    if (input.stripeSessionId || input.stripePaymentIntentId) {
-      const chargeLeg = entries.find((e) => e.entryType === "CHARGE")
-      if (chargeLeg) {
-        await tx.ledgerEntry.update({
-          where: { id: chargeLeg.id },
-          data: {
-            metadata: {
-              stripeSessionId: input.stripeSessionId ?? null,
-              stripePaymentIntentId: input.stripePaymentIntentId ?? null,
-            },
-          },
-        })
-      }
-    }
+    // 1. Write ledger legs (CHARGE leg already carries Stripe metadata).
+    await writeLedger(purchaseInput, dist, tx)
 
     // 2. Grant access.
     if (input.productType === "COURSE") {
@@ -187,7 +184,7 @@ export async function finalizePurchase(input: FinalizeInput) {
       }
     }
 
-    return { entries, invoice, distribution: dist }
+    return { invoice, distribution: dist }
   })
 
   await audit({

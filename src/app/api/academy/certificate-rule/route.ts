@@ -3,17 +3,35 @@ import { z } from "zod"
 import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { audit, getRequestIp } from "@/lib/audit"
+import { assertCertRuleStructureIntact } from "@/lib/locked-rules"
 
+/**
+ * Spec §12 — certification thresholds are configured PER-ACADEMY by the
+ * Academy Admin (or Platform Owner only as a fall-through admin action).
+ * The Platform Owner does not configure cert rules globally — spec §6
+ * walkthrough: "Cannot modify locked rules (learning model, certification
+ * logic)". A Platform Owner acting as a tenant admin still operates inside
+ * a tenant's CertificateRule row, never on a global rule.
+ */
 async function resolveAcademyId(userId: string, platformRole: string) {
-  if (platformRole === "PLATFORM_OWNER") {
-    const a = await prisma.academy.findFirst({ where: { isActive: true }, select: { id: true } })
-    return a?.id ?? null
-  }
+  // Academy Admin path — always tenant-scoped.
   const m = await prisma.academyMembership.findFirst({
     where: { userId, role: "ACADEMY_ADMIN" },
     select: { academyId: true },
   })
-  return m?.academyId ?? null
+  if (m?.academyId) return m.academyId
+
+  // Platform Owner fallback: still operate per-tenant. Refuse if more
+  // than one academy exists so the owner doesn't accidentally edit the
+  // wrong tenant's rule from a global console.
+  if (platformRole === "PLATFORM_OWNER") {
+    const all = await prisma.academy.findMany({
+      where: { isActive: true },
+      select: { id: true },
+    })
+    if (all.length === 1) return all[0].id
+  }
+  return null
 }
 
 const patchSchema = z.object({
@@ -42,6 +60,17 @@ export async function PATCH(request: Request) {
   const parsed = patchSchema.safeParse(await request.json())
   if (!parsed.success) {
     return NextResponse.json({ error: "Invalid input", issues: parsed.error.issues }, { status: 400 })
+  }
+
+  // Spec §12 — the four-gate certification structure is locked. Per-academy
+  // customisation may tune the numeric thresholds, but cannot remove the
+  // survey-completed or before-expiry gates entirely.
+  const structureCheck = assertCertRuleStructureIntact(parsed.data)
+  if (!structureCheck.ok) {
+    return NextResponse.json(
+      { error: structureCheck.reason, code: "LOCKED_RULE" },
+      { status: 400 }
+    )
   }
 
   const existing = await prisma.certificateRule.findFirst({

@@ -3,6 +3,7 @@ import bcrypt from "bcryptjs"
 import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { z } from "zod"
+import { audit, getRequestIp } from "@/lib/audit"
 
 const schema = z.object({
   currentPassword: z.string().min(1, "Current password is required"),
@@ -41,6 +42,17 @@ export async function PUT(req: Request) {
 
     const valid = await bcrypt.compare(currentPassword, user.password)
     if (!valid) {
+      // Spec §18 — audit failed password attempts so ops can detect
+      // credential-stuffing. The audit record never persists the password.
+      await audit({
+        action: "user.password.change_failed",
+        resourceType: "user",
+        resourceId: session.user.id,
+        userId: session.user.id,
+        metadata: { reason: "incorrect_current_password" },
+        ip: getRequestIp(req),
+        userAgent: req.headers.get("user-agent") ?? undefined,
+      })
       return NextResponse.json(
         { error: "Current password is incorrect" },
         { status: 400 }
@@ -51,6 +63,16 @@ export async function PUT(req: Request) {
     await prisma.user.update({
       where: { id: session.user.id },
       data: { password: hashed },
+    })
+
+    // Spec §18 — successful password change is a high-value security event.
+    await audit({
+      action: "user.password.change",
+      resourceType: "user",
+      resourceId: session.user.id,
+      userId: session.user.id,
+      ip: getRequestIp(req),
+      userAgent: req.headers.get("user-agent") ?? undefined,
     })
 
     return NextResponse.json({ message: "Password updated" })

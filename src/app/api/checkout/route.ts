@@ -10,6 +10,7 @@ import {
 } from "@/lib/stripe"
 import { validatePromoCode } from "@/lib/promo-codes"
 import { grantCourseAccess, grantProgrammeAccess } from "@/lib/access"
+import { audit } from "@/lib/audit"
 
 export async function POST(request: Request) {
   try {
@@ -114,6 +115,15 @@ export async function POST(request: Request) {
       // Remove from cart if it was there
       await prisma.cartItem.deleteMany({
         where: { userId: session.user.id, courseId },
+      })
+
+      await audit({
+        action: "checkout.free.course",
+        resourceType: "course",
+        resourceId: courseId,
+        userId: session.user.id,
+        academyId: course.academyId ?? null,
+        metadata: { title: course.title },
       })
 
       return NextResponse.json({
@@ -261,6 +271,14 @@ async function handleCartCheckout(
     // because grantCourseAccess upserts and isn't a simple write.
     for (const course of freeCourses) {
       await grantCourseAccess(userId, course.id)
+      await audit({
+        action: "checkout.free.course",
+        resourceType: "course",
+        resourceId: course.id,
+        userId,
+        academyId: course.academyId ?? null,
+        metadata: { title: course.title, viaCart: true },
+      })
     }
   }
 
@@ -372,6 +390,15 @@ async function handleProgrammeCheckout(
         })
       }
     }
+
+    await audit({
+      action: "checkout.free.programme",
+      resourceType: "programme",
+      resourceId: programmeId,
+      userId,
+      academyId: programme.academyId,
+      metadata: { title: programme.title, courseCount: programme.courses.length },
+    })
 
     return NextResponse.json({
       url: `/programmes/${programme.slug}/enroll?success=true`,

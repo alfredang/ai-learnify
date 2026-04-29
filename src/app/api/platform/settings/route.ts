@@ -3,6 +3,7 @@ import { z } from "zod"
 import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { audit, getRequestIp } from "@/lib/audit"
+import { detectLockedFieldViolation } from "@/lib/locked-rules"
 
 // Spec §6 — Platform Owner monetisation policy. Only the Platform Owner may
 // read or modify these. Locked rules (learning model, certification logic,
@@ -34,7 +35,23 @@ export async function PATCH(request: Request) {
   if (session.user.platformRole !== "PLATFORM_OWNER")
     return NextResponse.json({ error: "Platform Owner only" }, { status: 403 })
 
-  const parsed = patchSchema.safeParse(await request.json())
+  const rawBody = (await request.json()) as Record<string, unknown>
+
+  // Spec §6 walkthrough — Platform Owner cannot modify locked rules.
+  // Reject early if the patch tries to touch any forbidden field, before
+  // the Zod schema strips them silently.
+  const violation = detectLockedFieldViolation(rawBody)
+  if (violation) {
+    return NextResponse.json(
+      {
+        error: `Locked rule: ${violation.field} cannot be modified. ${violation.reason}`,
+        code: "LOCKED_RULE",
+      },
+      { status: 400 }
+    )
+  }
+
+  const parsed = patchSchema.safeParse(rawBody)
   if (!parsed.success) {
     return NextResponse.json(
       { error: "Invalid input", issues: parsed.error.issues },

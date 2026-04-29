@@ -241,30 +241,115 @@ See `.env.example` for full list.
 
 ## Implementation Phases
 
-The project follows a 10-phase roadmap (see `docs/lms-implementation-plan.md`):
+The project follows a 10-phase roadmap (see `docs/lms-implementation-plan.md`). Status verified against spec `Learninfy-IESA-LMS.MD` on 2026-04-29:
 
 | Phase | Status | Description |
 |-------|--------|-------------|
 | 0 — Foundation | Done | Dev env, CI, audit plumbing, feature flags |
-| 1 — Multi-Tenancy & Roles | Done | 6 roles, Academy model, membership scoping |
-| 2 — Public Catalogue | Done | Banners, filters, sorts, Programme cards |
-| 3 — Content Model | Done | Programmes, Complimentary, 90-day access |
-| 4 — Payments & Ledger | Done | Ledger, promo codes, invoices, refunds, payouts |
-| 5 — Certification & Survey | Done | Auto-issued certs, QR verify, quiz attempts |
-| 6 — Advanced Authoring | Done | SCORM, xAPI, voice-over slides, versioning |
-| 7 — Gen-AI | Done | AI Assist (Claude), audit logging |
-| 8 — Role Dashboards | Done | All 6 role dashboards functional |
-| 9 — i18n / Tax / Compliance | Partial | Tax + multi-currency done; i18n scaffold only |
-| 10 — Hardening | Partial | Security headers + rate limiting done; load testing pending |
+| 1 — Multi-Tenancy & Roles | Done | 6 roles (`PlatformRole` + `AcademyRole`), Academy model, `AcademyMembership` join table |
+| 2 — Public Catalogue | Done | `Banner` model + carousel (≤10 banners), all 4 spec filters & sorts, public detail page, login wall only on Join/Enrol |
+| 3 — Content Model | Done | E-Courses, Programmes (≥2 courses, shared 90-day window), Complimentary Programme (sentinel access grant) |
+| 4 — Payments & Ledger | Done | Stripe checkout → webhook → finalize, immutable `LedgerEntry`, promo codes, invoices (post-payment only), refund reversal, payout batches, nightly invariant cron |
+| 5 — Certification & Survey | Done | Auto-issued certs gated on ≥50%/≥80%/survey/before-expiry, configurable per academy via `CertificateRule`, public `/verify/[id]` with QR |
+| 6 — Advanced Authoring | Done | All 8 lecture types (VIDEO/TEXT/QUIZ/PDF/SCORM/XAPI/VOICE_OVER_SLIDES/DOWNLOADABLE + HTML), drag-and-drop course & programme builders, `CourseVersion` snapshots |
+| 7 — Gen-AI | Done | Anthropic Claude assist (drafts only, `approved=false` until author signs off), licence-free media curation (Openverse + Wikimedia), per-tenant `aiEnabled` toggle, `AiInteraction` audit log |
+| 8 — Role Dashboards | Done | All 6 role dashboards functional: Learner, Course Developer, Academy Admin, Marketer, Platform Owner, Platform Support |
+| 9 — i18n / Tax / Compliance | Partial | Tax (`TaxRate`, jurisdiction-aware invoices) + multi-currency (SGD default) done; i18n is client-side bundles only — no server-side locale routing yet |
+| 10 — Hardening | Partial | Security headers, rate limiting, audit, GDPR data export done; locked-rules guard for Platform Owner missing; load testing pending |
+
+---
+
+## Key Features (Verified Against Spec)
+
+### Authentication & Roles
+- 6-role model: `PLATFORM_OWNER`, `PLATFORM_SUPPORT` (platform-wide) + `ACADEMY_ADMIN`, `COURSE_DEVELOPER`, `MARKETER`, `LEARNER` (per-tenant via `AcademyMembership`)
+- Learner auth: email + password ONLY (OAuth blocked at runtime in `src/lib/auth.ts:113-125`)
+- Staff auth: username OR email + optional Google/GitHub OAuth; usernames system-wide unique, never displayed publicly
+- Rate-limited login (10 attempts/min per identifier)
+- Legacy `UserRole` enum (STUDENT/INSTRUCTOR/ADMIN) still coexists in schema — new code must use `memberships[]`, not `session.user.role`
+
+### Public Catalogue
+- Fixed branding banner + advertising carousel (≤10 banners, admin-configurable rotation via `Academy.bannerRotationMs`)
+- Course/programme cards: thumbnail, title, partner, blurb, fee or "Complimentary", CPD badge
+- Filters: Sector · CPD · Course/Programme · Price · Partner
+- Sorts: Newest · Alphabetical · Partner · CPD points
+- Login required only on Join/Enrol click
+
+### Learner Experience
+- Registration captures: Email, Password, Name to be Called, Certificate Name, optional Certificate ID
+- Dashboard tabs: Complimentary · My Courses · My Programmes · Certificates · Invoices & Receipts · Profile
+- Complimentary Programme auto-granted on registration (no expiry, no cert, no revenue split)
+- Soft-delete only — `User.isActive = false` + `deactivatedAt` (records retained indefinitely)
+
+### Content & Authoring
+- 8 lecture types via polymorphic `Lecture.contentPayloadJson`: VIDEO, TEXT, QUIZ, PDF, SCORM 1.2/2004, xAPI, VOICE_OVER_SLIDES, DOWNLOADABLE
+- Drag-and-drop course builder (`CourseContentEditor`) and programme builder (`programmes-manager.tsx`)
+- Voice-over slides: PPT/PPTX/PDF upload, per-slide voice-over text, no audio required, counts toward content completion
+- Quiz types: MCQ, multi-select, true/false, drag-and-drop (auto-graded only)
+- Defaults: 80% pass mark, unlimited retakes (`-1`)
+- Mandatory completion-based survey (does not affect score; required for cert)
+- `CourseVersion` snapshots on every publish
+
+### Gen-AI Authoring (Anthropic Claude)
+- AI assists drafts only: outlines, learning objectives, voice-over text, quizzes, metadata, summaries
+- All AI calls write `AiInteraction` rows with `approved=false` until author explicit approval
+- Licence-free media curation (Openverse + Wikimedia); `Resource.license/licenseUrl/attribution/sourceProvider` stored
+- Per-tenant `Academy.aiEnabled` toggle
+- No external model training; author IP preserved
+
+### Payments, Ledger, Payouts
+- Stripe Checkout → webhook → `finalizePurchase()` → `grantCourseAccess()`
+- Invoice + receipt PDF auto-generated AFTER payment, emailed via Resend, permanently stored (no pre-payment invoices)
+- 90-day access from payment timestamp (server-enforced in `src/lib/access.ts`); programmes use ONE shared window
+- Reminder emails: end of Month 1, end of Month 2, 2 weeks before expiry (`/api/cron/access-reminders`)
+- LOCKED revenue split order: Marketer Commission → Platform Support fixed fee → Learner discount % → remaining 50/50 (default) Academy/Partner
+- Immutable `LedgerEntry` (append-only); refunds emit `REFUND_*` reversal entries via `reverseLedger()`
+- Nightly invariant check: sum per `parentTxnId` must equal zero (`/api/cron/ledger-invariant`)
+- Payout batches: organisation, partner-grouped, marketer, platform support; period-selectable
+
+### Certification
+- Default rules (configurable per academy via `CertificateRule`): ≥50% content + ≥80% assessment + survey done + before expiry
+- Auto-issued only — never manual
+- PDF cert with up to 2 logos, Name to be Called, course title, date, CPD name & value, optional ID, QR code
+- Public verify page at `/verify/[certificateId]`
+
+### Internationalisation & Compliance
+- Multi-currency with SGD as default (`src/lib/currency.ts`)
+- Tax: `TaxRate` per jurisdiction, `Invoice.taxJurisdiction`, `Academy.taxRegistrationNumber`
+- Translation bundles (en/zh/ms/th/vi) — client-side only, server-side i18n routing not yet wired
+- bcrypt password hashing, JWT sessions, audit logs, GDPR data export at `/api/profile/export`
+
+---
+
+## Known Gaps & Deviations (vs Spec)
+
+These are tracked for future work — see audit findings for full evidence.
+
+### Spec violations to fix
+1. `src/lib/checkout-finalize.ts:97-103` updates `LedgerEntry.metadata` after creation (violates append-only). Move Stripe IDs into the initial `writeLedger()` call.
+2. `src/app/api/courses/[id]/route.ts:396` hard-deletes DRAFT courses. Replace with `status="ARCHIVED"` + `deletedAt` soft-delete.
+3. `src/app/api/academy/programmes/[id]/route.ts:157` hard-deletes Programmes without checking `AccessGrant` references. Archive instead.
+4. `src/app/api/courses/[id]/survey/route.ts:159` hard-deletes Survey rows, cascade-deleting `SurveyResponse` audit trail. Soft-disable instead.
+5. Cert engine in `src/lib/certification.ts:133` short-circuits on `course.isFree` BEFORE checking programme grant — paid programme containing free-standing courses can't issue per-course certs (spec §6.3 requires per-course certs in programmes).
+
+### Missing features
+- **Platform Owner locked-rules guard** — spec §6 walkthrough explicitly forbids Platform Owner from modifying learning model or certification logic; no enforcement exists.
+- **Survey public display toggle** — spec §7.4 says "optional public display in the course"; `Survey` model has no `showRatingPublicly` field.
+- **Payout payment-request form** — spec §4 walkthrough step 7 requires a customisable form to raise payment with status tracking; only batch records exist today.
+- **Server-side i18n routing** — `src/lib/i18n.ts` is a scaffold; no `next-intl` middleware or `/[locale]/` URL routing.
+- **Ledger DB-level immutability** — only application-level append-only; no Postgres RULE/RLS preventing UPDATE/DELETE on `LedgerEntry`.
 
 ---
 
 ## Critical Rules
 
-1. **Ledger is append-only** — never UPDATE or DELETE a LedgerEntry. Corrections are reversal entries.
+1. **Ledger is append-only** — never UPDATE or DELETE a `LedgerEntry`. Corrections are reversal entries via `reverseLedger()`.
 2. **Learning model is locked** — self-paced, async, no live classes, no manual grading. Do not add features that violate this.
 3. **Learners cannot use OAuth** — spec section 3.1 requires email+password only for learners.
 4. **90-day access is server-enforced** — never rely on UI-only enforcement.
-5. **All AI output requires author approval** — never auto-publish AI-generated content.
+5. **All AI output requires author approval** — never auto-publish AI-generated content. `AiInteraction.approved=false` by default.
 6. **Audit every write operation** — call `audit()` from `src/lib/audit.ts` on all mutations.
-7. **Soft-delete only** — never hard-delete user data. Use `isActive = false` + `deactivatedAt`.
+7. **Soft-delete only** — never hard-delete user data. Use `isActive = false` + `deactivatedAt`. Same applies to Course, Programme, Survey, Certificate.
+8. **Tenant scoping** — every query on tenant-owned data must include `where: { academyId }`. There is no DB-level RLS yet.
+9. **Locked rules** — Platform Owner can configure fees/splits/promo codes but MUST NOT be allowed to change cert thresholds or learning model defaults.
+10. **Revenue split order is locked** — Marketer → Platform Support fixed fee → Learner discount → remaining 50/50 Academy/Partner. Do not reorder.

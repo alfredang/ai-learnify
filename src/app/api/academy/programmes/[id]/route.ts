@@ -146,25 +146,35 @@ export async function DELETE(
   const own = await assertOwnership(id, session.user.id, session.user.platformRole ?? "NONE")
   if (!own.ok) return NextResponse.json({ error: "Forbidden" }, { status: own.status })
 
+  // Spec §17 — soft-delete only. Programmes link to AccessGrant + LedgerEntry
+  // rows; never call prisma.programme.delete(). Archive sets status=ARCHIVED
+  // and stamps deletedAt; existing access grants stay valid until expiry.
   const grants = await prisma.accessGrant.count({ where: { programmeId: id } })
-  if (grants > 0) {
-    return NextResponse.json(
-      { error: `Cannot delete — ${grants} learner(s) have access grants. Archive instead.`, code: "IN_USE" },
-      { status: 409 }
-    )
-  }
 
-  await prisma.programme.delete({ where: { id } })
+  await prisma.programme.update({
+    where: { id },
+    data: {
+      status: "ARCHIVED",
+      deletedAt: new Date(),
+    },
+  })
 
   await audit({
-    action: "programme.delete",
+    action: "programme.archive",
     resourceType: "programme",
     resourceId: id,
     userId: session.user.id,
     academyId: own.academyId,
+    metadata: { activeGrantsAtArchive: grants },
     ip: getRequestIp(request),
     userAgent: request.headers.get("user-agent") ?? undefined,
   })
 
-  return NextResponse.json({ ok: true })
+  return NextResponse.json({
+    ok: true,
+    message:
+      grants > 0
+        ? `Programme archived. ${grants} learner(s) keep their access until expiry; the programme is hidden from the public catalogue.`
+        : "Programme archived. It is hidden from the public catalogue.",
+  })
 }

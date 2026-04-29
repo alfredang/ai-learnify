@@ -58,6 +58,7 @@ export function SurveySection({ courseId, onSaved }: Props) {
   const [title, setTitle] = useState("Course survey")
   const [description, setDescription] = useState("")
   const [mandatory, setMandatory] = useState(true)
+  const [showRatingPublicly, setShowRatingPublicly] = useState(false)
   const [questions, setQuestions] = useState<Question[]>([])
   const [hasData, setHasData] = useState(false)
 
@@ -77,12 +78,14 @@ export function SurveySection({ courseId, onSaved }: Props) {
               description: string | null
               questionsJson: { questions?: Question[] } | null
               isMandatoryForCert: boolean
+              showRatingPublicly?: boolean
             } | null
           }
           if (data.survey) {
             setTitle(data.survey.title)
             setDescription(data.survey.description ?? "")
             setMandatory(data.survey.isMandatoryForCert)
+            setShowRatingPublicly(!!data.survey.showRatingPublicly)
             setQuestions(data.survey.questionsJson?.questions ?? [])
             setHasData(true)
           }
@@ -114,6 +117,7 @@ export function SurveySection({ courseId, onSaved }: Props) {
             title,
             description: description || null,
             isMandatoryForCert: mandatory,
+            showRatingPublicly,
             questions: questions.map((q) => ({
               id: q.id,
               prompt: q.prompt,
@@ -140,7 +144,7 @@ export function SurveySection({ courseId, onSaved }: Props) {
     }, 1200)
 
     return () => clearTimeout(timeout)
-  }, [courseId, title, description, mandatory, questions, loading])
+  }, [courseId, title, description, mandatory, showRatingPublicly, questions, loading])
 
   function updateQuestion(idx: number, patch: Partial<Question>) {
     setQuestions((prev) =>
@@ -236,6 +240,21 @@ export function SurveySection({ courseId, onSaved }: Props) {
               </p>
             </div>
             <Switch checked={mandatory} onCheckedChange={setMandatory} />
+          </div>
+          <div className="flex items-center justify-between rounded-md border p-3">
+            <div>
+              <Label className="text-sm">
+                Show average star rating on public course page
+              </Label>
+              <p className="text-xs text-muted-foreground">
+                Spec §7.4 — opt-in. When on, the aggregated learner rating
+                appears on the public course detail page.
+              </p>
+            </div>
+            <Switch
+              checked={showRatingPublicly}
+              onCheckedChange={setShowRatingPublicly}
+            />
           </div>
         </CardContent>
       </Card>

@@ -17,7 +17,14 @@ export async function GET(
   const { id } = await params
   const survey = await prisma.survey.findUnique({
     where: { courseId: id },
-    select: { id: true, title: true, description: true, questionsJson: true, isMandatoryForCert: true },
+    select: {
+      id: true,
+      title: true,
+      description: true,
+      questionsJson: true,
+      isMandatoryForCert: true,
+      showRatingPublicly: true,
+    },
   })
 
   if (!survey) return NextResponse.json({ survey: null })
@@ -44,6 +51,9 @@ const upsertSchema = z.object({
   title: z.string().min(1).max(200).optional(),
   description: z.string().max(2000).nullable().optional(),
   isMandatoryForCert: z.boolean().optional(),
+  // Spec §7.4 — author opt-in to showing the aggregated star rating on the
+  // public course detail page.
+  showRatingPublicly: z.boolean().optional(),
   questions: z.array(surveyQuestionSchema).max(30).optional(),
 })
 
@@ -102,6 +112,9 @@ export async function PUT(
     ...(input.isMandatoryForCert !== undefined
       ? { isMandatoryForCert: input.isMandatoryForCert }
       : {}),
+    ...(input.showRatingPublicly !== undefined
+      ? { showRatingPublicly: input.showRatingPublicly }
+      : {}),
     ...(input.questions !== undefined
       ? { questionsJson: { version: 1, questions: input.questions } as Prisma.InputJsonValue }
       : {}),
@@ -115,6 +128,7 @@ export async function PUT(
           title: input.title ?? "Course survey",
           description: input.description ?? null,
           isMandatoryForCert: input.isMandatoryForCert ?? true,
+          showRatingPublicly: input.showRatingPublicly ?? false,
           questionsJson: {
             version: 1,
             questions: input.questions ?? [],
@@ -138,8 +152,15 @@ export async function PUT(
 }
 
 /**
- * DELETE /api/courses/[id]/survey — author removal. Cascades survey
- * responses (schema rule). Use sparingly; preferable to edit instead.
+ * DELETE /api/courses/[id]/survey — author disable.
+ *
+ * Spec §17 — soft-disable only. SurveyResponse rows are evidence of cert
+ * eligibility for already-issued certificates; destroying them would
+ * invalidate the audit trail. Marks the survey isActive=false + stamps
+ * deletedAt; the cert engine treats inactive surveys as "no survey
+ * required" if the academy's CertificateRule.requiresSurvey is true the
+ * course can still issue certs to learners who completed it before
+ * disable.
  */
 export async function DELETE(
   _request: Request,
@@ -152,22 +173,29 @@ export async function DELETE(
 
   const survey = await prisma.survey.findUnique({
     where: { courseId },
-    select: { id: true },
+    select: { id: true, isActive: true },
   })
   if (!survey) return NextResponse.json({ ok: true })
 
-  await prisma.survey.delete({ where: { courseId } })
+  await prisma.survey.update({
+    where: { courseId },
+    data: { isActive: false, deletedAt: new Date() },
+  })
 
   await audit({
-    action: "survey.delete",
+    action: "survey.disable",
     resourceType: "survey",
     resourceId: survey.id,
     userId: session!.user.id,
     academyId: authz.course.academyId,
-    metadata: { courseId },
+    metadata: { courseId, priorIsActive: survey.isActive },
   })
 
-  return NextResponse.json({ ok: true })
+  return NextResponse.json({
+    ok: true,
+    message:
+      "Survey disabled. Existing learner responses are preserved for audit.",
+  })
 }
 
 export async function POST(

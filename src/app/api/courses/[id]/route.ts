@@ -361,6 +361,7 @@ export async function DELETE(
         instructorId: true,
         academyId: true,
         title: true,
+        status: true,
         _count: { select: { enrollments: true } },
       },
     })
@@ -382,31 +383,42 @@ export async function DELETE(
       )
     }
 
-    if (course._count.enrollments > 0) {
-      return NextResponse.json(
-        {
-          error:
-            "Cannot delete a course with enrolled students. Archive it instead.",
-          code: "HAS_ENROLLMENTS",
+    // Spec §17 — soft-delete only. Even DRAFT courses link to AiInteraction,
+    // CourseVersion, and (potentially) AccessGrant rows. Set status=ARCHIVED
+    // and stamp deletedAt; never call prisma.course.delete().
+    if (course.status === "ARCHIVED" && course._count.enrollments === 0) {
+      // Already archived and unused — idempotent no-op.
+    } else {
+      await prisma.course.update({
+        where: { id },
+        data: {
+          status: "ARCHIVED",
+          deletedAt: new Date(),
         },
-        { status: 400 }
-      )
+      })
     }
 
-    await prisma.course.delete({ where: { id } })
-
     await audit({
-      action: "course.delete",
+      action: "course.archive",
       resourceType: "course",
       resourceId: id,
       userId: session.user.id,
       academyId: course.academyId ?? null,
-      metadata: { title: course.title },
+      metadata: {
+        title: course.title,
+        priorStatus: course.status,
+        enrollmentsAtArchive: course._count.enrollments,
+      },
       ip: getRequestIp(request),
       userAgent: request.headers.get("user-agent") ?? undefined,
     })
 
-    return NextResponse.json({ message: "Course deleted successfully" })
+    return NextResponse.json({
+      message:
+        course._count.enrollments > 0
+          ? "Course archived. Existing learners retain access; the course is hidden from the public catalogue."
+          : "Course archived. It is hidden from the public catalogue and can no longer be enrolled in.",
+    })
   } catch (error) {
     console.error("[COURSE_ID_DELETE]", error)
     return NextResponse.json(

@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Loader2 } from "lucide-react"
+import { Loader2, FileText } from "lucide-react"
 
 interface Props {
   batchId: string
@@ -27,6 +27,8 @@ export function PayoutRowActions({ batchId, status }: Props) {
   const [submitting, setSubmitting] = useState(false)
   const [payOpen, setPayOpen] = useState(false)
   const [processorRef, setProcessorRef] = useState("")
+
+  const paymentRequestUrl = `/api/academy/payouts/${batchId}/payment-request`
 
   async function transition(
     body: { status: "APPROVED" | "PAID" | "CANCELLED"; processorRef?: string; reason?: string }
@@ -51,12 +53,30 @@ export function PayoutRowActions({ batchId, status }: Props) {
     }
   }
 
+  // Payment Request document (spec §4 walkthrough step 7) is available at
+  // every status — it's a snapshot of the underlying ledger legs and is
+  // useful even after the batch is paid as a record of what was paid.
+  const paymentRequestButton = (
+    <Button
+      size="sm"
+      variant="ghost"
+      asChild
+      title="Generate Payment Request document (spec §4 walkthrough step 7)"
+    >
+      <a href={paymentRequestUrl} target="_blank" rel="noopener noreferrer">
+        <FileText className="h-3.5 w-3.5 mr-1" />
+        Request
+      </a>
+    </Button>
+  )
+
   if (status === "PAID" || status === "CANCELLED") {
-    return <span className="text-xs text-muted-foreground">—</span>
+    return <div className="flex gap-1 justify-end">{paymentRequestButton}</div>
   }
 
   return (
     <div className="flex gap-1 justify-end">
+      {paymentRequestButton}
       {status === "DRAFT" && (
         <Button
           size="sm"

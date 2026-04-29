@@ -44,6 +44,13 @@ export type PurchaseInput = {
   platformSupportFixedFeeMinor?: number
   /** Tag every leg with the promo code that earned the conversion. */
   promoCodeId?: string | null
+  /**
+   * Metadata stamped onto the CHARGE leg at write time. Spec §16 ledger is
+   * append-only — never UPDATE a row after creation. Pass payment-gateway
+   * identifiers (Stripe session/payment intent ids) here so duplicate
+   * webhook deliveries can be detected via the metadata json path.
+   */
+  chargeMetadata?: Prisma.InputJsonValue | null
 }
 
 export type LegSpec = {
@@ -52,6 +59,7 @@ export type LegSpec = {
   payoutGroup?: PayoutGroup | null
   beneficiaryUserId?: string | null
   notes?: string
+  metadata?: Prisma.InputJsonValue | null
 }
 
 export type ComputedDistribution = {
@@ -103,6 +111,7 @@ export function computeLegs(input: PurchaseInput): ComputedDistribution {
     type: "CHARGE",
     amountMinor: +gross,
     notes: "Learner charge",
+    metadata: input.chargeMetadata ?? null,
   })
 
   // 2. Discount reduces the pool immediately.
@@ -215,6 +224,7 @@ export async function writeLedger(
         payoutGroup: leg.payoutGroup ?? null,
         promoCodeId: input.promoCodeId ?? null,
         notes: leg.notes,
+        metadata: leg.metadata ?? undefined,
       },
     })
     created.push(row)
