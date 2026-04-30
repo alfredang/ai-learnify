@@ -100,10 +100,16 @@ export async function POST(request: Request) {
     })
   }
 
-  // Local disk path — dev only. Vercel without Blob configured falls
-  // through to here and the writeFile fails with EROFS, which we surface
-  // with a clear message instead of a stack trace.
-  if (process.env.VERCEL) {
+  // Local disk path — dev only. A deployed Vercel function without Blob
+  // configured falls through to here and the writeFile fails with EROFS,
+  // which we surface with a clear message instead of a stack trace.
+  // VERCEL_ENV is "production"/"preview" on deployed builds and
+  // "development" under `vercel dev`, so the dev path still gets to write
+  // to /public/uploads on disk.
+  if (
+    process.env.VERCEL_ENV === "production" ||
+    process.env.VERCEL_ENV === "preview"
+  ) {
     return NextResponse.json(
       {
         error:
