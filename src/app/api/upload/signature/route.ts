@@ -5,6 +5,11 @@ import {
   CloudinaryNotConfiguredError,
 } from "@/lib/cloudinary"
 
+// Cloudinary's signing helpers use Node crypto; force the Node runtime so
+// `vercel dev` doesn't try to bundle this as an Edge function (which fails
+// at module load with FUNCTION_INVOCATION_FAILED).
+export const runtime = "nodejs"
+
 export async function GET() {
   try {
     const session = await auth()
