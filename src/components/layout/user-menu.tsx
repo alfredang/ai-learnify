@@ -5,7 +5,7 @@ import Link from "next/link"
 import { useQueryClient } from "@tanstack/react-query"
 import { serverSignOut } from "@/app/actions/auth"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { User, LogOut, Settings } from "lucide-react"
+import { User, LogOut, Settings, Heart } from "lucide-react"
 import { useT } from "@/hooks/use-t"
 import type { UserRole } from "@prisma/client"
 
@@ -68,6 +68,14 @@ export function UserMenu({ user }: UserMenuProps) {
               >
                 <User className="h-4 w-4" />
                 {t("nav.myProfile")}
+              </Link>
+              <Link
+                href="/favourites"
+                onClick={() => setIsOpen(false)}
+                className="flex items-center gap-3 px-3 py-2.5 text-sm rounded-md hover:bg-muted/50 transition-colors"
+              >
+                <Heart className="h-4 w-4" />
+                {t("nav.myFavourites")}
               </Link>
               <Link
                 href="/account"
