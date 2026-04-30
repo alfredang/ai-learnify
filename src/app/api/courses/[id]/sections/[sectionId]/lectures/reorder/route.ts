@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { audit, getRequestIp } from "@/lib/audit"
+import { assertCourseEditable, PUBLISHED_EDIT_BLOCKED } from "@/lib/course-edit-guard"
 
 export async function PUT(
   request: Request,
@@ -35,6 +36,11 @@ export async function PUT(
         { error: "You do not own this course", code: "NOT_COURSE_OWNER" },
         { status: 403 }
       )
+    }
+
+    const editable = await assertCourseEditable(courseId)
+    if (editable.blocked) {
+      return NextResponse.json(PUBLISHED_EDIT_BLOCKED, { status: 409 })
     }
 
     // Verify section belongs to course

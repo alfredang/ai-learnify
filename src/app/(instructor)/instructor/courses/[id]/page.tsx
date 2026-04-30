@@ -11,6 +11,7 @@ import {
   Eye,
   MoreVertical,
   Trash2,
+  Lock,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -87,6 +88,9 @@ export default function CourseEditorPage() {
 
   const completionStatus: Record<string, boolean> = useMemo(() => {
     if (!course) return {} as Record<string, boolean>
+    const surveyQuestions = (course.survey?.questionsJson as { questions?: unknown[] } | null)
+      ?.questions
+    const surveyHasQuestions = Array.isArray(surveyQuestions) && surveyQuestions.length > 0
     return {
       "intended-learners": (course.learningOutcomes?.length || 0) > 0,
       curriculum:
@@ -102,6 +106,8 @@ export default function CourseEditorPage() {
         course.assessmentPassMark <= 100 &&
         typeof course.retakesAllowed === "number" &&
         course.retakesAllowed >= -1,
+      survey: !!course.survey && surveyHasQuestions,
+      versions: (course._count?.versions ?? 0) > 0,
       pricing: true,
     }
   }, [course, totalLectures])
@@ -279,6 +285,34 @@ export default function CourseEditorPage() {
 
         {/* Main content */}
         <main className="flex-1 overflow-y-auto p-6">
+          {course.status === "PUBLISHED" && currentSection !== "versions" && (
+            <div className="mb-6 rounded-lg border border-amber-300 bg-amber-50 p-4 flex items-start gap-3">
+              <Lock className="h-5 w-5 text-amber-700 shrink-0 mt-0.5" />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-amber-900">
+                  This course is published — editing is locked
+                </p>
+                <p className="text-xs text-amber-800 mt-1">
+                  IESA spec §7.2: every edit to a published course must go through
+                  the unpublish → edit → submit-for-review → approve cycle so the
+                  change is captured in version history. Click <strong>Unpublish</strong> below
+                  to start editing; the course will be hidden from the public catalogue
+                  until it&apos;s reviewed and approved again.
+                </p>
+              </div>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={handleUnpublish}
+                disabled={isSaving}
+                className="shrink-0 border-amber-400 bg-white hover:bg-amber-100"
+              >
+                {isSaving && <Loader2 className="h-3 w-3 mr-2 animate-spin" />}
+                Unpublish to edit
+              </Button>
+            </div>
+          )}
+
           {currentSection === "intended-learners" && (
             <IntendedLearnersSection
               courseId={courseId}
@@ -305,6 +339,7 @@ export default function CourseEditorPage() {
                 courseId={courseId}
                 sections={course.sections || []}
                 academyId={course.academyId ?? null}
+                courseTitle={course.title}
               />
             </div>
           )}

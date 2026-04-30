@@ -7,6 +7,7 @@ import { prisma } from "@/lib/prisma"
 import { checkCourseAccess } from "@/lib/access"
 import { maybeIssueCertificate } from "@/lib/certification"
 import { audit } from "@/lib/audit"
+import { assertCourseEditable, PUBLISHED_EDIT_BLOCKED } from "@/lib/course-edit-guard"
 
 // Public GET — returns the survey questions (no auth required since they
 // may be displayed on the public detail page per spec §7.4).
@@ -95,6 +96,11 @@ export async function PUT(
   const authz = await assertCourseAuthor(session, courseId)
   if (!authz.ok) return NextResponse.json({ error: authz.error }, { status: authz.status })
 
+  const editable = await assertCourseEditable(courseId)
+  if (editable.blocked) {
+    return NextResponse.json(PUBLISHED_EDIT_BLOCKED, { status: 409 })
+  }
+
   const parsed = upsertSchema.safeParse(await request.json())
   if (!parsed.success) {
     return NextResponse.json(
@@ -170,6 +176,11 @@ export async function DELETE(
   const { id: courseId } = await params
   const authz = await assertCourseAuthor(session, courseId)
   if (!authz.ok) return NextResponse.json({ error: authz.error }, { status: authz.status })
+
+  const editable = await assertCourseEditable(courseId)
+  if (editable.blocked) {
+    return NextResponse.json(PUBLISHED_EDIT_BLOCKED, { status: 409 })
+  }
 
   const survey = await prisma.survey.findUnique({
     where: { courseId },

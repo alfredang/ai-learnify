@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { sectionSchema } from "@/lib/validations/course"
 import { audit, getRequestIp } from "@/lib/audit"
+import { assertCourseEditable, PUBLISHED_EDIT_BLOCKED } from "@/lib/course-edit-guard"
 
 export async function POST(
   request: Request,
@@ -43,6 +44,12 @@ export async function POST(
         { error: "You do not own this course", code: "NOT_COURSE_OWNER" },
         { status: 403 }
       )
+    }
+
+    // Spec §7.2: edits to PUBLISHED courses must go through unpublish cycle.
+    const editable = await assertCourseEditable(courseId)
+    if (editable.blocked) {
+      return NextResponse.json(PUBLISHED_EDIT_BLOCKED, { status: 409 })
     }
 
     const body = await request.json()

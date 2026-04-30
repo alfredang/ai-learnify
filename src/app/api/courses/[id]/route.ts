@@ -40,8 +40,11 @@ export async function GET(
             },
           },
         },
+        survey: {
+          select: { id: true, questionsJson: true },
+        },
         _count: {
-          select: { enrollments: true, reviews: true },
+          select: { enrollments: true, reviews: true, versions: true },
         },
       },
     })
@@ -125,6 +128,17 @@ export async function PUT(
     }
 
     const body = await request.json()
+
+    // Spec §7.2: edits to a PUBLISHED course are blocked. The developer
+    // must unpublish first (status → DRAFT), edit, then resubmit. The
+    // only thing allowed on a PUBLISHED course is a status transition.
+    const bodyKeys = Object.keys(body)
+    const isStatusOnlyChange =
+      bodyKeys.length > 0 && bodyKeys.every((k) => k === "status")
+    if (existingCourse.status === "PUBLISHED" && !isStatusOnlyChange) {
+      const { PUBLISHED_EDIT_BLOCKED } = await import("@/lib/course-edit-guard")
+      return NextResponse.json(PUBLISHED_EDIT_BLOCKED, { status: 409 })
+    }
 
     // Spec §4 step 3 — status transitions are gated by role. Developers may
     // submit drafts for review and unpublish their own courses; only Academy

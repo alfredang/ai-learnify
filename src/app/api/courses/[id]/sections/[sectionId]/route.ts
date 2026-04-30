@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { sectionSchema } from "@/lib/validations/course"
 import { audit, getRequestIp } from "@/lib/audit"
+import { assertCourseEditable, PUBLISHED_EDIT_BLOCKED } from "@/lib/course-edit-guard"
 
 async function verifyCourseOwner(courseId: string, userId: string, role: string) {
   const course = await prisma.course.findUnique({
@@ -38,6 +39,11 @@ export async function PUT(
         { error: ownerCheck.error, code: ownerCheck.code },
         { status: ownerCheck.status }
       )
+    }
+
+    const editable = await assertCourseEditable(courseId)
+    if (editable.blocked) {
+      return NextResponse.json(PUBLISHED_EDIT_BLOCKED, { status: 409 })
     }
 
     const existing = await prisma.section.findUnique({
@@ -108,6 +114,11 @@ export async function DELETE(
         { error: ownerCheck.error, code: ownerCheck.code },
         { status: ownerCheck.status }
       )
+    }
+
+    const editable = await assertCourseEditable(courseId)
+    if (editable.blocked) {
+      return NextResponse.json(PUBLISHED_EDIT_BLOCKED, { status: 409 })
     }
 
     const section = await prisma.section.findUnique({

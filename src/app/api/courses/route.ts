@@ -148,6 +148,63 @@ export async function POST(request: Request) {
       },
     })
 
+    // Auto-attach a standard feedback survey so every new course ships
+    // with the same baseline questions. Course Developers can still
+    // edit / add / remove questions in the Survey section of the editor.
+    await prisma.survey.create({
+      data: {
+        courseId: course.id,
+        title: "Course feedback survey",
+        description:
+          "Help us improve this course by sharing your experience.",
+        isMandatoryForCert: true,
+        showRatingPublicly: false,
+        questionsJson: {
+          version: 1,
+          questions: [
+            {
+              id: "q_overall_rating",
+              prompt: "Overall, how would you rate this course?",
+              type: "rating",
+              required: true,
+            },
+            {
+              id: "q_content_quality",
+              prompt: "How satisfied are you with the content quality?",
+              type: "rating",
+              required: true,
+            },
+            {
+              id: "q_pace",
+              prompt: "How did you find the pace of the course?",
+              type: "single_choice",
+              required: true,
+              options: ["Too slow", "Just right", "Too fast"],
+            },
+            {
+              id: "q_most_valuable",
+              prompt: "What did you find most valuable in this course?",
+              type: "text",
+              required: false,
+            },
+            {
+              id: "q_improve",
+              prompt: "What could we improve?",
+              type: "text",
+              required: false,
+            },
+            {
+              id: "q_recommend",
+              prompt:
+                "How likely are you to recommend this course to a colleague?",
+              type: "rating",
+              required: true,
+            },
+          ],
+        },
+      },
+    })
+
     await audit({
       action: "course.create",
       resourceType: "course",

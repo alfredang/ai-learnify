@@ -28,14 +28,14 @@ Task: draft a **course outline** — a logical learning journey from prerequisit
 Output format: a JSON object matching:
 {
   "sections": [
-    { "title": string, "summary": string, "lectures": [ { "title": string, "type": "VIDEO"|"TEXT"|"QUIZ", "estimatedMinutes": number } ] }
+    { "title": string, "summary": string, "lectures": [ { "title": string, "type": "VIDEO"|"TEXT"|"QUIZ" } ] }
   ]
 }
 
 Rules:
 - 3–8 sections. Each section 3–8 lectures.
 - Mix lecture types sensibly — a quiz every 1–2 sections, short text recaps, the rest video.
-- estimatedMinutes reflects self-paced async consumption (no instructor time).
+- Do not include time estimates — the author will set durations once real content is recorded.
 - Return ONLY the JSON object. No prose wrapper.`,
 
   OBJECTIVES: `${BASE_GUARDRAILS}

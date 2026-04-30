@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma"
 import { lectureSchema } from "@/lib/validations/course"
 import { deleteAsset } from "@/lib/cloudinary"
 import { audit, getRequestIp } from "@/lib/audit"
+import { assertCourseEditable, PUBLISHED_EDIT_BLOCKED } from "@/lib/course-edit-guard"
 
 export async function PUT(
   request: Request,
@@ -38,6 +39,11 @@ export async function PUT(
         { error: "You do not own this course", code: "NOT_COURSE_OWNER" },
         { status: 403 }
       )
+    }
+
+    const editable = await assertCourseEditable(courseId)
+    if (editable.blocked) {
+      return NextResponse.json(PUBLISHED_EDIT_BLOCKED, { status: 409 })
     }
 
     const existingLecture = await prisma.lecture.findUnique({
@@ -160,6 +166,11 @@ export async function DELETE(
         { error: "You do not own this course", code: "NOT_COURSE_OWNER" },
         { status: 403 }
       )
+    }
+
+    const editable = await assertCourseEditable(courseId)
+    if (editable.blocked) {
+      return NextResponse.json(PUBLISHED_EDIT_BLOCKED, { status: 409 })
     }
 
     const lecture = await prisma.lecture.findUnique({

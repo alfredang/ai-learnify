@@ -75,5 +75,18 @@ export async function POST(
     userAgent: request.headers.get("user-agent") ?? undefined,
   })
 
+  // Spec §7.2: snapshot on transition into PUBLISHED. The regular
+  // /api/courses/[id] PUT does this for the developer-driven flow;
+  // mirror it here for the Academy Admin approve flow so version
+  // history actually records the publish event. Fire-and-forget so a
+  // snapshot failure never blocks approval.
+  const { snapshotCourse } = await import("@/lib/course-versions")
+  snapshotCourse(id, session.user.id).catch((err) => {
+    console.error("[course.approve.snapshot] failed", {
+      courseId: id,
+      err: err instanceof Error ? err.message : String(err),
+    })
+  })
+
   return NextResponse.json({ course })
 }

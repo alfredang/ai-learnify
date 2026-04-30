@@ -67,3 +67,4 @@ skills-lock.json
 
 # Local-disk upload fallback (dev only — Cloudinary handles prod)
 /public/uploads/
+.env*.local

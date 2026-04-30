@@ -58,6 +58,7 @@ import {
 import { CSS } from "@dnd-kit/utilities"
 import { VideoUpload } from "@/components/courses/video-upload"
 import { QuizBuilder } from "@/components/courses/quiz-builder"
+import { CurriculumAiButton } from "@/components/courses/curriculum-ai-button"
 import {
   LecturePayloadEditor,
   type LecturePayload,
@@ -91,6 +92,7 @@ interface CourseContentEditorProps {
   courseId: string
   sections: Section[]
   academyId?: string | null
+  courseTitle?: string
 }
 
 const lectureTypeIcons = {
@@ -289,6 +291,7 @@ export function CourseContentEditor({
   courseId,
   sections: initialSections,
   academyId,
+  courseTitle,
 }: CourseContentEditorProps) {
   const queryClient = useQueryClient()
 
@@ -772,10 +775,20 @@ export function CourseContentEditor({
               {totalLectures} lecture{totalLectures !== 1 ? "s" : ""}
             </p>
           </div>
-          <Button onClick={openAddSection} size="sm">
-            <Plus className="h-4 w-4 mr-2" />
-            Add Section
-          </Button>
+          <div className="flex items-center gap-2">
+            <CurriculumAiButton
+              courseId={courseId}
+              academyId={academyId}
+              courseTitle={courseTitle ?? "this course"}
+              onGenerated={async () => {
+                await queryClient.invalidateQueries({ queryKey: ["course", courseId] })
+              }}
+            />
+            <Button onClick={openAddSection} size="sm">
+              <Plus className="h-4 w-4 mr-2" />
+              Add Section
+            </Button>
+          </div>
         </CardHeader>
         <CardContent className="space-y-3">
           {initialSections.length === 0 ? (

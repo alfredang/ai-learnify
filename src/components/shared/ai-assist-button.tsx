@@ -108,9 +108,26 @@ export function AiAssistButton({
           context,
         }),
       })
-      const data = await res.json()
+      const data = (await res.json()) as GenerateResponse & { error?: string }
       if (!res.ok) throw new Error(data.error ?? "Generate failed")
-      setResult(data as GenerateResponse)
+
+      // Apply directly to the field — skip the preview step. The draft is
+      // still recorded server-side as unapproved; we mark it approved
+      // fire-and-forget so audit reflects what the author actually used.
+      void fetch("/api/ai/approve", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ interactionId: data.interactionId }),
+      }).catch(() => {})
+      onAccept({
+        rawText: data.rawText,
+        parsed: data.parsed,
+        interactionId: data.interactionId,
+      })
+      toast.success("Draft inserted — edit any field freely")
+      setOpen(false)
+      setUserPrompt("")
+      setResult(null)
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Generate failed")
     } finally {
