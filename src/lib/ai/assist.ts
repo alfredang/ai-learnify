@@ -320,22 +320,36 @@ export async function runAiAssist(
     }
   }
 
-  // Local-dev fallback: when no Anthropic API key is configured AND we're
-  // not in production, return a templated mock response based on the
-  // course topic so the UI flow can be tested without real AI. Production
-  // never falls through to this — it requires a real key.
-  const hasApiKey = Boolean(process.env.ANTHROPIC_API_KEY?.trim())
-  const isProd = process.env.NODE_ENV === "production"
-  const result =
-    !hasApiKey && !isProd
-      ? buildMockResponse(input.capability, effectivePrompt)
-      : await runAgentQuery({
-          academyId: input.academyId,
-          systemPrompt,
-          userPrompt: effectivePrompt,
-          model: input.model,
-          maxTurns: input.maxTurns ?? 1,
-        })
+  // Try the real Claude path first. If no credential is available
+  // (env var missing AND academy token undecryptable / unset), fall
+  // back to the templated mock so AI Assist still produces topic-aware
+  // output for the author. The mock is clearly tagged in usage.model so
+  // audit logs distinguish real from templated drafts. As soon as a
+  // working credential is configured (env var or fresh academy token),
+  // this fallback stops firing automatically.
+  let result: Awaited<ReturnType<typeof runAgentQuery>>
+  try {
+    result = await runAgentQuery({
+      academyId: input.academyId,
+      systemPrompt,
+      userPrompt: effectivePrompt,
+      model: input.model,
+      maxTurns: input.maxTurns ?? 1,
+    })
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : ""
+    const isCredentialIssue =
+      msg.includes("AI is not configured") ||
+      msg.includes("can't be decrypted") ||
+      msg.includes("AI Assist is disabled") ||
+      msg.toLowerCase().includes("anthropic_api_key")
+    if (!isCredentialIssue) throw e
+    console.warn("[ai.assist] credential unavailable — falling back to template", {
+      capability: input.capability,
+      reason: msg,
+    })
+    result = buildMockResponse(input.capability, effectivePrompt)
+  }
 
   const { rawText, usage } = result
 
