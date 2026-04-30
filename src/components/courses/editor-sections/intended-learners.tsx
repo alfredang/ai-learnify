@@ -4,6 +4,16 @@ import { useState, useEffect, useRef } from "react"
 import { toast } from "sonner"
 import { Loader2, Sparkles } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { Textarea } from "@/components/ui/textarea"
+import { Label } from "@/components/ui/label"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 import { EditableListField } from "@/components/shared/editable-list-field"
 
 interface IntendedLearnersProps {
@@ -36,6 +46,8 @@ export function IntendedLearnersSection({
 }: IntendedLearnersProps) {
   const [isSaving, setIsSaving] = useState(false)
   const [aiBusy, setAiBusy] = useState(false)
+  const [aiDialogOpen, setAiDialogOpen] = useState(false)
+  const [aiContext, setAiContext] = useState("")
   const [learningOutcomes, setLearningOutcomes] = useState<string[]>(initialOutcomes || [])
   const [requirements, setRequirements] = useState<string[]>(initialRequirements || [])
   const [targetAudience, setTargetAudience] = useState<string[]>(initialAudience || [])
@@ -90,10 +102,16 @@ export function IntendedLearnersSection({
       .trim()
       .slice(0, 1500)
 
+    // Use the user's typed context if provided; fall back to the course's
+    // existing description from the form. The mock keyword extractor
+    // reads "Existing description:" so we put the typed context there
+    // when present so it drives the generation directly.
+    const contextClean = (aiContext ?? "").trim()
+    const effectiveDescription = contextClean || descriptionClean
     const userPrompt = [
       `Course title: ${titleClean}`,
       courseSubtitle ? `Subtitle: ${courseSubtitle.trim()}` : null,
-      descriptionClean ? `Existing description: ${descriptionClean}` : null,
+      effectiveDescription ? `Existing description: ${effectiveDescription}` : null,
       "",
       "Draft the Intended Learners section: 4–7 learning objectives, 1–4 requirements/prerequisites, 1–4 target audience profiles. Return the JSON shape specified in the system prompt.",
     ]
@@ -150,6 +168,8 @@ export function IntendedLearnersSection({
         aud.length && `${aud.length} audience entries`,
       ].filter(Boolean).join(", ")
       toast.success(`Drafted ${counts} — review and edit before saving`)
+      setAiDialogOpen(false)
+      setAiContext("")
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "AI Assist failed")
     } finally {
@@ -170,24 +190,69 @@ export function IntendedLearnersSection({
           </p>
         </div>
         {academyId && (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleAiAssist}
-            disabled={aiBusy}
-            title={
-              courseTitle?.trim()
-                ? "Draft objectives, requirements, and audience using the course title as context."
-                : "Set the course title first."
-            }
-          >
-            {aiBusy ? (
-              <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
-            ) : (
+          <>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setAiDialogOpen(true)}
+              disabled={!courseTitle?.trim()}
+              title={
+                courseTitle?.trim()
+                  ? "Tell the AI what your course is about and it will draft the objectives, requirements, and audience for you."
+                  : "Set the course title first."
+              }
+            >
               <Sparkles className="h-3.5 w-3.5 mr-1" />
-            )}
-            AI Assist
-          </Button>
+              AI Assist
+            </Button>
+            <Dialog open={aiDialogOpen} onOpenChange={(o) => !aiBusy && setAiDialogOpen(o)}>
+              <DialogContent className="max-w-md">
+                <DialogHeader>
+                  <DialogTitle className="flex items-center gap-2">
+                    <Sparkles className="h-4 w-4 text-primary" />
+                    Draft intended learners
+                  </DialogTitle>
+                  <DialogDescription>
+                    Briefly describe what this course teaches. The AI will use
+                    your description to draft the objectives, requirements, and
+                    audience — all aligned to the same theme.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-2 py-2">
+                  <Label htmlFor="ai-context" className="text-xs">
+                    What is this course about?
+                  </Label>
+                  <Textarea
+                    id="ai-context"
+                    rows={4}
+                    placeholder={`e.g. "This course introduces ${courseTitle ?? "the topic"} from the ground up — covers foundations, common pitfalls, and practical applications."`}
+                    value={aiContext}
+                    onChange={(e) => setAiContext(e.target.value)}
+                    disabled={aiBusy}
+                  />
+                  <p className="text-[11px] text-muted-foreground">
+                    Optional but recommended — leave blank to use the existing
+                    course description.
+                  </p>
+                </div>
+                <DialogFooter>
+                  <Button
+                    variant="ghost"
+                    onClick={() => setAiDialogOpen(false)}
+                    disabled={aiBusy}
+                  >
+                    Cancel
+                  </Button>
+                  <Button onClick={handleAiAssist} disabled={aiBusy}>
+                    {aiBusy && (
+                      <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
+                    )}
+                    Generate
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          </>
         )}
       </div>
 
