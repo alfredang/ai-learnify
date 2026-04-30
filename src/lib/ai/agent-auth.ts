@@ -51,12 +51,30 @@ export async function loadAcademyClaudeToken(
     academy.aiClaudeTokenIv &&
     academy.aiClaudeTokenTag
   ) {
-    const token = decryptString({
-      cipher: academy.aiClaudeTokenCipher,
-      iv: academy.aiClaudeTokenIv,
-      tag: academy.aiClaudeTokenTag,
-    })
-    return { token, source: "academy" }
+    try {
+      const token = decryptString({
+        cipher: academy.aiClaudeTokenCipher,
+        iv: academy.aiClaudeTokenIv,
+        tag: academy.aiClaudeTokenTag,
+      })
+      return { token, source: "academy" }
+    } catch (e) {
+      // GCM auth-tag mismatch usually means CREDENTIAL_ENCRYPTION_KEY was
+      // rotated after the token was stored. Log without exposing cipher
+      // bytes and fall through to env fallback. If env is also missing,
+      // surface a clear remediation instead of the raw crypto error.
+      console.error("[agent-auth] academy token decrypt failed", {
+        academyId,
+        reason: e instanceof Error ? e.message : "unknown",
+      })
+      const envFallback = process.env.ANTHROPIC_API_KEY
+      if (envFallback && envFallback.trim().length > 0) {
+        return { token: envFallback, source: "env" }
+      }
+      throw new Error(
+        "Academy's stored Claude credential can't be decrypted (likely a CREDENTIAL_ENCRYPTION_KEY change). Academy Admin: open Settings → Credentials → Claude AI → Replace, and re-paste the API key."
+      )
+    }
   }
 
   const fallback = process.env.ANTHROPIC_API_KEY
