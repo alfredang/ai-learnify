@@ -38,7 +38,7 @@ export function CurriculumAiButton({
 }: Props) {
   const [open, setOpen] = useState(false)
   const [sections, setSections] = useState(4)
-  const [lecturesPer, setLecturesPer] = useState(4)
+  const [lecturesPer, setLecturesPer] = useState(1)
   const [focus, setFocus] = useState("")
   const [loading, setLoading] = useState(false)
 

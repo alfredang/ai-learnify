@@ -198,14 +198,15 @@ function buildMockResponse(
         `Managers who support ${topic} work and want enough depth to make informed decisions`,
         `Practitioners from adjacent fields who need to integrate ${topic} into existing workflows`,
       ]
-      const wantedObjectives = 4 + Math.floor(Math.random() * 2) // 4 or 5
+      const wantedObjectives = 4 + Math.floor(rng() * 2) // 4 or 5
       // Always include focus-driven objectives first, then top up from
       // the generic pool. Guarantees the saved description is reflected
       // in the outcomes the learner sees.
       const remainingCount = Math.max(0, wantedObjectives - focusObjectives.length)
       const genericObjectives = pick(
         objectivePool.filter((o) => !focusObjectives.includes(o)),
-        remainingCount
+        remainingCount,
+        rng
       )
       const finalObjectives = [
         ...focusObjectives.slice(0, wantedObjectives),
@@ -213,8 +214,8 @@ function buildMockResponse(
       ].slice(0, wantedObjectives)
       rawText = JSON.stringify({
         objectives: finalObjectives,
-        requirements: pick(requirementPool, 1 + Math.floor(Math.random() * 2)),
-        audience: pick(audiencePool, 2 + Math.floor(Math.random() * 2)),
+        requirements: pick(requirementPool, 1 + Math.floor(rng() * 2), rng),
+        audience: pick(audiencePool, 2 + Math.floor(rng() * 2), rng),
       })
       break
     }
@@ -282,7 +283,8 @@ function buildMockResponse(
                 sectionThemePool.filter(
                   (t) => !focusSectionTitles.includes(t)
                 ),
-                sectionCount - focusSectionTitles.length
+                sectionCount - focusSectionTitles.length,
+                rng
               ),
             ]
       // Lecture pools split by section purpose — early sections lean on
@@ -350,8 +352,8 @@ function buildMockResponse(
         const sectionTitle = sectionThemes[sIdx]
         return {
           title: sectionTitle,
-          summary: pickOne(summaryPool)(sectionTitle),
-          lectures: pick(pool, lecturesPer).map((tpl) => ({
+          summary: pickOne(summaryPool, rng)(sectionTitle),
+          lectures: pick(pool, lecturesPer, rng).map((tpl) => ({
             title: tpl.title(topic),
             type: tpl.type,
           })),
@@ -431,21 +433,21 @@ function buildMockResponse(
         `<p><em>Start today, finish at your own speed, and keep the skills for life.</em></p>`,
       ]
       const descriptionHtml = [
-        pickOne(heroOpeners),
+        pickOne(heroOpeners, rng),
         spacer,
         `<p><strong>What you'll learn</strong></p>`,
-        pickOne(learnSections),
+        pickOne(learnSections, rng),
         spacer,
         `<p><strong>How the course is structured</strong></p>`,
-        pickOne(structureSections),
+        pickOne(structureSections, rng),
         spacer,
         `<p><strong>Who this course is for</strong></p>`,
-        pickOne(audienceSections),
+        pickOne(audienceSections, rng),
         spacer,
         `<p><strong>What you'll walk away with</strong></p>`,
-        pickOne(takeawayLists),
+        pickOne(takeawayLists, rng),
         spacer,
-        pickOne(closers),
+        pickOne(closers, rng),
       ].join("")
 
       // Stay under the 120-char schema limit on subtitle. Build with the
@@ -459,7 +461,7 @@ function buildMockResponse(
         `Practical ${t} skills you can apply immediately, no prior experience required`,
         `Master ${t} fundamentals through worked examples and bite-sized lessons`,
       ]
-      const builtSubtitle = subtitle || pickOne(subtitlePool)
+      const builtSubtitle = subtitle || pickOne(subtitlePool, rng)
       const cappedSubtitle =
         builtSubtitle.length <= 120
           ? builtSubtitle
@@ -478,11 +480,43 @@ function buildMockResponse(
       })
       break
     }
-    case "SUMMARISE":
-      rawText = JSON.stringify({
-        summary: `${topic} is a practical subject area covering the foundations and applied techniques you need to be effective. ${subtitle || `This course walks through the essentials step by step.`}`,
-      })
+    case "SUMMARISE": {
+      // Detect lecture-context prompts and produce a longer, lecture-specific
+      // description. Otherwise fall back to a course-level summary.
+      const lectureMatch = userPrompt.match(/Lecture title:\s*([^\n]+)/i)
+      const lectureTitle = lectureMatch?.[1]?.trim()
+      if (lectureTitle) {
+        // Build a 3-4 sentence description tied to the lecture title and
+        // course topic. Picks from variation pools but uses the seeded
+        // RNG so same lecture → same description.
+        const openers = [
+          `In this lecture, you'll explore ${lectureTitle.toLowerCase()} as it relates to ${topic}.`,
+          `This lecture walks you through ${lectureTitle.toLowerCase()} step by step, in the context of ${topic}.`,
+          `Here we focus on ${lectureTitle.toLowerCase()} — a key piece of the broader ${topic} picture.`,
+          `This lecture covers ${lectureTitle.toLowerCase()} and how it fits into the rest of the ${topic} course.`,
+        ]
+        const middles = [
+          `You'll see worked examples that mirror real situations, with each step explained so you understand the reasoning, not just the recipe.`,
+          `We'll move from the underlying ideas to a practical demonstration so you finish this section with both intuition and concrete technique.`,
+          `Expect concise explanations paired with examples you can adapt to your own work right away.`,
+          `By the end you'll have a clear mental model and the vocabulary to discuss this topic confidently.`,
+        ]
+        const closers = [
+          `By the end of this lecture, you'll be able to apply what you've learned to your own ${topic} projects with confidence.`,
+          `When you finish, you'll be ready to recognise where this applies in real ${topic} work and start using it yourself.`,
+          `You'll come away with a solid working understanding you can build on in the rest of the course.`,
+          `By the end you'll know exactly when and why to reach for this approach in your own ${topic} work.`,
+        ]
+        rawText = JSON.stringify({
+          summary: `${pickOne(openers, rng)} ${pickOne(middles, rng)} ${pickOne(closers, rng)}`,
+        })
+      } else {
+        rawText = JSON.stringify({
+          summary: `${topic} is a practical subject area covering the foundations and applied techniques you need to be effective. ${subtitle || `This course walks through the essentials step by step.`}`,
+        })
+      }
       break
+    }
     case "COURSE_SCOPING":
       rawText = JSON.stringify({
         positioning: `A focused, hands-on introduction to ${topic} for working professionals.`,

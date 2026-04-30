@@ -15,6 +15,7 @@ import {
   HelpCircle,
   Video,
   Loader2,
+  Sparkles,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -335,6 +336,7 @@ export function CourseContentEditor({
   const [lecturePayload, setLecturePayload] = useState<LecturePayload>(null)
   const [lectureLoading, setLectureLoading] = useState(false)
   const [isVideoUploading, setIsVideoUploading] = useState(false)
+  const [descAiBusy, setDescAiBusy] = useState(false)
 
   // Video data for lecture create/edit
   const [videoData, setVideoData] = useState<{
@@ -354,6 +356,62 @@ export function CourseContentEditor({
 
   async function refreshCourse() {
     await queryClient.invalidateQueries({ queryKey: ["course", courseId] })
+  }
+
+  // AI Assist for the lecture description field. Uses the SUMMARISE
+  // capability with a lecture-specific prompt so the mock (or real
+  // Claude) returns a 2-4 sentence draft tailored to the lecture title.
+  async function handleAiDraftLectureDesc() {
+    if (!academyId) {
+      toast.error("Academy not set on this course.")
+      return
+    }
+    if (!lectureTitle.trim()) {
+      toast.error("Add a lecture title first — the AI uses it as context.")
+      return
+    }
+    setDescAiBusy(true)
+    try {
+      const userPrompt = [
+        `Course title: ${courseTitle ?? "this course"}`,
+        `Lecture title: ${lectureTitle.trim()}`,
+        "",
+        `Draft a 2-4 sentence description of what learners will cover in this lecture. Focus on what they'll be able to do or understand by the end. Plain prose, no bullets.`,
+      ].join("\n")
+      const res = await fetch("/api/ai/assist", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          capability: "SUMMARISE",
+          academyId,
+          userPrompt,
+          context: { courseId, lectureContext: true, lectureTitle: lectureTitle.trim() },
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error ?? "AI Assist failed")
+      const parsed = data.parsed && typeof data.parsed === "object"
+        ? (data.parsed as Record<string, unknown>)
+        : null
+      const summary =
+        (parsed?.summary as string) ??
+        (parsed?.description as string) ??
+        (typeof data.rawText === "string" ? data.rawText : "")
+      if (!summary) throw new Error("AI returned no description")
+      setLectureDesc(summary)
+      if (data.interactionId) {
+        void fetch("/api/ai/approve", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ interactionId: data.interactionId }),
+        }).catch(() => {})
+      }
+      toast.success("Description drafted — edit before saving")
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "AI Assist failed")
+    } finally {
+      setDescAiBusy(false)
+    }
   }
 
   // ─── Drag-and-Drop ────────────────────────────────────────
@@ -1137,12 +1195,36 @@ export function CourseContentEditor({
               />
             </div>
             <div className="space-y-2">
-              <Label>Description (optional)</Label>
+              <div className="flex items-center justify-between">
+                <Label>Description (optional)</Label>
+                {academyId && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-7 text-xs"
+                    onClick={handleAiDraftLectureDesc}
+                    disabled={descAiBusy || !lectureTitle.trim()}
+                    title={
+                      lectureTitle.trim()
+                        ? "Draft a description from the lecture title — editable after."
+                        : "Add a lecture title first."
+                    }
+                  >
+                    {descAiBusy ? (
+                      <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                    ) : (
+                      <Sparkles className="h-3 w-3 mr-1" />
+                    )}
+                    AI Assist
+                  </Button>
+                )}
+              </div>
               <Textarea
                 placeholder="What will students learn in this lecture?"
                 value={lectureDesc}
                 onChange={(e) => setLectureDesc(e.target.value)}
-                rows={2}
+                rows={4}
               />
             </div>
             <div className="space-y-2">
@@ -1287,11 +1369,30 @@ export function CourseContentEditor({
               />
             </div>
             <div className="space-y-2">
-              <Label>Description (optional)</Label>
+              <div className="flex items-center justify-between">
+                <Label>Description (optional)</Label>
+                {academyId && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-7 text-xs"
+                    onClick={handleAiDraftLectureDesc}
+                    disabled={descAiBusy || !lectureTitle.trim()}
+                  >
+                    {descAiBusy ? (
+                      <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                    ) : (
+                      <Sparkles className="h-3 w-3 mr-1" />
+                    )}
+                    AI Assist
+                  </Button>
+                )}
+              </div>
               <Textarea
                 value={lectureDesc}
                 onChange={(e) => setLectureDesc(e.target.value)}
-                rows={2}
+                rows={4}
               />
             </div>
             <div className="space-y-2">
