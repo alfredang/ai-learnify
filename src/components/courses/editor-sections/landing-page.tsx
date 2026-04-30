@@ -33,6 +33,7 @@ import {
 import { RichTextEditor } from "@/components/shared/rich-text-editor"
 import { AiAssistButton } from "@/components/shared/ai-assist-button"
 import { CourseScopingButton } from "@/components/shared/course-scoping-button"
+import { CourseImageAiAssist } from "@/components/courses/course-image-ai-assist"
 import {
   validateImageUrl,
   explainImageUrlReason,
@@ -766,7 +767,7 @@ export function LandingPageSection({
                     <span>{imageUpload.errorMessage}</span>
                   </div>
                 )}
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-3 flex-wrap">
                   <span className="text-sm text-muted-foreground">
                     {thumbnailUrl ? "Image uploaded" : "No file selected"}
                   </span>
@@ -779,6 +780,21 @@ export function LandingPageSection({
                   >
                     Upload File
                   </Button>
+                  {course.academyId && (
+                    <CourseImageAiAssist
+                      academyId={course.academyId}
+                      initialQuery={form.getValues("title") || course.title || ""}
+                      onSelect={({ url }) => {
+                        const v = validateImageUrl(url)
+                        if (!v.ok) {
+                          toast.error(explainImageUrlReason(v.reason))
+                          return
+                        }
+                        setThumbnailUrl(url)
+                      }}
+                      disabled={isSaving || imageUpload.uploadState === "uploading"}
+                    />
+                  )}
                   <input
                     ref={imageUpload.fileInputRef}
                     type="file"

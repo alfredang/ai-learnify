@@ -37,6 +37,12 @@ export const ALLOWED_IMAGE_HOSTS: AllowedImageHost[] = [
   // Vercel Blob storage — used by /api/upload/local in production.
   // Each project gets a unique <store-id> subdomain, so wildcard.
   { hostname: "*.public.blob.vercel-storage.com" },
+  // Licence-free media sources used by AI Assist (Openverse + Wikimedia
+  // curation pipeline). All images served are CC-licensed; the licence
+  // and attribution are stored alongside the URL on the Course row.
+  { hostname: "upload.wikimedia.org" },
+  { hostname: "*.staticflickr.com" },
+  { hostname: "*.wp.com" },
 ]
 
 export const ALLOWED_IMAGE_HOST_LIST = ALLOWED_IMAGE_HOSTS.map((h) => h.hostname)
