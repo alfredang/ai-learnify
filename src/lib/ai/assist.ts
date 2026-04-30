@@ -481,35 +481,156 @@ function buildMockResponse(
       break
     }
     case "SUMMARISE": {
-      // Detect lecture-context prompts and produce a longer, lecture-specific
-      // description. Otherwise fall back to a course-level summary.
+      // Detect lecture-context prompts and produce a CONTENT-RICH
+      // description with actual substance (definitions, examples, what's
+      // covered) — not just meta-talk about the lecture. Designed so the
+      // output can feed an AI video generator that needs real material
+      // to work from.
       const lectureMatch = userPrompt.match(/Lecture title:\s*([^\n]+)/i)
       const lectureTitle = lectureMatch?.[1]?.trim()
       if (lectureTitle) {
-        // Build a 3-4 sentence description tied to the lecture title and
-        // course topic. Picks from variation pools but uses the seeded
-        // RNG so same lecture → same description.
-        const openers = [
-          `In this lecture, you'll explore ${lectureTitle.toLowerCase()} as it relates to ${topic}.`,
-          `This lecture walks you through ${lectureTitle.toLowerCase()} step by step, in the context of ${topic}.`,
-          `Here we focus on ${lectureTitle.toLowerCase()} — a key piece of the broader ${topic} picture.`,
-          `This lecture covers ${lectureTitle.toLowerCase()} and how it fits into the rest of the ${topic} course.`,
-        ]
-        const middles = [
-          `You'll see worked examples that mirror real situations, with each step explained so you understand the reasoning, not just the recipe.`,
-          `We'll move from the underlying ideas to a practical demonstration so you finish this section with both intuition and concrete technique.`,
-          `Expect concise explanations paired with examples you can adapt to your own work right away.`,
-          `By the end you'll have a clear mental model and the vocabulary to discuss this topic confidently.`,
-        ]
-        const closers = [
-          `By the end of this lecture, you'll be able to apply what you've learned to your own ${topic} projects with confidence.`,
-          `When you finish, you'll be ready to recognise where this applies in real ${topic} work and start using it yourself.`,
-          `You'll come away with a solid working understanding you can build on in the rest of the course.`,
-          `By the end you'll know exactly when and why to reach for this approach in your own ${topic} work.`,
-        ]
-        rawText = JSON.stringify({
-          summary: `${pickOne(openers, rng)} ${pickOne(middles, rng)} ${pickOne(closers, rng)}`,
-        })
+        const lt = lectureTitle.toLowerCase()
+        const topicLower = topic.toLowerCase()
+
+        // Domain hints — adds topic-aware example/tool/concept phrases
+        // so generic templates pick up category-specific texture.
+        type DomainHint = {
+          examples: string[]
+          tools: string[]
+          subConcepts: string[]
+          useCases: string[]
+        }
+        const detectDomain = (): DomainHint => {
+          // Programming / software dev
+          if (/python|javascript|typescript|java\b|coding|programming|software|develop|web dev|react|node/.test(topicLower)) {
+            return {
+              examples: ["building a small command-line tool", "writing your first function", "calling an external API", "automating a repetitive task"],
+              tools: ["a code editor like VS Code", "the terminal", "package managers (npm/pip)", "Git for version control"],
+              subConcepts: ["variables and types", "control flow", "functions and modules", "error handling", "testing basics"],
+              useCases: ["building web apps", "automating workflows", "data processing scripts", "internal tooling"],
+            }
+          }
+          // Data / analytics / ML
+          if (/data|machine learning|ml\b|ai\b|artificial intelligence|analytic|statistics|sql|pandas/.test(topicLower)) {
+            return {
+              examples: ["analysing a sales dataset", "predicting customer churn", "cleaning messy CSV data", "building a recommendation"],
+              tools: ["Python with pandas", "SQL queries", "Jupyter notebooks", "visualisation libraries like matplotlib"],
+              subConcepts: ["data types and structures", "exploratory analysis", "feature engineering", "model evaluation", "telling stories with data"],
+              useCases: ["business reporting", "fraud detection", "demand forecasting", "personalised recommendations"],
+            }
+          }
+          // Marketing / sales / business
+          if (/marketing|sales|seo|social media|brand|advertis|growth|customer|business|finance|account/.test(topicLower)) {
+            return {
+              examples: ["crafting an email campaign", "writing a landing page", "analysing a competitor's funnel", "structuring a quarterly plan"],
+              tools: ["Google Analytics", "spreadsheet software", "social media schedulers", "campaign-tracking dashboards"],
+              subConcepts: ["audience segmentation", "value propositions", "metrics that matter (CAC, LTV, conversion rate)", "channel selection"],
+              useCases: ["launching a new product", "improving conversion rates", "scaling content production", "B2B lead generation"],
+            }
+          }
+          // Design / UX / UI / creative
+          if (/design|ui\b|ux\b|figma|graphic|visual|art|photo|video edit|creative/.test(topicLower)) {
+            return {
+              examples: ["redesigning a sign-up screen", "creating a brand mood board", "designing an icon set", "wireframing a mobile flow"],
+              tools: ["Figma or Sketch", "design systems and tokens", "prototyping tools", "version-controlled component libraries"],
+              subConcepts: ["hierarchy and contrast", "spacing and grids", "colour theory", "typography choices", "user research"],
+              useCases: ["product UI work", "marketing collateral", "internal dashboards", "client deliverables"],
+            }
+          }
+          // Productivity / soft skills / management
+          if (/productiv|management|leadership|communication|public speak|presentation|negotiation|career/.test(topicLower)) {
+            return {
+              examples: ["running an effective 1:1", "writing a project brief", "delivering a stakeholder update", "structuring your week"],
+              tools: ["a calendar / time-blocking system", "a note-taking app", "shared docs for async collaboration", "a simple kanban board"],
+              subConcepts: ["prioritisation frameworks", "feedback techniques", "decision-making under uncertainty", "building trust"],
+              useCases: ["leading a small team", "managing your own work", "navigating cross-functional projects", "presenting to leadership"],
+            }
+          }
+          // Health / fitness / wellness
+          if (/health|fitness|nutrition|wellness|yoga|workout|mental|meditat/.test(topicLower)) {
+            return {
+              examples: ["a 20-minute beginner routine", "planning balanced meals", "building a sleep schedule", "tracking weekly progress"],
+              tools: ["a fitness tracker or simple journal", "a basic kitchen setup", "household items for resistance training", "a quiet space for practice"],
+              subConcepts: ["energy balance", "consistency over intensity", "form and technique", "recovery and rest"],
+              useCases: ["building lasting habits", "preparing for an event", "improving everyday energy", "managing stress"],
+            }
+          }
+          // Generic fallback
+          return {
+            examples: [`a typical ${topic} task`, `a real-world ${topic} scenario`, `applying ${topic} in your own work`, `troubleshooting a common ${topic} problem`],
+            tools: [`the standard ${topic} toolkit`, `industry-recommended resources`, `the techniques covered earlier in the course`, `practical reference materials`],
+            subConcepts: [`the core ideas of ${topic}`, `the vocabulary practitioners use`, `the trade-offs you'll weigh`, `the workflow most people follow`],
+            useCases: [`day-to-day ${topic} work`, `common ${topic} projects`, `team and individual settings`, `real-world ${topic} applications`],
+          }
+        }
+        const hint = detectDomain()
+
+        type Pattern = "intro" | "setup" | "concept" | "applied" | "pitfall" | "case_study" | "quiz" | "recap" | "advanced" | "project" | "default"
+
+        // Pattern-detect the lecture kind from its title.
+        let pattern: Pattern = "default"
+        if (/welcome|expect/.test(lt)) pattern = "intro"
+        else if (/^(intro|introduction|getting started|what is|why .* matters)\b/.test(lt) || /\bnutshell\b/.test(lt)) pattern = "intro"
+        else if (/setup|install|configur|environment|prerequis/.test(lt)) pattern = "setup"
+        else if (/key terms|vocabulary|fundamental|core (concept|idea)|principle/.test(lt)) pattern = "concept"
+        else if (/hands-on|practice|exercise|walkthrough|worked example|step.by.step|try it/.test(lt)) pattern = "applied"
+        else if (/pitfall|mistake|gotcha|common .* error|anti.pattern/.test(lt)) pattern = "pitfall"
+        else if (/case stud|real.world|in production|in the wild/.test(lt)) pattern = "case_study"
+        else if (/quiz|knowledge check|assessment|test yourself/.test(lt)) pattern = "quiz"
+        else if (/recap|summary|review|wrap.up/.test(lt)) pattern = "recap"
+        else if (/advanced|deep dive|expert|edge case|scaling|performance/.test(lt)) pattern = "advanced"
+        else if (/project|capstone|build .* end.to.end|mini.project/.test(lt)) pattern = "project"
+
+        // Pattern templates now weave in domain-specific examples, tools,
+        // and sub-concepts. Output is content-rich (5-7 sentences) so it
+        // can be pasted into an AI video generator and produce something
+        // useful — not just meta-talk about "this lecture covers X".
+        const patternTemplates: Record<Pattern, Array<(t: string, lt: string) => string>> = {
+          intro: [
+            (t) => `${t} is a practical field used to ${pickOneSeeded(hint.useCases, rng)}. In this lecture we define what ${t} is, why it has become important today, and the kinds of problems practitioners actually solve with it. You'll get a clear introduction to the core ideas — ${pickSeeded(hint.subConcepts, 2, rng).join(", ")} — and see real examples like ${pickSeeded(hint.examples, 2, rng).join(" and ")}. We also cover the typical workflow and the tools you'll meet later, including ${pickSeeded(hint.tools, 2, rng).join(" and ")}. By the end you'll have a clear mental model of ${t} and the vocabulary to navigate the rest of the course confidently.`,
+            (t) => `Welcome to ${t}. This lecture answers the foundational question — what is ${t} and why does it matter? We define ${t} simply, then ground it with concrete examples like ${pickOneSeeded(hint.examples, rng)} and ${pickOneSeeded(hint.examples, rng)}. You'll learn the high-level workflow practitioners follow, the most common tools (${pickSeeded(hint.tools, 2, rng).join(", ")}), and the kinds of problems ${t} is best suited for. We finish by mapping out the rest of the course so you know exactly what's coming and why each upcoming lecture matters.`,
+          ],
+          setup: [
+            (t) => `Before doing real ${t} work, you need the right environment. In this lecture we install the essentials — ${pickSeeded(hint.tools, 2, rng).join(", ")} — and verify each piece is configured correctly. You'll run a small end-to-end example, like ${pickOneSeeded(hint.examples, rng)}, to confirm everything works as a sanity check. We also cover the most common installation snags learners hit and the fix for each. By the end you'll have a clean, repeatable ${t} setup you can return to whenever you start a new project.`,
+            (t) => `This lecture walks through preparing your ${t} workspace step by step. You'll install ${pickSeeded(hint.tools, 2, rng).join(" and ")}, configure them with sensible defaults, and write a tiny test to make sure everything is talking properly. We also cover the version requirements, common platform-specific gotchas (Windows / macOS / Linux), and how to recover when something inevitably goes wrong. You'll come out with a tested setup and a checklist you can rerun anytime.`,
+          ],
+          concept: [
+            (t) => `Every ${t} practitioner needs a strong grasp of the core concepts. In this lecture we define each one precisely — ${pickSeeded(hint.subConcepts, 3, rng).join(", ")} — and show how they connect to one another. Each idea is paired with a small concrete example so the abstraction stays grounded. We then connect these concepts back to real ${t} work, like ${pickOneSeeded(hint.examples, rng)}. You'll come away with a working glossary and the framework needed to reason about ${t} problems on your own.`,
+            (t) => `This lecture lays the conceptual foundation for the rest of the ${t} course. We cover ${pickSeeded(hint.subConcepts, 3, rng).join(", ")} — defining each term, showing how they relate, and pointing at the practical situations where each one shows up. By tying every idea to a concrete example like ${pickOneSeeded(hint.examples, rng)}, the concepts stay actionable, not abstract. By the end you'll have the vocabulary and framework you need to keep up with the more applied lectures ahead.`,
+          ],
+          applied: [
+            (t) => `This is where ${t} becomes real. We work through a complete example — ${pickOneSeeded(hint.examples, rng)} — start to finish, using ${pickSeeded(hint.tools, 2, rng).join(" and ")}. Each step is explained so you understand the reasoning behind every decision, not just the recipe. We pause at the points where most learners get stuck (covering ${pickSeeded(hint.subConcepts, 2, rng).join(" and ")}) and walk through how to think about them. By the end you'll have a repeatable pattern you can apply to similar ${t} problems on your own.`,
+            (t) => `Time to put ${t} into practice. In this lecture we tackle ${pickOneSeeded(hint.examples, rng)} step by step, demonstrating the techniques covered earlier and pointing out the small decisions that distinguish good work from sloppy work. We use ${pickSeeded(hint.tools, 2, rng).join(" and ")} throughout, with all code and examples available for you to follow along on your own machine. You'll come away with hands-on muscle memory and a working example you can adapt for your own projects.`,
+          ],
+          pitfall: [
+            (t) => `Most ${t} learners hit the same handful of issues — this lecture surfaces them upfront so you don't have to discover each one painfully. We catalogue the most common mistakes around ${pickSeeded(hint.subConcepts, 2, rng).join(" and ")}, explain the symptoms, the underlying causes, and the techniques experienced practitioners use to avoid them. Each pitfall is paired with a real example like ${pickOneSeeded(hint.examples, rng)} so the lesson sticks. You'll come away with a concrete checklist to run through whenever your ${t} work isn't behaving as expected.`,
+            (t) => `Knowing ${t} isn't just about knowing what to do — it's knowing what NOT to do. This lecture covers the anti-patterns and traps that catch most learners: the subtle issues with ${pickOneSeeded(hint.subConcepts, rng)}, the wrong way to use ${pickOneSeeded(hint.tools, rng)}, and the mistakes that compound over time. For each, we show why it fails, what to do instead, and how to spot the warning signs early. Save yourself real frustration in your future ${t} work.`,
+          ],
+          case_study: [
+            (t) => `This lecture analyses a real ${t} case study — ${pickOneSeeded(hint.useCases, rng)} — so you see how the concepts play out outside a textbook. We walk through the original problem, the constraints the team faced, the approach they chose using ${pickSeeded(hint.tools, 2, rng).join(" and ")}, and what worked (or didn't). You'll see the trade-offs they weighed, including ${pickSeeded(hint.subConcepts, 2, rng).join(" vs ")}. By the end you'll have a clearer sense of how ${t} decisions get made under real-world pressure and pattern-recognition you can apply to similar situations.`,
+            (t) => `Theory only goes so far — this lecture grounds the ${t} concepts in an actual project. We dissect ${pickOneSeeded(hint.useCases, rng)}: the original requirements, the technical and team constraints, the choices around ${pickOneSeeded(hint.subConcepts, rng)}, and the lessons that emerged. You'll see why some approaches that look good on paper fail in practice and what experienced practitioners would do differently. Expect concrete patterns you can recognise and apply when you face similar ${t} situations.`,
+          ],
+          quiz: [
+            (t) => `A short knowledge check to confirm the ${t} material has stuck before moving on. The questions cover ${pickSeeded(hint.subConcepts, 3, rng).join(", ")} with a mix of recognition (do you know this term?) and reasoning (can you apply it?). Take your time — there's no penalty for trying again, and the goal is for you to spot gaps before they compound. If anything feels shaky, scroll back and re-watch the relevant lecture.`,
+          ],
+          recap: [
+            (t) => `A concise recap of this section's key ${t} ideas — ${pickSeeded(hint.subConcepts, 3, rng).join(", ")} — framed as a quick reference you can return to anytime. We pull the core concepts, the techniques covered, and the trade-offs to keep in mind into one focused summary. Use this as your cheat sheet when you start applying ${t} on your own work, like ${pickOneSeeded(hint.examples, rng)}.`,
+          ],
+          advanced: [
+            (t) => `Now that you have the basics down, this lecture pushes deeper into ${t}. We explore advanced patterns around ${pickSeeded(hint.subConcepts, 2, rng).join(" and ")}, performance and scaling considerations, and the nuanced trade-offs experienced practitioners weigh. Expect dense but rewarding content — every minute should be earning its keep. We use ${pickSeeded(hint.tools, 2, rng).join(" and ")} throughout, with examples drawn from real production scenarios. The payoff is a level of ${t} understanding that separates strong practitioners from the merely competent.`,
+            (t) => `This lecture goes beyond the comfortable middle ground in ${t}. You'll see the patterns that emerge once you're working at scale: the failure modes that only surface in production, the trade-offs around ${pickOneSeeded(hint.subConcepts, rng)}, and the techniques that distinguish careful work from quick fixes. We work through a substantial example — ${pickOneSeeded(hint.examples, rng)} — to ground the more abstract material. A challenging but rewarding lecture for anyone serious about ${t}.`,
+          ],
+          project: [
+            (t) => `Time to put everything you've learned about ${t} into practice. This lecture guides you through building a complete project — ${pickOneSeeded(hint.examples, rng)} — end to end. You'll apply the concepts (${pickSeeded(hint.subConcepts, 2, rng).join(", ")}), use ${pickSeeded(hint.tools, 2, rng).join(" and ")}, and produce a real result you can show in a portfolio. Each step is explained so you can reproduce — and adapt — the approach for your own ${t} projects later.`,
+            (t) => `In this lecture we build a real ${t} project from scratch. The goal is to integrate everything you've learned into one coherent piece of work: ${pickOneSeeded(hint.useCases, rng)}, using ${pickSeeded(hint.tools, 2, rng).join(" and ")}. We cover the design decisions, common pitfalls, and how to scope the work realistically. You'll finish with a tangible artefact and the confidence that comes from doing the work yourself.`,
+          ],
+          default: [
+            (t, lt) => `This lecture covers ${lt} as part of the broader ${t} course. We define what it is, why it matters, and the role it plays in real ${t} work. You'll see concrete examples like ${pickOneSeeded(hint.examples, rng)}, learn the relevant tools (${pickSeeded(hint.tools, 2, rng).join(", ")}), and connect the topic back to the bigger picture. By the end you'll be ready to apply ${lt} in your own work and recognise where it fits in your overall ${t} skill set.`,
+            (t, lt) => `In this lecture we focus on ${lt} and how it shows up in real ${t} work. We define the key ideas — ${pickSeeded(hint.subConcepts, 2, rng).join(" and ")} — walk through a worked example like ${pickOneSeeded(hint.examples, rng)}, and surface the trade-offs experienced practitioners weigh. You'll come away with practical knowledge you can apply immediately, not just theoretical familiarity.`,
+          ],
+        }
+        const tpl = pickOne(patternTemplates[pattern], rng)
+        rawText = JSON.stringify({ summary: tpl(topic, lt) })
       } else {
         rawText = JSON.stringify({
           summary: `${topic} is a practical subject area covering the foundations and applied techniques you need to be effective. ${subtitle || `This course walks through the essentials step by step.`}`,
