@@ -1,13 +1,31 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { toast } from "sonner"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent } from "@/components/ui/card"
-import { Loader2, Sparkles, Trash2, KeyRound } from "lucide-react"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import {
+  Loader2,
+  Sparkles,
+  Trash2,
+  KeyRound,
+  Eye,
+  EyeOff,
+  Copy,
+} from "lucide-react"
+
+const REVEAL_TTL_MS = 10_000
 
 type StatusResponse = {
   academyId: string
@@ -32,6 +50,34 @@ export function AiCredentialsForm() {
   const [token, setToken] = useState("")
   const [saving, setSaving] = useState(false)
   const [showInput, setShowInput] = useState(false)
+  const [revealConfirmOpen, setRevealConfirmOpen] = useState(false)
+  const [revealing, setRevealing] = useState(false)
+  const [revealedToken, setRevealedToken] = useState<string | null>(null)
+  const [revealCountdown, setRevealCountdown] = useState(0)
+  const revealTimers = useRef<{
+    hide?: ReturnType<typeof setTimeout>
+    tick?: ReturnType<typeof setInterval>
+  }>({})
+
+  function clearReveal(reason?: "expired" | "manual") {
+    if (revealTimers.current.hide) clearTimeout(revealTimers.current.hide)
+    if (revealTimers.current.tick) clearInterval(revealTimers.current.tick)
+    revealTimers.current = {}
+    setRevealedToken(null)
+    setRevealCountdown(0)
+    if (reason === "expired") {
+      toast.message("Credential hidden", {
+        description: "Auto-masked for security. Click the eye again to reveal.",
+      })
+    }
+  }
+
+  useEffect(() => {
+    return () => {
+      if (revealTimers.current.hide) clearTimeout(revealTimers.current.hide)
+      if (revealTimers.current.tick) clearInterval(revealTimers.current.tick)
+    }
+  }, [])
 
   useEffect(() => {
     fetch("/api/academy/credentials/claude")
@@ -78,6 +124,49 @@ export function AiCredentialsForm() {
       toast.error(e instanceof Error ? e.message : "Save failed")
     } finally {
       setSaving(false)
+    }
+  }
+
+  async function handleReveal() {
+    setRevealing(true)
+    try {
+      const res = await fetch("/api/academy/credentials/claude/reveal", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      })
+      const body = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(body.error ?? "Reveal failed")
+      const tk = typeof body.token === "string" ? body.token : null
+      if (!tk) throw new Error("Reveal returned no token")
+
+      setRevealedToken(tk)
+      const ttl = typeof body.expiresInMs === "number" ? body.expiresInMs : REVEAL_TTL_MS
+      const startedAt = Date.now()
+      setRevealCountdown(Math.ceil(ttl / 1000))
+      revealTimers.current.tick = setInterval(() => {
+        const remaining = Math.max(0, ttl - (Date.now() - startedAt))
+        setRevealCountdown(Math.ceil(remaining / 1000))
+      }, 250)
+      revealTimers.current.hide = setTimeout(() => clearReveal("expired"), ttl)
+      setRevealConfirmOpen(false)
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Reveal failed")
+    } finally {
+      setRevealing(false)
+    }
+  }
+
+  async function handleCopyRevealed() {
+    if (!revealedToken) return
+    try {
+      await navigator.clipboard.writeText(revealedToken)
+      toast.success("Copied — clipboard will be cleared in 30 seconds")
+      window.setTimeout(() => {
+        navigator.clipboard.writeText("").catch(() => {})
+      }, 30_000)
+    } catch {
+      toast.error("Copy failed")
     }
   }
 
@@ -135,16 +224,59 @@ export function AiCredentialsForm() {
               <KeyRound className="h-4 w-4 text-muted-foreground shrink-0" />
               <div className="min-w-0">
                 <p className="text-sm font-mono truncate">
-                  sk-ant-{status.last4 ? "••••" + status.last4 : "••••"}
+                  {revealedToken
+                    ? revealedToken
+                    : `sk-ant-${status.last4 ? "••••" + status.last4 : "••••"}`}
                 </p>
-                {status.setAt && (
-                  <p className="text-xs text-muted-foreground">
-                    Set {new Date(status.setAt).toLocaleString()}
+                {revealedToken ? (
+                  <p className="text-xs text-amber-700 dark:text-amber-400">
+                    Revealed — auto-masking in {revealCountdown}s
                   </p>
+                ) : (
+                  status.setAt && (
+                    <p className="text-xs text-muted-foreground">
+                      Set {new Date(status.setAt).toLocaleString()}
+                    </p>
+                  )
                 )}
               </div>
             </div>
             <div className="flex items-center gap-2">
+              {revealedToken ? (
+                <>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleCopyRevealed}
+                    title="Copy plaintext (clipboard auto-cleared in 30s)"
+                  >
+                    <Copy className="h-3.5 w-3.5 mr-1" /> Copy
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => clearReveal("manual")}
+                    title="Hide credential"
+                  >
+                    <EyeOff className="h-3.5 w-3.5 mr-1" /> Hide
+                  </Button>
+                </>
+              ) : (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setRevealConfirmOpen(true)}
+                  disabled={saving || revealing}
+                  title="Show full credential (audit-logged)"
+                >
+                  {revealing ? (
+                    <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
+                  ) : (
+                    <Eye className="h-3.5 w-3.5 mr-1" />
+                  )}
+                  Show
+                </Button>
+              )}
               <Button
                 variant="outline"
                 size="sm"
@@ -229,6 +361,39 @@ export function AiCredentialsForm() {
           </div>
         )}
       </CardContent>
+
+      <Dialog
+        open={revealConfirmOpen}
+        onOpenChange={(next) => {
+          if (!revealing) setRevealConfirmOpen(next)
+        }}
+      >
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Eye className="h-4 w-4" /> Reveal Claude credential
+            </DialogTitle>
+            <DialogDescription>
+              The full token will be visible in this browser for 10 seconds.
+              This action is audit-logged with your user ID, IP address and
+              browser. Make sure no one else can see your screen.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setRevealConfirmOpen(false)}
+              disabled={revealing}
+            >
+              Cancel
+            </Button>
+            <Button onClick={handleReveal} disabled={revealing}>
+              {revealing && <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />}
+              Reveal
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Card>
   )
 }
