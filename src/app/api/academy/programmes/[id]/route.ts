@@ -29,7 +29,10 @@ const patchSchema = z.object({
   price: z.number().min(0).max(99_999.99).optional(),
   currency: z.string().length(3).optional(),
   isFree: z.boolean().optional(),
-  accessDurationDays: z.number().int().min(1).max(3650).optional(),
+  // Spec §6.4: Complimentary Programme has effectively no expiry —
+  // 36500 days (100 years) is the sentinel. Allow up to 36500 here so
+  // editing the Complimentary bundle doesn't fail validation.
+  accessDurationDays: z.number().int().min(1).max(36500).optional(),
   status: z.enum(["DRAFT", "PUBLISHED", "ARCHIVED"]).optional(),
   courseIds: z.array(z.string().cuid()).min(2).max(50).optional(),
 })

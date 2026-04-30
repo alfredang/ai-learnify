@@ -373,6 +373,22 @@ function ProgrammeFormDialog({
       })
       if (!res.ok) {
         const err = await res.json().catch(() => ({}))
+        // Surface the specific Zod issue (e.g. "accessDurationDays must
+        // be at most 36500") so the user can fix the offending field
+        // instead of guessing what's wrong.
+        if (Array.isArray(err.issues) && err.issues.length > 0) {
+          const first = err.issues[0]
+          const path = Array.isArray(first.path) ? first.path.join(".") : ""
+          const pretty = path
+            .replace(/^title$/, "Title")
+            .replace(/^subtitle$/, "Subtitle")
+            .replace(/^accessDurationDays$/, "Access window (days)")
+            .replace(/^price$/, "Price")
+            .replace(/^currency$/, "Currency")
+            .replace(/^thumbnail$/, "Thumbnail URL")
+            .replace(/^courseIds$/, "Courses included")
+          throw new Error(`${pretty || "Invalid input"}: ${first.message}`)
+        }
         throw new Error(err.error ?? "Save failed")
       }
       const { programme } = await res.json()
