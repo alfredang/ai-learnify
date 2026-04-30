@@ -93,55 +93,60 @@ function buildMockResponse(
   let rawText: string
   switch (capability) {
     case "OBJECTIVES": {
-      // Extract specific themes/keywords the description mentions so the
-      // outcomes echo what the course actually covers, not generic patterns.
+      // Extract specific themes/keywords from the description AND the
+      // raw prompt (covers focus areas typed in the AI modal as well).
       const descMatch = userPrompt.match(/Existing description:\s*([^\n]+)/i)
-      const descText = (descMatch?.[1] ?? "").toLowerCase()
+      const promptText = (descMatch?.[1] ?? userPrompt).toLowerCase()
       const focusObjectives: string[] = []
-      const has = (re: RegExp) => re.test(descText)
-      if (has(/intro/)) focusObjectives.push(`Explain what ${topic} is and why it matters`)
-      if (has(/benefit/)) focusObjectives.push(`Articulate the key benefits of ${topic} for different audiences`)
-      if (has(/strateg/)) focusObjectives.push(`Develop ${topic} strategies tailored to specific goals`)
-      if (has(/tool|platform|software/)) focusObjectives.push(`Choose and configure the right ${topic} tools for the job`)
-      if (has(/measur|metric|kpi|analytic/)) focusObjectives.push(`Define and track meaningful ${topic} metrics`)
-      if (has(/best practice|industry standard/)) focusObjectives.push(`Apply ${topic} industry best practices in real projects`)
-      if (has(/challenge|pitfall|mistake/)) focusObjectives.push(`Anticipate and avoid the most common ${topic} pitfalls`)
-      if (has(/case stud|example/)) focusObjectives.push(`Analyse real-world ${topic} case studies and extract useful lessons`)
-      if (has(/team|stakeholder|colleague/)) focusObjectives.push(`Communicate ${topic} decisions clearly to your team and stakeholders`)
-      if (has(/produc|deploy|ship/)) focusObjectives.push(`Take ${topic} work from prototype to production`)
+      const has = (re: RegExp) => re.test(promptText)
+      if (has(/intro|fundament|basic|foundation/)) focusObjectives.push(`Explain the foundational concepts of ${topic} and why they matter to practitioners today`)
+      if (has(/benefit|value|impact/)) focusObjectives.push(`Articulate the concrete benefits of ${topic} to different stakeholders, with specific examples`)
+      if (has(/strateg|plan/)) focusObjectives.push(`Develop ${topic} strategies that align with measurable business goals`)
+      if (has(/tool|platform|software|tech/)) focusObjectives.push(`Select and configure the right ${topic} tools for a given project context`)
+      if (has(/measur|metric|kpi|analytic|track/)) focusObjectives.push(`Define meaningful ${topic} metrics and interpret what they tell you`)
+      if (has(/best practice|industry|standard/)) focusObjectives.push(`Apply ${topic} industry best practices to your own projects with confidence`)
+      if (has(/challenge|pitfall|mistake|problem/)) focusObjectives.push(`Identify common ${topic} pitfalls early and apply proven techniques to avoid them`)
+      if (has(/case stud|example|real.world/)) focusObjectives.push(`Critically analyse real-world ${topic} case studies and extract lessons you can apply`)
+      if (has(/team|stakeholder|colleague|communicat/)) focusObjectives.push(`Communicate ${topic} decisions and trade-offs clearly to technical and non-technical audiences`)
+      if (has(/produc|deploy|ship|launch/)) focusObjectives.push(`Take ${topic} work from prototype to production while maintaining quality and reliability`)
+      if (has(/design|build|develop|create/)) focusObjectives.push(`Design and build ${topic} solutions that solve real problems`)
+      if (has(/optim|improv|enhanc/)) focusObjectives.push(`Diagnose and optimise ${topic} performance using systematic techniques`)
+      if (has(/security|safe|risk/)) focusObjectives.push(`Recognise ${topic} security and risk considerations in real deployments`)
+      if (has(/automat|workflow|process/)) focusObjectives.push(`Automate routine ${topic} workflows so you can focus on higher-value work`)
       const objectivePool = [
         ...focusObjectives,
-        `Apply core ${topic} concepts to real-world scenarios`,
-        `Build practical projects that demonstrate ${topic} skills`,
-        `Diagnose common challenges encountered when working with ${topic}`,
-        `Explain ${topic} principles clearly to colleagues and stakeholders`,
-        `Evaluate the trade-offs of different ${topic} approaches`,
-        `Design ${topic} workflows tailored to your team's needs`,
-        `Identify when and why to choose ${topic} over alternative approaches`,
-        `Implement industry best practices for ${topic} in production settings`,
-        `Troubleshoot ${topic} performance and reliability issues`,
-        `Communicate ${topic} value and risks to non-technical audiences`,
-        `Critique ${topic} solutions and recommend specific improvements`,
-        `Integrate ${topic} into existing tools and processes`,
-        `Measure the business impact of ${topic} initiatives`,
-        `Mentor others on ${topic} fundamentals once you've completed the course`,
+        `Apply ${topic} concepts to real-world projects with confidence`,
+        `Build hands-on ${topic} examples that you can adapt to your own work`,
+        `Diagnose and resolve the most common ${topic} issues practitioners face`,
+        `Explain ${topic} principles in clear, jargon-free language`,
+        `Evaluate the trade-offs of different ${topic} approaches before committing`,
+        `Design ${topic} workflows that fit your team's constraints and goals`,
+        `Recognise when ${topic} is — and isn't — the right choice for a problem`,
+        `Implement professional ${topic} practices that hold up under real-world load`,
+        `Troubleshoot ${topic} performance and reliability with a structured approach`,
+        `Articulate the business value of ${topic} to leaders, peers, and clients`,
+        `Critique existing ${topic} implementations and propose meaningful improvements`,
+        `Integrate ${topic} into your existing toolchain without disrupting current work`,
+        `Measure the real impact of ${topic} initiatives using clear, defensible metrics`,
+        `Mentor colleagues on ${topic} fundamentals once you've internalised them yourself`,
       ]
       const requirementPool = [
-        "No prior experience needed — we cover the basics from scratch",
-        "Computer with internet access and a modern browser",
-        "Curiosity and willingness to learn through hands-on practice",
-        "Basic comfort with reading documentation and following step-by-step guides",
-        `Some familiarity with the broader field of ${topic} is helpful but not required`,
-        "A note-taking tool of your choice — we'll reference materials throughout",
+        "No prior experience required — we build up every concept from first principles",
+        "A computer with internet access and a modern browser is all the setup you need",
+        "Willingness to follow along with hands-on examples rather than just watching passively",
+        "Comfort with reading short pieces of text and following structured guides",
+        `Helpful (not required): casual familiarity with the broader field surrounding ${topic}`,
+        "Note-taking tool of your choice — we point at supporting materials throughout",
       ]
       const audiencePool = [
-        `Professionals starting out in ${topic}`,
-        `Students looking to add ${topic} to their skill set`,
-        `Career changers transitioning into ${topic}-related roles`,
-        `Team leads who want to evaluate ${topic} for their organisation`,
-        `Self-taught learners filling in gaps in their ${topic} knowledge`,
-        `Hobbyists curious about how ${topic} applies to their personal projects`,
-        `Managers who need conversational fluency in ${topic} to support their teams`,
+        `Professionals starting their journey in ${topic} and looking for a structured starting point`,
+        `Students who want to add ${topic} to their portfolio with real, demonstrable skills`,
+        `Career changers moving into ${topic}-adjacent roles and needing a solid foundation fast`,
+        `Team leads evaluating ${topic} for their organisation who need conversational fluency`,
+        `Self-taught learners filling specific gaps in their ${topic} knowledge`,
+        `Curious hobbyists exploring how ${topic} applies to their own projects and ideas`,
+        `Managers who support ${topic} work and want enough depth to make informed decisions`,
+        `Practitioners from adjacent fields who need to integrate ${topic} into existing workflows`,
       ]
       const wantedObjectives = 4 + Math.floor(Math.random() * 2) // 4 or 5
       // Always include focus-driven objectives first, then top up from
@@ -230,36 +235,78 @@ function buildMockResponse(
                 sectionCount - focusSectionTitles.length
               ),
             ]
-      const lecturePool = [
-        { title: () => `What is ${topic}?`, type: "VIDEO" as const },
-        { title: () => `Why ${topic} matters today`, type: "VIDEO" as const },
-        { title: (i: number) => `Core concept ${i}`, type: "VIDEO" as const },
-        { title: (i: number) => `Hands-on example ${i}`, type: "VIDEO" as const },
-        { title: () => `Knowledge check`, type: "QUIZ" as const },
-        { title: () => `Quick recap`, type: "TEXT" as const },
-        { title: () => `Common pitfalls`, type: "TEXT" as const },
-        { title: (i: number) => `Practical exercise ${i}`, type: "VIDEO" as const },
-        { title: () => `Real-world walkthrough`, type: "VIDEO" as const },
-        { title: () => `When and why to use this`, type: "VIDEO" as const },
-        { title: () => `Reference cheat sheet`, type: "TEXT" as const },
-        { title: (i: number) => `Mini project ${i}`, type: "VIDEO" as const },
+      // Lecture pools split by section purpose — early sections lean on
+      // intro/concept lectures, mid sections on applied work, late
+      // sections on reflection / synthesis. Picks within a section feel
+      // coherent rather than scrambled.
+      const introLectures: Array<{ title: (s: string) => string; type: "VIDEO" | "TEXT" | "QUIZ" }> = [
+        { title: (s) => `Welcome and what to expect`, type: "VIDEO" },
+        { title: (s) => `What is ${s}?`, type: "VIDEO" },
+        { title: (s) => `Why ${s} matters now`, type: "VIDEO" },
+        { title: (s) => `Key terms and ideas`, type: "VIDEO" },
+        { title: (s) => `${s} in a nutshell`, type: "VIDEO" },
+        { title: (s) => `Section recap`, type: "TEXT" },
       ]
-      const summaryStarters = [
-        `Build the foundation you'll lean on for the rest of the course.`,
-        `Hands-on patterns and the thinking behind them.`,
-        `Move from theory to applied confidence.`,
-        `Tackle the trickier real-world cases.`,
-        `Polish your skills with deliberate practice.`,
-        `Pull everything together into something shippable.`,
+      const appliedLectures: Array<{ title: (s: string) => string; type: "VIDEO" | "TEXT" | "QUIZ" }> = [
+        { title: (s) => `Worked example: a typical ${s} task`, type: "VIDEO" },
+        { title: (s) => `Step-by-step walkthrough`, type: "VIDEO" },
+        { title: (s) => `Hands-on practice`, type: "VIDEO" },
+        { title: (s) => `When this approach works (and when it doesn't)`, type: "VIDEO" },
+        { title: (s) => `Common mistakes to watch for`, type: "TEXT" },
+        { title: (s) => `Knowledge check`, type: "QUIZ" },
+        { title: (s) => `Quick reference`, type: "TEXT" },
+        { title: (s) => `Mini-exercise: try it yourself`, type: "VIDEO" },
       ]
-      const sections = Array.from({ length: sectionCount }).map((_, sIdx) => ({
-        title: sectionThemes[sIdx],
-        summary: pickOne(summaryStarters),
-        lectures: pick(lecturePool, lecturesPer).map((tpl, lIdx) => ({
-          title: tpl.title(lIdx + 1),
-          type: tpl.type,
-        })),
-      }))
+      const advancedLectures: Array<{ title: (s: string) => string; type: "VIDEO" | "TEXT" | "QUIZ" }> = [
+        { title: (s) => `Real-world case study`, type: "VIDEO" },
+        { title: (s) => `Performance and scaling considerations`, type: "VIDEO" },
+        { title: (s) => `Advanced patterns and trade-offs`, type: "VIDEO" },
+        { title: (s) => `Putting it all together`, type: "VIDEO" },
+        { title: (s) => `Section assessment`, type: "QUIZ" },
+        { title: (s) => `Where to go from here`, type: "TEXT" },
+        { title: (s) => `End-of-section project`, type: "VIDEO" },
+      ]
+      // Multi-sentence summaries by section position. Each is 2-3
+      // sentences explaining what learners cover and what they'll be
+      // able to do by the end of the section.
+      const introSummaries = [
+        (sec: string) => `In this opening section we set the stage for the rest of the course. You'll learn what ${topic} actually is, where it fits in the broader landscape, and why practitioners reach for it. By the end you'll have a clear mental model and the vocabulary to follow along confidently with the rest of the course.`,
+        (sec: string) => `Before diving into hands-on work, this section grounds you in the foundational ideas of ${topic}. We cover the core terminology, the problems ${topic} is designed to solve, and the situations where it shines. You'll finish with the conceptual scaffolding needed for everything that follows.`,
+        (sec: string) => `${sec} starts you off with the essentials. You'll see how ${topic} came to be, what real-world problems it addresses, and how it compares to alternative approaches. Expect short, focused lessons that build your confidence quickly without overwhelming you with detail.`,
+      ]
+      const appliedSummaries = [
+        (sec: string) => `This is where ${topic} starts feeling real. You'll work through carefully chosen examples that mirror the kind of scenarios you'll encounter in actual projects, with each step explained so you understand not just what to do but why. Knowledge checks at key moments confirm the material has clicked before you move on.`,
+        (sec: string) => `In ${sec}, theory turns into muscle memory. You'll practise ${topic} techniques on realistic problems, see how experienced practitioners approach the same tasks, and learn the subtle decisions that distinguish good work from sloppy work. By section's end you'll have repeatable patterns you can apply on day one of your next project.`,
+        (sec: string) => `Hands-on work takes centre stage in this section. We walk through worked examples step by step, pause to highlight common mistakes, and offer mini-exercises so you can try things yourself before moving on. You'll come away with concrete techniques — not just abstract knowledge.`,
+      ]
+      const advancedSummaries = [
+        (sec: string) => `By this point you have the basics down — this section is about depth. You'll see how ${topic} plays out in real production environments, learn the trade-offs experienced practitioners weigh when scaling solutions, and study case studies that reveal what tends to go wrong (and what to do about it). The section ends with a project that ties the course together.`,
+        (sec: string) => `${sec} pushes beyond the comfortable middle ground into the harder, more interesting cases. You'll explore advanced patterns, performance and reliability considerations, and the kind of nuanced thinking that separates someone who can get ${topic} working from someone who can do it well at scale. Expect dense but rewarding content.`,
+        (sec: string) => `This concluding section pulls everything together. You'll work through richer case studies, see how the pieces fit at scale, and tackle a section project that demonstrates real mastery. We finish with concrete next steps so you know exactly where to take your ${topic} skills from here.`,
+      ]
+      const sections = Array.from({ length: sectionCount }).map((_, sIdx) => {
+        // Pick the appropriate lecture pool based on where this section
+        // sits in the course — first 1/3 = intro, middle = applied,
+        // last 1/3 = advanced/synthesis.
+        const positionRatio = sectionCount === 1 ? 0 : sIdx / (sectionCount - 1)
+        const isIntro = positionRatio < 0.34
+        const isApplied = positionRatio >= 0.34 && positionRatio < 0.7
+        const pool = isIntro ? introLectures : isApplied ? appliedLectures : advancedLectures
+        const summaryPool = isIntro
+          ? introSummaries
+          : isApplied
+            ? appliedSummaries
+            : advancedSummaries
+        const sectionTitle = sectionThemes[sIdx]
+        return {
+          title: sectionTitle,
+          summary: pickOne(summaryPool)(sectionTitle),
+          lectures: pick(pool, lecturesPer).map((tpl) => ({
+            title: tpl.title(topic),
+            type: tpl.type,
+          })),
+        }
+      })
       rawText = JSON.stringify({ sections })
       break
     }
