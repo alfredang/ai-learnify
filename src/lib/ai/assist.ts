@@ -93,7 +93,24 @@ function buildMockResponse(
   let rawText: string
   switch (capability) {
     case "OBJECTIVES": {
+      // Extract specific themes/keywords the description mentions so the
+      // outcomes echo what the course actually covers, not generic patterns.
+      const descMatch = userPrompt.match(/Existing description:\s*([^\n]+)/i)
+      const descText = (descMatch?.[1] ?? "").toLowerCase()
+      const focusObjectives: string[] = []
+      const has = (re: RegExp) => re.test(descText)
+      if (has(/intro/)) focusObjectives.push(`Explain what ${topic} is and why it matters`)
+      if (has(/benefit/)) focusObjectives.push(`Articulate the key benefits of ${topic} for different audiences`)
+      if (has(/strateg/)) focusObjectives.push(`Develop ${topic} strategies tailored to specific goals`)
+      if (has(/tool|platform|software/)) focusObjectives.push(`Choose and configure the right ${topic} tools for the job`)
+      if (has(/measur|metric|kpi|analytic/)) focusObjectives.push(`Define and track meaningful ${topic} metrics`)
+      if (has(/best practice|industry standard/)) focusObjectives.push(`Apply ${topic} industry best practices in real projects`)
+      if (has(/challenge|pitfall|mistake/)) focusObjectives.push(`Anticipate and avoid the most common ${topic} pitfalls`)
+      if (has(/case stud|example/)) focusObjectives.push(`Analyse real-world ${topic} case studies and extract useful lessons`)
+      if (has(/team|stakeholder|colleague/)) focusObjectives.push(`Communicate ${topic} decisions clearly to your team and stakeholders`)
+      if (has(/produc|deploy|ship/)) focusObjectives.push(`Take ${topic} work from prototype to production`)
       const objectivePool = [
+        ...focusObjectives,
         `Apply core ${topic} concepts to real-world scenarios`,
         `Build practical projects that demonstrate ${topic} skills`,
         `Diagnose common challenges encountered when working with ${topic}`,
@@ -126,20 +143,40 @@ function buildMockResponse(
         `Hobbyists curious about how ${topic} applies to their personal projects`,
         `Managers who need conversational fluency in ${topic} to support their teams`,
       ]
+      const wantedObjectives = 4 + Math.floor(Math.random() * 2) // 4 or 5
+      // Always include focus-driven objectives first, then top up from
+      // the generic pool. Guarantees the saved description is reflected
+      // in the outcomes the learner sees.
+      const remainingCount = Math.max(0, wantedObjectives - focusObjectives.length)
+      const genericObjectives = pick(
+        objectivePool.filter((o) => !focusObjectives.includes(o)),
+        remainingCount
+      )
+      const finalObjectives = [
+        ...focusObjectives.slice(0, wantedObjectives),
+        ...genericObjectives,
+      ].slice(0, wantedObjectives)
       rawText = JSON.stringify({
-        objectives: pick(objectivePool, 4 + Math.floor(Math.random() * 2)), // 4 or 5
-        requirements: pick(requirementPool, 1 + Math.floor(Math.random() * 2)), // 1 or 2
-        audience: pick(audiencePool, 2 + Math.floor(Math.random() * 2)), // 2 or 3
+        objectives: finalObjectives,
+        requirements: pick(requirementPool, 1 + Math.floor(Math.random() * 2)),
+        audience: pick(audiencePool, 2 + Math.floor(Math.random() * 2)),
       })
       break
     }
     case "OUTLINE": {
       // Honor structured params if the user prompt includes them.
-      // Format: "Sections: N", "Lectures per section: M".
+      // Format: "Sections: N", "Lectures per section: M", "Focus areas: a, b, c".
       const secMatch = userPrompt.match(/Sections:\s*(\d+)/i)
       const lectMatch = userPrompt.match(/Lectures per section:\s*(\d+)/i)
+      const focusMatch = userPrompt.match(/Focus areas:\s*([^\n]+)/i)
       const sectionCount = secMatch ? Math.min(8, Math.max(1, parseInt(secMatch[1]))) : 4
       const lecturesPer = lectMatch ? Math.min(8, Math.max(1, parseInt(lectMatch[1]))) : 4
+      // User-supplied focus areas drive the section titles directly so the
+      // outline is actually aligned to what the author asked for.
+      const focusAreas = (focusMatch?.[1] ?? "")
+        .split(/[,;\n]+/)
+        .map((s) => s.trim())
+        .filter(Boolean)
       const sectionThemePool = [
         `Foundations of ${topic}`,
         `Getting started with ${topic}`,
@@ -157,7 +194,42 @@ function buildMockResponse(
         `Where ${topic} is heading next`,
         `Mastery and next steps`,
       ]
-      const sectionThemes = pick(sectionThemePool, sectionCount)
+      // Map each focus area to a section title that incorporates the topic.
+      // E.g. "intro" + "Digital Marketing" → "Introduction to Digital Marketing"
+      // "benefits" → "Benefits of Digital Marketing"
+      const focusToTitle = (raw: string): string => {
+        const cleaned = raw.toLowerCase().trim()
+        if (/^intro/.test(cleaned)) return `Introduction to ${topic}`
+        if (/benefit/.test(cleaned)) return `Benefits of ${topic}`
+        if (/basic|fundamental|foundation/.test(cleaned)) return `${topic} fundamentals`
+        if (/example|use case|case stud/.test(cleaned)) return `${topic} use cases`
+        if (/tool|platform|software/.test(cleaned)) return `${topic} tools and platforms`
+        if (/strateg/.test(cleaned)) return `${topic} strategy`
+        if (/best practice|tip/.test(cleaned)) return `${topic} best practices`
+        if (/challenge|pitfall|mistake/.test(cleaned)) return `Common ${topic} pitfalls`
+        if (/practice|hands-on|exercise/.test(cleaned)) return `Hands-on ${topic} practice`
+        if (/advanc/.test(cleaned)) return `Advanced ${topic}`
+        if (/future|trend/.test(cleaned)) return `Trends and the future of ${topic}`
+        if (/measur|metric|kpi|analytic/.test(cleaned)) return `Measuring ${topic} success`
+        // Default: capitalise the focus phrase and append the topic if not present
+        const titled = raw.charAt(0).toUpperCase() + raw.slice(1)
+        return cleaned.includes(topic.toLowerCase()) ? titled : `${titled} in ${topic}`
+      }
+      const focusSectionTitles = focusAreas.map(focusToTitle)
+      // If the user gave us focus areas, use them first; pad with generic
+      // themes only if they asked for more sections than focus areas.
+      const sectionThemes =
+        focusSectionTitles.length >= sectionCount
+          ? focusSectionTitles.slice(0, sectionCount)
+          : [
+              ...focusSectionTitles,
+              ...pick(
+                sectionThemePool.filter(
+                  (t) => !focusSectionTitles.includes(t)
+                ),
+                sectionCount - focusSectionTitles.length
+              ),
+            ]
       const lecturePool = [
         { title: () => `What is ${topic}?`, type: "VIDEO" as const },
         { title: () => `Why ${topic} matters today`, type: "VIDEO" as const },
