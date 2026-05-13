@@ -111,9 +111,12 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           throw new Error("Too many attempts — try again shortly.")
         }
 
+        // Spec §3.1 — email lookups are case-insensitive. We also lowercase
+        // on write (see registerSchema), but use findFirst+insensitive here
+        // as a defensive measure so legacy mixed-case rows still resolve.
         const user = looksLikeEmail
-          ? await prisma.user.findUnique({
-              where: { email: identifier.toLowerCase() },
+          ? await prisma.user.findFirst({
+              where: { email: { equals: identifier, mode: "insensitive" } },
             })
           : await prisma.user.findUnique({
               where: { username: identifier },

@@ -29,7 +29,10 @@ export const registerSchema = z
       .max(64, "ID number is too long")
       .optional()
       .or(z.literal("")),
-    email: z.string().email("Please enter a valid email address"),
+    email: z
+      .string()
+      .email("Please enter a valid email address")
+      .transform((v) => v.trim().toLowerCase()),
     password: z
       .string()
       .min(8, "Password must be at least 8 characters")
@@ -45,7 +48,10 @@ export const registerSchema = z
   })
 
 export const forgotPasswordSchema = z.object({
-  email: z.string().email("Please enter a valid email address"),
+  email: z
+    .string()
+    .email("Please enter a valid email address")
+    .transform((v) => v.trim().toLowerCase()),
 })
 
 export const resetPasswordSchema = z
