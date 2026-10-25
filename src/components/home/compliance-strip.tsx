@@ -14,7 +14,7 @@ const cards = [
 export async function ComplianceStrip() {
   const t = await getT()
   return (
-    <section className="py-8 md:py-12 bg-muted/30">
+    <section className="border-t py-8 md:py-10">
       <div className="container">
         <div className="text-center max-w-2xl mx-auto mb-8">
           <h2 className="text-2xl md:text-3xl font-bold mb-2">

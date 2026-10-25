@@ -1,4 +1,3 @@
-import Image from "next/image"
 import Link from "next/link"
 import { Card, CardContent, CardFooter } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -7,6 +6,8 @@ import { StarRating } from "@/components/shared/star-rating"
 import { Users, BookOpen } from "lucide-react"
 import { FavouriteButton } from "@/components/courses/favourite-button"
 import { CoursePriceTag } from "@/components/courses/course-price-tag"
+import { CourseThumbnail } from "@/components/courses/course-thumbnail"
+import { plural } from "@/lib/course-format"
 import type { CourseWithInstructor } from "@/types"
 
 interface CourseCardProps {
@@ -31,13 +32,7 @@ export function CourseCard({
   return (
     <Card className="group relative h-full overflow-hidden transition-shadow hover:shadow-lg flex flex-col py-0">
       <div className="relative aspect-video">
-        <Image
-          src={course.thumbnail || "/images/placeholder-course.jpg"}
-          alt={course.title}
-          fill
-          className="object-cover"
-          sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-        />
+        <CourseThumbnail src={course.thumbnail} title={course.title} />
         {course.isFeatured && (
           <Badge className="absolute bottom-2 left-2 bg-yellow-500">
             Bestseller
@@ -50,7 +45,7 @@ export function CourseCard({
         )}
       </div>
       <CardContent className="p-4 flex-1">
-        <h3 className="font-semibold text-lg line-clamp-2 mb-1">
+        <h3 className="font-semibold text-base leading-snug line-clamp-2 mb-1">
           <Link href={`/courses/${course.slug}`} className="after:absolute after:inset-0">
             {course.title}
           </Link>
@@ -86,15 +81,21 @@ export function CourseCard({
             {course.instructor.name}
           </Link>
         )}
-        <div className="flex items-center gap-2 mb-2">
-          <StarRating rating={rating} size="sm" showValue />
-          <span className="text-sm text-muted-foreground">
-            ({course.totalReviews.toLocaleString()})
-          </span>
-        </div>
-        <div className="flex items-center gap-1 text-sm text-muted-foreground">
-          <Users className="h-4 w-4" />
-          <span>{course.totalStudents.toLocaleString()} students</span>
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
+          {course.totalReviews > 0 ? (
+            <span className="flex items-center gap-1.5">
+              <StarRating rating={rating} size="sm" showValue />
+              <span>({course.totalReviews.toLocaleString()})</span>
+            </span>
+          ) : (
+            <Badge variant="outline" className="text-[11px] font-medium">New</Badge>
+          )}
+          {course.totalStudents > 0 && (
+            <span className="flex items-center gap-1">
+              <Users className="h-3.5 w-3.5" aria-hidden="true" />
+              {plural(course.totalStudents, "learner")}
+            </span>
+          )}
         </div>
         {/* Phase 2: CPD badge (spec §4.2) */}
         {course.cpdCatalog && (
@@ -109,8 +110,8 @@ export function CourseCard({
         <div className="flex items-center justify-end w-full">
           {isOwned ? (
             <>
-              <Badge variant="secondary" className="font-semibold mr-auto">Owned</Badge>
-              <Button size="sm" className="relative z-10 rounded-full text-xs min-w-[9rem] justify-center bg-emerald-600 text-white hover:bg-emerald-500 hover:text-white transition-transform hover:scale-105" asChild>
+              <span className="mr-auto text-xs font-medium text-muted-foreground">{progress}% complete</span>
+              <Button size="sm" className="relative z-10 rounded-full text-xs bg-emerald-600 text-white hover:bg-emerald-500 hover:text-white" asChild>
                 <Link href={`/my-courses/${course.id}`}>
                   <BookOpen className="mr-1 h-3.5 w-3.5" />
                   {progress > 0 ? "Continue Learning" : "Start Learning"}
@@ -131,7 +132,7 @@ export function CourseCard({
                   discountUsd={course.discountPrice ? Number(course.discountPrice) : undefined}
                 />
               )}
-              <Button size="sm" className="relative z-10 rounded-full text-xs min-w-[9rem] justify-center" asChild>
+              <Button size="sm" variant="outline" className="relative z-10 rounded-full text-xs" asChild>
                 <Link href={`/courses/${course.slug}`}>View course</Link>
               </Button>
             </>

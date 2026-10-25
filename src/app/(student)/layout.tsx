@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation"
 import { auth } from "@/lib/auth"
-import { RoleSidebar, type RoleSidebarItem } from "@/components/layout/role-sidebar"
-import { LearnerMobileNav } from "@/components/layout/learner-mobile-nav"
+import type { RoleSidebarItem } from "@/components/layout/role-sidebar"
+import { LearnerShell } from "@/components/layout/learner-shell"
 
 export default async function StudentLayout({
   children,
@@ -22,13 +22,5 @@ export default async function StudentLayout({
     { href: "/learner/profile", iconName: "UserCircle", label: "Profile" },
   ]
 
-  return (
-    <div className="flex min-h-screen pb-14 md:pb-0">
-      <RoleSidebar rootHref="/learner" roleLabel="Learner" items={items} />
-      <div className="flex-1 flex flex-col overflow-auto">
-        <main className="flex-1 overflow-auto">{children}</main>
-      </div>
-      <LearnerMobileNav />
-    </div>
-  )
+  return <LearnerShell items={items}>{children}</LearnerShell>
 }

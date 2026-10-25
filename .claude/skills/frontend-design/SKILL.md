@@ -4,9 +4,9 @@ description: IES Digital Academy design system and frontend guidelines. Use when
 license: Complete terms in LICENSE.txt
 ---
 
-## IES Digital Academy — Frontend Design System
+## Learnify — Frontend Design System
 
-This is an engineering academy LMS. The design must be **clean, professional, institutional, and compact**. Pure white backgrounds only. No dark mode.
+This is a professional, multi-industry LMS (Learnify). The design must be **clean, professional, institutional, and compact**. Pure white backgrounds only. No dark mode.
 
 ### Theme (LOCKED)
 
@@ -76,15 +76,17 @@ Sections must be tight and compact. Avoid excessive vertical padding.
 
 ### Logo & Branding
 
-- **Logo**: IES gear/atom SVG at `/public/images/ies-logo.svg`
-- **App name**: "IES Digital Academy" — displayed next to logo in header/footer
+- **Logo**: Learnify book mark SVG at `/public/images/learnify-logo.svg`
+- **App name**: "Learnify" — displayed next to logo in header/footer
 - **Logo sizes**: Header 36px, Footer 32px, Instructor sidebar 28px
-- **Implementation**: `<img src="/images/ies-logo.svg" alt="IES Logo" width={36} height={36} />`
+- **Implementation**: `<img src="/images/learnify-logo.svg" alt="Learnify logo" width={36} height={36} />`
+- **Course images**: render through `CourseThumbnail` (`src/components/courses/course-thumbnail.tsx`) so missing thumbnails get the designed fallback; `/public/images/placeholder-course.jpg` exists for legacy `<Image>` call sites
+- **Copy**: industry-neutral — do not reference engineering, construction or any single sector in platform-level copy
 
 ### Image Handling
 
 - **Next.js Image**: Use `next/image` for optimized images with `fill` + `object-cover` for responsive containers
-- **Allowed hosts**: Defined in `src/lib/image-hosts.ts` — Cloudinary, Unsplash, randomuser, Google, GitHub
+- **Allowed hosts**: Defined in `src/lib/image-hosts.ts` — Cloudinary, Unsplash, randomuser, Google, GitHub, Wikimedia; local uploads are served from `/uploads/...`
 - **Course thumbnails**: Use Cloudinary via `next-cloudinary`
 - **Placeholder images**: Unsplash with `?w=800` or `?w=1200&h=400&fit=crop` params
 

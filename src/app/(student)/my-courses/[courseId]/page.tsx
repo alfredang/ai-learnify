@@ -21,6 +21,8 @@ import {
   Award,
 } from "lucide-react"
 import { AccessWindowCard } from "@/components/courses/access-window-card"
+import { CourseThumbnail } from "@/components/courses/course-thumbnail"
+import { formatClock, formatTotalLength, plural } from "@/lib/course-format"
 
 interface CoursePageProps {
   params: Promise<{ courseId: string }>
@@ -150,16 +152,19 @@ export default async function CourseLearningPage({ params }: CoursePageProps) {
   const completedLectures = Object.values(lectureProgress).filter((p) => p.isCompleted).length
 
   // Find next incomplete lecture
-  let nextLecture: { id: string; title: string } | null = null
-  for (const section of course.sections) {
-    for (const lecture of section.lectures) {
-      if (!lectureProgress[lecture.id]?.isCompleted) {
-        nextLecture = { id: lecture.id, title: lecture.title }
-        break
-      }
-    }
-    if (nextLecture) break
-  }
+  const nextLecture =
+    course.sections
+      .flatMap((section, sIndex) =>
+        section.lectures.map((lecture, lIndex) => ({
+          id: lecture.id,
+          title: lecture.title,
+          duration: lecture.videoDuration,
+          number: `${sIndex + 1}.${lIndex + 1}`,
+        }))
+      )
+      .find((l) => !lectureProgress[l.id]?.isCompleted) ?? null
+  const firstLectureId = course.sections[0]?.lectures[0]?.id ?? null
+  const isCourseDone = totalLectures > 0 && completedLectures >= totalLectures
 
   const totalDuration = course.sections.reduce(
     (acc, s) => acc + s.lectures.reduce((la, l) => la + (l.videoDuration || 0), 0), 0
@@ -212,10 +217,72 @@ export default async function CourseLearningPage({ params }: CoursePageProps) {
         </div>
       )}
 
-      {/* Header */}
-      <div>
-        <h1 className="text-2xl sm:text-3xl font-bold mb-2">{course.title}</h1>
-        <p className="text-muted-foreground">by {course.instructor.name}</p>
+      {/* Continue-learning hero */}
+      <div className="overflow-hidden rounded-xl border">
+        <div className="grid md:grid-cols-[minmax(0,320px)_1fr]">
+          <Link
+            href={
+              isExpired
+                ? "#"
+                : nextLecture
+                  ? `/my-courses/${courseId}/lectures/${nextLecture.id}`
+                  : firstLectureId
+                    ? `/my-courses/${courseId}/lectures/${firstLectureId}`
+                    : "#"
+            }
+            className="group relative block aspect-video bg-neutral-900"
+            aria-label={completedLectures > 0 ? "Resume course" : "Start course"}
+          >
+            <CourseThumbnail src={course.thumbnail} title={course.title} sizes="(max-width: 768px) 100vw, 320px" />
+            {!isExpired && (
+              <span className="absolute inset-0 flex items-center justify-center bg-black/30 transition-colors group-hover:bg-black/40">
+                <span className="flex h-14 w-14 items-center justify-center rounded-full bg-white shadow-lg transition-transform group-hover:scale-105">
+                  <Play className="h-6 w-6 translate-x-0.5 fill-neutral-900 text-neutral-900" />
+                </span>
+              </span>
+            )}
+          </Link>
+          <div className="flex flex-col justify-center gap-3 p-5 sm:p-6">
+            <div>
+              <h1 className="text-2xl font-bold leading-tight">{course.title}</h1>
+              <p className="mt-1 text-sm text-muted-foreground">
+                by {course.instructor.name} · {plural(totalLectures, "lecture")} · {formatTotalLength(totalDuration)}
+              </p>
+            </div>
+            <div className="flex items-center gap-3">
+              <Progress value={enrollment.progress} className="h-2 flex-1" aria-label="Course progress" />
+              <span className="text-sm font-semibold tabular-nums">{enrollment.progress}%</span>
+            </div>
+            {!isExpired && nextLecture ? (
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <p className="min-w-0 text-sm">
+                  <span className="text-muted-foreground">{completedLectures > 0 ? "Up next" : "Start with"} · </span>
+                  <span className="font-medium">
+                    {nextLecture.number} {nextLecture.title}
+                  </span>
+                  {nextLecture.duration ? (
+                    <span className="text-muted-foreground"> · {formatClock(nextLecture.duration)}</span>
+                  ) : null}
+                </p>
+                <Button size="lg" asChild className="shrink-0">
+                  <Link href={`/my-courses/${courseId}/lectures/${nextLecture.id}`}>
+                    <Play className="h-4 w-4 mr-2 fill-current" />
+                    {completedLectures > 0 ? "Resume" : "Start course"}
+                  </Link>
+                </Button>
+              </div>
+            ) : isCourseDone && !isExpired ? (
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <p className="text-sm font-medium text-emerald-700">All lectures completed — great work.</p>
+                <Button size="lg" asChild className="shrink-0">
+                  <Link href={`/my-courses/${courseId}/survey`}>
+                    <Award className="h-4 w-4 mr-2" /> Feedback &amp; certificate
+                  </Link>
+                </Button>
+              </div>
+            ) : null}
+          </div>
+        </div>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">
@@ -247,21 +314,6 @@ export default async function CourseLearningPage({ params }: CoursePageProps) {
                   <Clock className="h-4 w-4" />
                   <span>{daysLeft}d access remaining</span>
                 </div>
-              )}
-
-              {!isExpired && nextLecture && (
-                <Button className="w-full" size="sm" asChild>
-                  <Link href={`/my-courses/${courseId}/lectures/${nextLecture.id}`}>
-                    <Play className="h-4 w-4 mr-2" />
-                    {completedLectures > 0 ? "Resume" : "Start"}
-                  </Link>
-                </Button>
-              )}
-
-              {!isExpired && nextLecture && (
-                <p className="text-xs text-muted-foreground text-center truncate">
-                  Next: {nextLecture.title}
-                </p>
               )}
 
               {enrollment.progress >= 50 && !isExpired && (

@@ -1,5 +1,4 @@
 import type { Metadata } from "next"
-import Image from "next/image"
 import Link from "next/link"
 import { notFound } from "next/navigation"
 import { prisma } from "@/lib/prisma"
@@ -12,10 +11,19 @@ import { Separator } from "@/components/ui/separator"
 import { StarRating } from "@/components/shared/star-rating"
 import { MobileBottomBar } from "@/components/courses/mobile-bottom-bar"
 import { FavouriteButton } from "@/components/courses/favourite-button"
-import { BuyNowButton } from "@/components/courses/buy-now-button"
+import { EnrolCta } from "@/components/courses/enrol-cta"
+import { CoursePreview } from "@/components/courses/course-preview"
 import { CourseReviewsSection } from "@/components/courses/course-reviews-section"
 import { formatPrice } from "@/lib/stripe"
 import { ITEMS_PER_PAGE } from "@/lib/constants"
+import {
+  accessLabel,
+  formatClock,
+  formatLevel,
+  formatTotalLength,
+  LECTURE_TYPE_LABEL,
+  plural,
+} from "@/lib/course-format"
 import {
   Play,
   Clock,
@@ -23,14 +31,18 @@ import {
   BarChart,
   Globe,
   Award,
-  CheckCircle,
+  CheckCircle2,
   ChevronDown,
+  ChevronRight,
   FileText,
   Video,
   HelpCircle,
   Smartphone,
-  Infinity,
+  CalendarClock,
   Eye,
+  Layers,
+  Lock,
+  BadgeCheck,
 } from "lucide-react"
 
 interface CoursePageProps {
@@ -38,88 +50,55 @@ interface CoursePageProps {
   searchParams: Promise<{ canceled?: string }>
 }
 
-async function getCourse(slug: string, userId?: string) {
-  try {
-    // First try published course (public access)
-    let course = await prisma.course.findUnique({
-      where: { slug, status: "PUBLISHED" },
-      include: {
-        instructor: {
-          select: {
-            id: true,
-            name: true,
-            image: true,
-            headline: true,
-            bio: true,
-            _count: {
-              select: {
-                courses: { where: { status: "PUBLISHED" } },
-              },
-            },
-          },
-        },
-        category: true,
-        cpdCatalog: {
-          select: { id: true, name: true, points: true, badgeUrl: true },
-        },
-        sections: {
-          orderBy: { position: "asc" },
-          include: {
-            lectures: {
-              orderBy: { position: "asc" },
-            },
-          },
-        },
-        _count: {
-          select: {
-            enrollments: true,
-            reviews: { where: { isApproved: true } },
-          },
+const courseInclude = {
+  instructor: {
+    select: {
+      id: true,
+      name: true,
+      image: true,
+      headline: true,
+      bio: true,
+      _count: {
+        select: {
+          courses: { where: { status: "PUBLISHED" as const } },
         },
       },
-    })
+    },
+  },
+  category: true,
+  cpdCatalog: {
+    select: { id: true, name: true, points: true, badgeUrl: true },
+  },
+  sections: {
+    orderBy: { position: "asc" as const },
+    include: {
+      lectures: {
+        orderBy: { position: "asc" as const },
+      },
+    },
+  },
+  _count: {
+    select: {
+      enrollments: true,
+      reviews: { where: { isApproved: true } },
+    },
+  },
+}
 
-    // If not published, allow the course owner to preview
+async function getCourse(slug: string, userId?: string) {
+  try {
+    // Published course (public access)
+    let course = await prisma.course.findUnique({
+      where: { slug, status: "PUBLISHED" },
+      include: courseInclude,
+    })
+    // Not published: allow the course owner to preview
     if (!course && userId) {
       course = await prisma.course.findUnique({
         where: { slug, instructorId: userId },
-        include: {
-          instructor: {
-            select: {
-              id: true,
-              name: true,
-              image: true,
-              headline: true,
-              bio: true,
-              _count: {
-                select: {
-                  courses: { where: { status: "PUBLISHED" } },
-                },
-              },
-            },
-          },
-          category: true,
-          cpdCatalog: {
-            select: { id: true, name: true, points: true, badgeUrl: true },
-          },
-          sections: {
-            orderBy: { position: "asc" },
-            include: {
-              lectures: {
-                orderBy: { position: "asc" },
-              },
-            },
-          },
-          _count: {
-            select: {
-              enrollments: true,
-              reviews: { where: { isApproved: true } },
-            },
-          },
-        },
+        include: courseInclude,
       })
     }
-
     return course
   } catch (error) {
     console.error("Failed to fetch course:", error)
@@ -127,17 +106,28 @@ async function getCourse(slug: string, userId?: string) {
   }
 }
 
-async function checkEnrollment(courseId: string, userId?: string) {
-  if (!userId) return false
+async function getEnrollment(courseId: string, userId?: string) {
+  if (!userId) return null
   try {
-    const enrollment = await prisma.enrollment.findUnique({
-      where: {
-        userId_courseId: { userId, courseId },
-      },
+    return await prisma.enrollment.findUnique({
+      where: { userId_courseId: { userId, courseId } },
+      select: { progress: true },
     })
-    return !!enrollment
   } catch {
-    return false
+    return null
+  }
+}
+
+async function getCompletedLectureIds(courseId: string, userId?: string) {
+  if (!userId) return new Set<string>()
+  try {
+    const rows = await prisma.lectureProgress.findMany({
+      where: { userId, isCompleted: true, lecture: { section: { courseId } } },
+      select: { lectureId: true },
+    })
+    return new Set(rows.map((r) => r.lectureId))
+  } catch {
+    return new Set<string>()
   }
 }
 
@@ -145,9 +135,7 @@ async function checkFavourite(courseId: string, userId?: string) {
   if (!userId) return false
   try {
     const item = await prisma.wishlist.findUnique({
-      where: {
-        userId_courseId: { userId, courseId },
-      },
+      where: { userId_courseId: { userId, courseId } },
     })
     return !!item
   } catch {
@@ -157,9 +145,7 @@ async function checkFavourite(courseId: string, userId?: string) {
 
 /**
  * Spec §7.4 — when the survey author opts in (showRatingPublicly=true),
- * compute the aggregated learner survey star rating and surface it on the
- * public course detail page. Returns null when the toggle is off, the
- * survey is soft-disabled, or no responses exist yet.
+ * surface the aggregated learner survey rating on the public page.
  */
 async function getPublicSurveyRating(courseId: string) {
   const survey = await prisma.survey.findUnique({
@@ -167,15 +153,12 @@ async function getPublicSurveyRating(courseId: string) {
     select: { id: true, isActive: true, showRatingPublicly: true },
   })
   if (!survey || !survey.isActive || !survey.showRatingPublicly) return null
-
   const agg = await prisma.surveyResponse.aggregate({
     where: { surveyId: survey.id },
     _avg: { starRating: true },
     _count: { _all: true },
   })
-
   if (!agg._count._all) return null
-
   return {
     averageStars: Number(agg._avg.starRating ?? 0),
     responseCount: agg._count._all,
@@ -188,27 +171,17 @@ async function getCourseReviews(courseId: string) {
       where: { courseId, isApproved: true },
       take: ITEMS_PER_PAGE,
       orderBy: { createdAt: "desc" },
-      include: {
-        user: { select: { id: true, name: true, image: true } },
-      },
+      include: { user: { select: { id: true, name: true, image: true } } },
     }),
     prisma.review.groupBy({
       by: ["rating"],
       where: { courseId, isApproved: true },
       _count: true,
     }),
-    prisma.review.count({
-      where: { courseId, isApproved: true },
-    }),
+    prisma.review.count({ where: { courseId, isApproved: true } }),
   ])
-
-  const ratingDistribution: Record<number, number> = {
-    1: 0, 2: 0, 3: 0, 4: 0, 5: 0,
-  }
-  for (const item of distribution) {
-    ratingDistribution[item.rating] = item._count
-  }
-
+  const ratingDistribution: Record<number, number> = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 }
+  for (const item of distribution) ratingDistribution[item.rating] = item._count
   return {
     reviews,
     total,
@@ -229,498 +202,503 @@ async function getUserReview(courseId: string, userId?: string) {
   }
 }
 
-export async function generateMetadata({
-  params,
-}: CoursePageProps): Promise<Metadata> {
+export async function generateMetadata({ params }: CoursePageProps): Promise<Metadata> {
   const { slug } = await params
   const session = await auth()
   const course = await getCourse(slug, session?.user?.id)
-
-  if (!course) {
-    return { title: "Course Not Found" }
-  }
-
+  if (!course) return { title: "Course Not Found" }
   return {
     title: course.title,
-    description: course.subtitle || course.description?.slice(0, 160),
+    description: course.subtitle || course.description?.replace(/<[^>]*>/g, "").slice(0, 160),
+    openGraph: course.thumbnail ? { images: [course.thumbnail] } : undefined,
   }
+}
+
+const lectureIcon: Record<string, typeof Play> = {
+  VIDEO: Play,
+  QUIZ: HelpCircle,
 }
 
 export default async function CoursePage({ params, searchParams }: CoursePageProps) {
   const [{ slug }, { canceled }] = await Promise.all([params, searchParams])
   const session = await auth()
   const course = await getCourse(slug, session?.user?.id)
+  if (!course) notFound()
 
-  if (!course) {
-    notFound()
-  }
+  const userId = session?.user?.id
+  const isOwnerPreview = course.status !== "PUBLISHED" && course.instructorId === userId
+  const isOwner = userId === course.instructorId
 
-  const isOwnerPreview = course.status !== "PUBLISHED" && course.instructorId === session?.user?.id
-
-  const [isEnrolled, isFavourited, reviewData, userReview, publicSurveyRating] =
+  const [enrollment, completedIds, isFavourited, reviewData, userReview, publicSurveyRating] =
     await Promise.all([
-      checkEnrollment(course.id, session?.user?.id),
-      checkFavourite(course.id, session?.user?.id),
+      getEnrollment(course.id, userId),
+      getCompletedLectureIds(course.id, userId),
+      checkFavourite(course.id, userId),
       getCourseReviews(course.id),
-      getUserReview(course.id, session?.user?.id),
+      getUserReview(course.id, userId),
       getPublicSurveyRating(course.id),
     ])
-  const isOwner = session?.user?.id === course.instructorId
+  const isEnrolled = !!enrollment
 
   const rating = Number(course.averageRating)
+  const allLectures = course.sections.flatMap((s) => s.lectures)
+  const totalLectures = allLectures.length
+  const totalDuration = allLectures.reduce((acc, l) => acc + (l.videoDuration || 0), 0)
+  const videoCount = allLectures.filter((l) => l.type === "VIDEO").length
+  const quizCount = allLectures.filter((l) => l.type === "QUIZ").length
+  const durationText = formatTotalLength(totalDuration)
 
-  const totalLectures = course.sections.reduce(
-    (acc, section) => acc + section.lectures.length,
-    0
-  )
-  const totalDuration = course.sections.reduce(
-    (acc, section) =>
-      acc +
-      section.lectures.reduce(
-        (lecAcc, lec) => lecAcc + (lec.videoDuration || 0),
-        0
-      ),
-    0
-  )
-  const hours = Math.floor(totalDuration / 3600)
-  const minutes = Math.floor((totalDuration % 3600) / 60)
-  const durationText = hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`
+  // Where "Start / Continue" should land: next incomplete lecture, else the first.
+  const nextLecture = allLectures.find((l) => !completedIds.has(l.id)) ?? allLectures[0] ?? null
+  const startHref = nextLecture ? `/my-courses/${course.id}/lectures/${nextLecture.id}` : null
+  const hasProgress = completedIds.size > 0
+
+  // Public preview: course trailer, else the first free-preview video lecture.
+  const previewLecture = allLectures.find((l) => l.isFreePreview && l.type === "VIDEO" && l.videoUrl)
+  const previewSrc = course.previewVideoUrl || previewLecture?.videoUrl || null
 
   // Spec §4.4 — Fee or Complimentary
-  const effectivePrice = course.discountPrice
-    ? Number(course.discountPrice)
-    : Number(course.price)
+  const listPrice = Number(course.price)
+  const effectivePrice = course.discountPrice ? Number(course.discountPrice) : listPrice
   const isFreeCourse = course.isFree || effectivePrice === 0
+  const priceLabel = isFreeCourse ? "Complimentary" : formatPrice(effectivePrice)
 
-  // Shared purchase card content
-  const purchaseCardContent = (
-    <>
-      <div className="relative aspect-video">
-        <Image
-          src={course.thumbnail || "/images/placeholder-course.jpg"}
-          alt={course.title}
-          fill
-          className="object-cover rounded-t-lg"
-        />
-        {course.previewVideoUrl && (
-          <button className="absolute inset-0 flex items-center justify-center bg-black/50 hover:bg-black/60 transition-colors group">
-            <div className="w-16 h-16 rounded-full bg-white flex items-center justify-center group-hover:scale-110 transition-transform">
-              <Play className="h-8 w-8 text-slate-900 ml-1" />
-            </div>
-          </button>
+  // Keep long curricula scannable: open everything when short, else the
+  // first section (or the one containing the learner's next lecture).
+  const openAll = totalLectures <= 24
+  const nextSectionId = nextLecture?.sectionId
+
+  const updated = course.updatedAt.toLocaleDateString("en-GB", { month: "long", year: "numeric" })
+
+  const includes = [
+    videoCount > 0 && { icon: Video, text: `${durationText} of on-demand video` },
+    { icon: FileText, text: plural(totalLectures, "lecture") },
+    quizCount > 0 && { icon: HelpCircle, text: `${plural(quizCount, "auto-graded quiz", "auto-graded quizzes")}` },
+    { icon: CalendarClock, text: accessLabel(course.accessDurationDays) },
+    { icon: Smartphone, text: "Learn on mobile, tablet and desktop" },
+    { icon: Award, text: "Verifiable certificate of completion" },
+    course.cpdCatalog && {
+      icon: BadgeCheck,
+      text: `${Number(course.cpdCatalog.points)} CPD points`,
+    },
+  ].filter(Boolean) as { icon: typeof Play; text: string }[]
+
+  const purchasePanel = (
+    <div className="space-y-4">
+      <div className="flex items-baseline gap-2 flex-wrap">
+        {isEnrolled ? (
+          <Badge variant="secondary" className="text-sm px-3 py-1">
+            <CheckCircle2 className="h-3.5 w-3.5 mr-1" /> Enrolled · {enrollment.progress}% complete
+          </Badge>
+        ) : isFreeCourse ? (
+          <Badge className="text-sm px-3 py-1 bg-emerald-50 text-emerald-800 border border-emerald-200 hover:bg-emerald-50">
+            Complimentary
+          </Badge>
+        ) : (
+          <>
+            <span className="text-3xl font-bold">{formatPrice(effectivePrice)}</span>
+            {course.discountPrice && listPrice > effectivePrice && (
+              <span className="text-sm text-muted-foreground line-through">{formatPrice(listPrice)}</span>
+            )}
+          </>
         )}
       </div>
-      <CardContent className="p-6 space-y-4">
-        {isEnrolled ? (
-          <div className="flex items-baseline gap-2">
-            <Badge variant="secondary" className="font-semibold text-sm px-3 py-1">Owned</Badge>
-          </div>
-        ) : (
-          // Spec §4.4 — Fee or "Complimentary"
-          <div className="flex items-baseline gap-2">
-            {isFreeCourse ? (
-              <Badge className="font-semibold text-sm px-3 py-1 bg-emerald-100 text-emerald-800 border-emerald-300 hover:bg-emerald-100 dark:bg-emerald-950 dark:text-emerald-300">
-                Complimentary
-              </Badge>
-            ) : (
-              <span className="text-3xl font-bold">
-                {formatPrice(effectivePrice)}
-              </span>
-            )}
-          </div>
-        )}
 
-        {isEnrolled ? (
-          <Button className="w-full" size="lg" asChild>
-            <Link href={`/my-courses/${course.id}`}>
-              Continue Learning
-            </Link>
-          </Button>
-        ) : (
-          // The public course page is the learner-facing CTA. Owners get
-          // an "Edit Course" affordance via the owner banner at the top of
-          // the page so the View-As: Learner experience matches what real
-          // learners see.
-          <BuyNowButton
-            courseId={course.id}
-            courseSlug={slug}
-            isFree={isFreeCourse}
-            expectedPrice={isFreeCourse ? undefined : effectivePrice}
-          />
-        )}
+      <EnrolCta
+        courseId={course.id}
+        courseSlug={slug}
+        isFree={isFreeCourse}
+        isEnrolled={isEnrolled}
+        startHref={startHref}
+        hasProgress={hasProgress}
+      />
 
-        {!isEnrolled && (
-          <FavouriteButton
-            courseId={course.id}
-            initialFavourited={isFavourited}
-            variant="full"
-          />
-        )}
+      {isEnrolled && nextLecture && (
+        <p className="text-xs text-muted-foreground line-clamp-2">
+          {hasProgress ? "Up next: " : "First lecture: "}
+          <span className="text-foreground">{nextLecture.title}</span>
+        </p>
+      )}
 
-        <Separator />
+      {!isEnrolled && (
+        <FavouriteButton courseId={course.id} initialFavourited={isFavourited} variant="full" />
+      )}
 
-        <div className="space-y-3 text-sm">
-          <h4 className="font-semibold">This course includes:</h4>
-          <div className="flex items-center gap-2">
-            <Video className="h-4 w-4 text-muted-foreground" />
-            <span>{durationText} of video</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <FileText className="h-4 w-4 text-muted-foreground" />
-            <span>{totalLectures} lectures</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <Smartphone className="h-4 w-4 text-muted-foreground" />
-            <span>Access on mobile and desktop</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <Infinity className="h-4 w-4 text-muted-foreground" />
-            <span>Full lifetime access</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <Award className="h-4 w-4 text-muted-foreground" />
-            <span>Certificate of completion</span>
-          </div>
-          {/* Spec §4.4 — CPD info */}
-          {course.cpdCatalog && (
-            <div className="flex items-center gap-2">
-              <Award className="h-4 w-4 text-muted-foreground" />
-              <span>
-                {course.cpdCatalog.name} · {Number(course.cpdCatalog.points)} CPD points
-              </span>
-            </div>
-          )}
-        </div>
-      </CardContent>
-    </>
+      <Separator />
+
+      <div className="space-y-2.5 text-sm">
+        <h3 className="font-semibold">This course includes</h3>
+        <ul className="space-y-2">
+          {includes.map((item) => (
+            <li key={item.text} className="flex items-start gap-2.5">
+              <item.icon className="h-4 w-4 mt-0.5 text-muted-foreground shrink-0" aria-hidden="true" />
+              <span>{item.text}</span>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </div>
   )
 
+  const navItems = [
+    { href: "#overview", label: "Overview" },
+    { href: "#curriculum", label: "Curriculum" },
+    { href: "#instructor", label: "Instructor" },
+    { href: "#reviews", label: "Reviews" },
+  ]
+
   return (
-    <div className="min-h-screen pb-20 lg:pb-0">
-      {/* Owner banner — surfaces the Edit Course affordance regardless of
-          publish status, so the public CTA below stays consistent with the
-          View-As: Learner experience. */}
+    <div className="min-h-screen pb-24 lg:pb-0">
       {isOwner && (
-        <div className="bg-blue-50 border-b border-blue-200 dark:bg-blue-950/20 dark:border-blue-800">
-          <div className="container py-3 flex items-center justify-center gap-2 text-sm text-blue-800 dark:text-blue-200">
+        <div className="border-b border-blue-200 bg-blue-50">
+          <div className="container py-2.5 flex flex-wrap items-center justify-center gap-2 text-sm text-blue-800">
             <Eye className="h-4 w-4" />
             <span>
               {isOwnerPreview ? (
                 <>
                   You are previewing this course. It is currently{" "}
-                  <strong>{course.status.replace("_", " ").toLowerCase()}</strong> and not visible to students.
+                  <strong>{course.status.replace("_", " ").toLowerCase()}</strong> and not visible to learners.
                 </>
               ) : (
-                <>You are the instructor of this course — viewing the public learner page.</>
+                <>You are the instructor of this course — viewing the public page.</>
               )}
             </span>
-            <Button variant="outline" size="sm" className="ml-2 h-7 text-xs" asChild>
+            <Button variant="outline" size="sm" className="h-7 text-xs" asChild>
               <Link href={`/instructor/courses/${course.id}`}>
-                {isOwnerPreview ? "Back to Editor" : "Edit Course"}
+                {isOwnerPreview ? "Back to editor" : "Edit course"}
               </Link>
             </Button>
           </div>
         </div>
       )}
 
-      {/* Canceled payment banner */}
       {canceled === "true" && (
-        <div className="bg-amber-50 border-b border-amber-200 dark:bg-amber-950/20 dark:border-amber-800">
-          <div className="container py-3 text-center text-sm text-amber-800 dark:text-amber-200">
-            Payment was canceled. You can try again when you&apos;re ready.
+        <div className="border-b border-amber-200 bg-amber-50">
+          <div className="container py-2.5 text-center text-sm text-amber-800">
+            Payment was cancelled. You can try again whenever you&apos;re ready.
           </div>
         </div>
       )}
 
-      {/* Hero Section */}
-      <section className="bg-slate-900 text-white py-8 lg:py-12">
-        <div className="container">
-          <div className="lg:max-w-[63%] space-y-6">
-            <div className="flex items-center gap-2">
-              <Link
-                href={`/categories/${course.category.slug}`}
-                className="text-primary hover:underline"
-              >
-                {course.category.name}
-              </Link>
-            </div>
+      <div className="container py-5 md:py-8">
+        <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_360px] lg:gap-10">
+          {/* ───────────── Main column ───────────── */}
+          <div className="min-w-0">
+            {/* Breadcrumb */}
+            <nav aria-label="Breadcrumb" className="mb-4">
+              <ol className="flex flex-wrap items-center gap-1 text-sm text-muted-foreground">
+                <li>
+                  <Link href="/" className="hover:text-foreground">Home</Link>
+                </li>
+                <li aria-hidden="true"><ChevronRight className="h-3.5 w-3.5" /></li>
+                <li>
+                  <Link href="/courses" className="hover:text-foreground">Courses</Link>
+                </li>
+                <li aria-hidden="true"><ChevronRight className="h-3.5 w-3.5" /></li>
+                <li>
+                  <Link href={`/categories/${course.category.slug}`} className="hover:text-foreground">
+                    {course.category.name}
+                  </Link>
+                </li>
+              </ol>
+            </nav>
 
-            <h1 className="text-3xl md:text-4xl font-bold">{course.title}</h1>
-
-            {course.subtitle && (
-              <p className="text-xl text-slate-300">{course.subtitle}</p>
-            )}
-
-            <div className="flex flex-wrap items-center gap-4 text-sm">
-              <div className="flex items-center gap-1">
-                <StarRating rating={rating} size="sm" />
-                <span className="font-medium">{rating.toFixed(1)}</span>
-                <span className="text-slate-400">
-                  ({course._count.reviews.toLocaleString()} reviews)
-                </span>
-              </div>
-              {publicSurveyRating && (
-                <div
-                  className="flex items-center gap-1"
-                  title="Average rating from the post-course survey (spec §7.4)"
-                >
-                  <StarRating rating={publicSurveyRating.averageStars} size="sm" />
-                  <span className="font-medium">
-                    {publicSurveyRating.averageStars.toFixed(1)}
-                  </span>
-                  <span className="text-slate-400">
-                    ({publicSurveyRating.responseCount.toLocaleString()} learner survey
-                    {publicSurveyRating.responseCount === 1 ? "" : "s"})
-                  </span>
-                </div>
+            {/* Header */}
+            <header className="space-y-4">
+              <h1 className="text-3xl md:text-4xl font-bold tracking-tight">{course.title}</h1>
+              {course.subtitle && (
+                <p className="text-lg text-muted-foreground max-w-3xl">{course.subtitle}</p>
               )}
-              <div className="flex items-center gap-1 text-slate-300">
-                <Users className="h-4 w-4" />
-                <span>
-                  {course._count.enrollments.toLocaleString()} students
-                </span>
-              </div>
-            </div>
 
-            <div className="flex items-center gap-3">
-              <Avatar>
-                <AvatarImage src={course.instructor.image || ""} />
-                <AvatarFallback>
-                  {course.instructor.name?.[0] || "I"}
-                </AvatarFallback>
-              </Avatar>
-              <div>
-                <p className="text-sm text-slate-400">Created by</p>
-                <Link
-                  href={`/instructors/${course.instructor.id}`}
-                  className="hover:underline"
-                >
-                  {course.instructor.name}
-                </Link>
-              </div>
-            </div>
-
-            {/* Spec §4.4 — Partner info */}
-            {course.partnerName && (
-              <div className="flex items-center gap-3">
-                {course.partnerLogoUrl && (
-                  <img
-                    src={course.partnerLogoUrl}
-                    alt={course.partnerName}
-                    className="h-10 w-10 object-contain rounded bg-white p-1"
-                  />
+              <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm">
+                {course._count.reviews > 0 ? (
+                  <a href="#reviews" className="flex items-center gap-1.5 hover:underline">
+                    <span className="font-semibold">{rating.toFixed(1)}</span>
+                    <StarRating rating={rating} size="sm" />
+                    <span className="text-muted-foreground">({plural(course._count.reviews, "review")})</span>
+                  </a>
+                ) : (
+                  <Badge variant="outline" className="font-medium">New course</Badge>
                 )}
-                <div>
-                  <p className="text-sm text-slate-400">In partnership with</p>
-                  <p className="font-medium">{course.partnerName}</p>
-                </div>
+                {publicSurveyRating && (
+                  <span className="flex items-center gap-1.5" title="Average rating from the post-course survey">
+                    <span className="font-semibold">{publicSurveyRating.averageStars.toFixed(1)}</span>
+                    <StarRating rating={publicSurveyRating.averageStars} size="sm" />
+                    <span className="text-muted-foreground">
+                      ({plural(publicSurveyRating.responseCount, "learner survey")})
+                    </span>
+                  </span>
+                )}
+                <span className="flex items-center gap-1.5 text-muted-foreground">
+                  <Users className="h-4 w-4" />
+                  {plural(course._count.enrollments, "learner")}
+                </span>
               </div>
-            )}
 
-            <div className="flex flex-wrap gap-4 text-sm text-slate-300">
-              <div className="flex items-center gap-1">
-                <Clock className="h-4 w-4" />
-                <span>Last updated {course.updatedAt.toLocaleDateString()}</span>
+              <div className="flex items-center gap-3">
+                <Avatar className="h-9 w-9">
+                  <AvatarImage src={course.instructor.image || ""} alt="" />
+                  <AvatarFallback>{course.instructor.name?.[0] || "I"}</AvatarFallback>
+                </Avatar>
+                <p className="text-sm">
+                  <span className="text-muted-foreground">Created by </span>
+                  <a href="#instructor" className="font-medium hover:underline">{course.instructor.name}</a>
+                  {course.partnerName && (
+                    <>
+                      <span className="text-muted-foreground"> in partnership with </span>
+                      <span className="font-medium">{course.partnerName}</span>
+                    </>
+                  )}
+                </p>
               </div>
-              <div className="flex items-center gap-1">
-                <Globe className="h-4 w-4" />
-                <span>{course.language}</span>
-              </div>
-              <div className="flex items-center gap-1">
-                <BarChart className="h-4 w-4" />
-                <span>{course.level.replace("_", " ")}</span>
-              </div>
+
+              <ul className="flex flex-wrap gap-2 text-xs">
+                {[
+                  { icon: BarChart, text: formatLevel(course.level) },
+                  { icon: Clock, text: `${durationText} total` },
+                  { icon: Layers, text: plural(totalLectures, "lecture") },
+                  { icon: Globe, text: course.language },
+                  { icon: CalendarClock, text: `Updated ${updated}` },
+                  ...(course.cpdCatalog
+                    ? [{ icon: BadgeCheck, text: `${Number(course.cpdCatalog.points)} CPD points` }]
+                    : []),
+                ].map((m) => (
+                  <li key={m.text} className="inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-muted-foreground">
+                    <m.icon className="h-3.5 w-3.5" aria-hidden="true" />
+                    {m.text}
+                  </li>
+                ))}
+              </ul>
+            </header>
+
+            {/* Mobile / tablet purchase block */}
+            <div className="mt-6 lg:hidden space-y-4">
+              <CoursePreview
+                title={course.title}
+                thumbnail={course.thumbnail}
+                previewSrc={previewSrc}
+                startHref={isEnrolled ? startHref : null}
+              />
+              <Card>
+                <CardContent className="p-5">{purchasePanel}</CardContent>
+              </Card>
             </div>
-          </div>
-        </div>
-      </section>
 
-      {/* Mobile Purchase Card */}
-      <div className="lg:hidden border-b">
-        <div className="container py-6">
-          <Card>{purchaseCardContent}</Card>
-        </div>
-      </div>
+            {/* Sticky in-page navigation */}
+            <nav
+              aria-label="Course sections"
+              className="sticky top-16 z-30 -mx-4 mt-8 border-b bg-background/95 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/80 sm:mx-0 sm:px-0"
+            >
+              <ul className="flex gap-6 overflow-x-auto text-sm font-medium [scrollbar-width:none]">
+                {navItems.map((n) => (
+                  <li key={n.href}>
+                    <a
+                      href={n.href}
+                      className="block whitespace-nowrap border-b-2 border-transparent py-3 text-muted-foreground transition-colors hover:border-foreground hover:text-foreground"
+                    >
+                      {n.label}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </nav>
 
-      {/* Main Content + Desktop Sidebar */}
-      <section className="py-8 lg:py-12">
-        <div className="container">
-          <div className="lg:grid lg:grid-cols-[1fr_340px] gap-12">
-            {/* Left column - course content */}
-            <div className="space-y-12">
-              {/* What You'll Learn */}
-              {course.learningOutcomes.length > 0 && (
-                <div>
-                  <h2 className="text-2xl font-bold mb-4">
-                    What you&apos;ll learn
-                  </h2>
-                  <Card>
-                    <CardContent className="p-6">
-                      <div className="grid md:grid-cols-2 gap-3">
+            <div className="space-y-10 pt-8">
+              {/* Overview */}
+              <section id="overview" className="scroll-mt-32 space-y-8">
+                {course.learningOutcomes.length > 0 && (
+                  <div>
+                    <h2 className="text-xl md:text-2xl font-bold mb-4">What you&apos;ll learn</h2>
+                    <div className="rounded-lg border p-5">
+                      <ul className="grid gap-3 md:grid-cols-2">
                         {course.learningOutcomes.map((outcome, index) => (
-                          <div key={index} className="flex gap-2">
-                            <CheckCircle className="h-5 w-5 text-green-500 flex-shrink-0 mt-0.5" />
+                          <li key={index} className="flex gap-2.5 text-sm leading-relaxed">
+                            <CheckCircle2 className="h-5 w-5 text-emerald-600 shrink-0" aria-hidden="true" />
                             <span>{outcome}</span>
-                          </div>
+                          </li>
                         ))}
-                      </div>
-                    </CardContent>
-                  </Card>
-                </div>
-              )}
-
-              {/* Course Content */}
-              <div>
-                <h2 className="text-2xl font-bold mb-4">Course content</h2>
-                <div className="text-sm text-muted-foreground mb-4">
-                  {course.sections.length} sections &bull; {totalLectures}{" "}
-                  lectures &bull; {durationText} total length
-                </div>
-                <div className="border rounded-lg divide-y">
-                  {course.sections.map((section) => (
-                    <details key={section.id} className="group">
-                      <summary className="flex items-center justify-between p-4 cursor-pointer hover:bg-muted/50">
-                        <div className="flex items-center gap-2 font-medium">
-                          <ChevronDown className="h-4 w-4 transition-transform group-open:rotate-180" />
-                          {section.title}
-                        </div>
-                        <span className="text-sm text-muted-foreground">
-                          {section.lectures.length} lectures
-                        </span>
-                      </summary>
-                      <div className="bg-muted/30">
-                        {section.lectures.map((lecture) => (
-                          <div
-                            key={lecture.id}
-                            className="flex items-center justify-between px-4 py-3 pl-10 border-t"
-                          >
-                            <div className="flex items-center gap-2">
-                              {lecture.type === "VIDEO" ? (
-                                <Play className="h-4 w-4 text-muted-foreground" />
-                              ) : lecture.type === "QUIZ" ? (
-                                <HelpCircle className="h-4 w-4 text-muted-foreground" />
-                              ) : (
-                                <FileText className="h-4 w-4 text-muted-foreground" />
-                              )}
-                              <span className="text-sm">{lecture.title}</span>
-                              {lecture.isFreePreview && (
-                                <Badge variant="secondary" className="text-xs">
-                                  Preview
-                                </Badge>
-                              )}
-                            </div>
-                            {lecture.videoDuration ? (
-                              <span className="text-sm text-muted-foreground">
-                                {Math.floor(lecture.videoDuration / 60)}:
-                                {(lecture.videoDuration % 60)
-                                  .toString()
-                                  .padStart(2, "0")}
-                              </span>
-                            ) : lecture.type === "QUIZ" ? (
-                              <span className="text-sm text-muted-foreground">
-                                Quiz
-                              </span>
-                            ) : null}
-                          </div>
-                        ))}
-                      </div>
-                    </details>
-                  ))}
-                </div>
-              </div>
-
-              {/* Requirements */}
-              {course.requirements.length > 0 && (
-                <div>
-                  <h2 className="text-2xl font-bold mb-4">Requirements</h2>
-                  <ul className="list-disc list-inside space-y-2">
-                    {course.requirements.map((req, index) => (
-                      <li key={index}>{req}</li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-
-              {/* Description */}
-              {course.description && (
-                <div>
-                  <h2 className="text-2xl font-bold mb-4">Description</h2>
-                  <div
-                    className="prose prose-slate max-w-none"
-                    dangerouslySetInnerHTML={{ __html: course.description }}
-                  />
-                </div>
-              )}
-
-              {/* CPD Badge */}
-              {course.cpdCatalog && (
-                <div>
-                  <h2 className="text-2xl font-bold mb-4">CPD Accreditation</h2>
-                  <Card>
-                    <CardContent className="p-6">
-                      <div className="flex items-start gap-4">
-                        <div className="flex-shrink-0 rounded-full bg-blue-50 p-3 dark:bg-blue-950">
-                          <Award className="h-6 w-6 text-blue-600 dark:text-blue-400" />
-                        </div>
-                        <div className="space-y-2">
-                          {course.cpdCatalog.name.split("\n").map((line, i) => (
-                            <p key={i} className="text-base font-medium text-foreground">
-                              {line}
-                            </p>
-                          ))}
-                          <Badge variant="outline" className="text-xs font-medium border-blue-300 text-blue-700 bg-blue-50 dark:bg-blue-950 dark:text-blue-300">
-                            {Number(course.cpdCatalog.points)} CPD Points
-                          </Badge>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </div>
-              )}
-
-              {/* Partner */}
-              <div>
-                <h2 className="text-2xl font-bold mb-4">Partner</h2>
-                <Card>
-                  <CardContent className="p-6">
-                    <div className="flex gap-4">
-                      <Avatar className="h-20 w-20">
-                        <AvatarImage src={course.instructor.image || ""} />
-                        <AvatarFallback className="text-2xl">
-                          {course.instructor.name?.[0] || "I"}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className="space-y-2">
-                        <Link
-                          href={`/instructors/${course.instructor.id}`}
-                          className="text-xl font-semibold hover:underline"
-                        >
-                          {course.instructor.name}
-                        </Link>
-                        {course.instructor.headline && (
-                          <p className="text-muted-foreground">
-                            {course.instructor.headline}
-                          </p>
-                        )}
-                        <div className="flex gap-4 text-sm text-muted-foreground">
-                          <span>
-                            {course.instructor._count.courses} courses
-                          </span>
-                        </div>
-                      </div>
+                      </ul>
                     </div>
-                    {course.instructor.bio && (
-                      <p className="mt-4 text-muted-foreground">
-                        {course.instructor.bio}
-                      </p>
+                  </div>
+                )}
+
+                {course.description && (
+                  <div>
+                    <h2 className="text-xl md:text-2xl font-bold mb-3">About this course</h2>
+                    <div
+                      className="prose prose-neutral max-w-none text-[15px] leading-relaxed"
+                      dangerouslySetInnerHTML={{ __html: course.description }}
+                    />
+                  </div>
+                )}
+
+                {(course.requirements.length > 0 || course.targetAudience.length > 0) && (
+                  <div className="grid gap-6 md:grid-cols-2">
+                    {course.requirements.length > 0 && (
+                      <div>
+                        <h2 className="text-lg font-bold mb-3">Requirements</h2>
+                        <ul className="space-y-2 text-sm">
+                          {course.requirements.map((req, index) => (
+                            <li key={index} className="flex gap-2">
+                              <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-foreground/60" />
+                              <span>{req}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
                     )}
-                  </CardContent>
-                </Card>
-              </div>
+                    {course.targetAudience.length > 0 && (
+                      <div>
+                        <h2 className="text-lg font-bold mb-3">Who this course is for</h2>
+                        <ul className="space-y-2 text-sm">
+                          {course.targetAudience.map((a, index) => (
+                            <li key={index} className="flex gap-2">
+                              <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-foreground/60" />
+                              <span>{a}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {course.cpdCatalog && (
+                  <div className="flex items-start gap-4 rounded-lg border p-5">
+                    <div className="rounded-full border p-2.5">
+                      <BadgeCheck className="h-5 w-5" aria-hidden="true" />
+                    </div>
+                    <div className="space-y-1">
+                      <h2 className="font-semibold">CPD accredited</h2>
+                      {course.cpdCatalog.name.split("\n").map((line, i) => (
+                        <p key={i} className="text-sm text-muted-foreground">{line}</p>
+                      ))}
+                      <p className="text-sm font-medium">{Number(course.cpdCatalog.points)} CPD points on completion</p>
+                    </div>
+                  </div>
+                )}
+              </section>
+
+              {/* Curriculum */}
+              <section id="curriculum" className="scroll-mt-32">
+                <div className="flex flex-wrap items-end justify-between gap-2 mb-3">
+                  <h2 className="text-xl md:text-2xl font-bold">Curriculum</h2>
+                  <p className="text-sm text-muted-foreground">
+                    {plural(course.sections.length, "section")} · {plural(totalLectures, "lecture")} · {durationText}
+                  </p>
+                </div>
+                <div className="overflow-hidden rounded-lg border divide-y">
+                  {course.sections.map((section, sIndex) => {
+                    const sectionLength = section.lectures.reduce((a, l) => a + (l.videoDuration || 0), 0)
+                    const done = section.lectures.filter((l) => completedIds.has(l.id)).length
+                    const isOpen = openAll || sIndex === 0 || section.id === nextSectionId
+                    return (
+                      <details key={section.id} className="group" open={isOpen}>
+                        <summary className="flex cursor-pointer list-none items-center gap-3 px-4 py-3.5 hover:bg-muted/50 [&::-webkit-details-marker]:hidden">
+                          <ChevronDown className="h-4 w-4 shrink-0 -rotate-90 transition-transform group-open:rotate-0" aria-hidden="true" />
+                          <div className="min-w-0 flex-1">
+                            <p className="font-semibold leading-snug">
+                              <span className="text-muted-foreground font-normal">Section {sIndex + 1} · </span>
+                              {section.title}
+                            </p>
+                          </div>
+                          <span className="shrink-0 text-xs text-muted-foreground">
+                            {isEnrolled ? `${done}/${section.lectures.length} done` : plural(section.lectures.length, "lecture")}
+                            {sectionLength > 0 && ` · ${formatTotalLength(sectionLength)}`}
+                          </span>
+                        </summary>
+                        <ol className="border-t">
+                          {section.lectures.map((lecture, lIndex) => {
+                            const Icon = lectureIcon[lecture.type] || FileText
+                            const done = completedIds.has(lecture.id)
+                            const canOpen = isEnrolled
+                            const row = (
+                              <>
+                                <span className="w-6 shrink-0 text-xs tabular-nums text-muted-foreground">
+                                  {done ? (
+                                    <CheckCircle2 className="h-4 w-4 text-emerald-600" aria-label="Completed" />
+                                  ) : (
+                                    `${sIndex + 1}.${lIndex + 1}`
+                                  )}
+                                </span>
+                                <Icon className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+                                <span className="min-w-0 flex-1 text-sm leading-snug">
+                                  {lecture.title}
+                                  <span className="sr-only"> ({LECTURE_TYPE_LABEL[lecture.type] ?? "Lecture"})</span>
+                                </span>
+                                {lecture.isFreePreview && !isEnrolled && (
+                                  <Badge variant="outline" className="text-[11px]">Preview</Badge>
+                                )}
+                                <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
+                                  {lecture.videoDuration
+                                    ? formatClock(lecture.videoDuration)
+                                    : LECTURE_TYPE_LABEL[lecture.type] ?? ""}
+                                </span>
+                                {!canOpen && !lecture.isFreePreview && (
+                                  <Lock className="h-3.5 w-3.5 shrink-0 text-muted-foreground/60" aria-hidden="true" />
+                                )}
+                              </>
+                            )
+                            return (
+                              <li key={lecture.id} className="border-t first:border-t-0">
+                                {canOpen ? (
+                                  <Link
+                                    href={`/my-courses/${course.id}/lectures/${lecture.id}`}
+                                    className="flex items-center gap-3 px-4 py-3 pl-11 hover:bg-muted/50"
+                                  >
+                                    {row}
+                                  </Link>
+                                ) : (
+                                  <div className="flex items-center gap-3 px-4 py-3 pl-11">{row}</div>
+                                )}
+                              </li>
+                            )
+                          })}
+                        </ol>
+                      </details>
+                    )
+                  })}
+                </div>
+                {!isEnrolled && (
+                  <p className="mt-3 text-xs text-muted-foreground">
+                    Enrol to unlock every lecture. Your progress saves automatically, so you can stop and resume on any device.
+                  </p>
+                )}
+              </section>
+
+              {/* Instructor */}
+              <section id="instructor" className="scroll-mt-32">
+                <h2 className="text-xl md:text-2xl font-bold mb-4">Your instructor</h2>
+                <div className="flex gap-4">
+                  <Avatar className="h-16 w-16">
+                    <AvatarImage src={course.instructor.image || ""} alt="" />
+                    <AvatarFallback className="text-xl">{course.instructor.name?.[0] || "I"}</AvatarFallback>
+                  </Avatar>
+                  <div className="min-w-0 space-y-1">
+                    <Link href={`/instructors/${course.instructor.id}`} className="text-lg font-semibold hover:underline">
+                      {course.instructor.name}
+                    </Link>
+                    {course.instructor.headline && (
+                      <p className="text-sm text-muted-foreground">{course.instructor.headline}</p>
+                    )}
+                    <p className="text-sm text-muted-foreground">
+                      {plural(course.instructor._count.courses, "published course")}
+                    </p>
+                  </div>
+                </div>
+                {course.instructor.bio && (
+                  <p className="mt-4 text-sm leading-relaxed text-muted-foreground">{course.instructor.bio}</p>
+                )}
+              </section>
 
               {/* Reviews */}
-              <div>
-                <h2 className="text-2xl font-bold mb-4">Student Reviews</h2>
+              <section id="reviews" className="scroll-mt-32">
+                <h2 className="text-xl md:text-2xl font-bold mb-4">Learner reviews</h2>
+                {course._count.reviews === 0 && !isEnrolled ? (
+                  <div className="rounded-lg border p-5 text-sm text-muted-foreground">
+                    This course is new and hasn&apos;t been reviewed yet. Learners who enrol can share a rating after their first lectures.
+                  </div>
+                ) : (
                 <CourseReviewsSection
                   courseId={course.id}
                   isEnrolled={isEnrolled}
@@ -733,25 +711,40 @@ export default async function CoursePage({ params, searchParams }: CoursePagePro
                   initialTotalReviews={course._count.reviews}
                   userReview={userReview ? JSON.parse(JSON.stringify(userReview)) : null}
                 />
-              </div>
-            </div>
-
-            {/* Desktop Sidebar - sticky, pulled up into hero */}
-            <div className="hidden lg:block">
-              <div className="sticky top-20 -mt-96">
-                <Card className="shadow-lg overflow-hidden">
-                  {purchaseCardContent}
-                </Card>
-              </div>
+                )}
+              </section>
             </div>
           </div>
-        </div>
-      </section>
 
-      {/* Mobile Fixed Bottom Bar */}
-      {!isEnrolled && (
-        <MobileBottomBar courseId={course.id} courseSlug={slug} />
-      )}
+          {/* ───────────── Desktop sidebar ───────────── */}
+          <aside className="hidden lg:block" aria-label="Enrolment">
+            <div className="sticky top-20">
+              <Card className="overflow-hidden py-0 shadow-sm">
+                <div className="p-3 pb-0">
+                  <CoursePreview
+                    title={course.title}
+                    thumbnail={course.thumbnail}
+                    previewSrc={previewSrc}
+                    startHref={isEnrolled ? startHref : null}
+                  />
+                </div>
+                <CardContent className="p-5">{purchasePanel}</CardContent>
+              </Card>
+            </div>
+          </aside>
+        </div>
+      </div>
+
+      <MobileBottomBar
+        courseId={course.id}
+        courseSlug={slug}
+        isFree={isFreeCourse}
+        isEnrolled={isEnrolled}
+        priceLabel={priceLabel}
+        startHref={startHref}
+        hasProgress={hasProgress}
+        progress={enrollment?.progress ?? 0}
+      />
     </div>
   )
 }

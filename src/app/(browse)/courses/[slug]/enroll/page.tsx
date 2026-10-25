@@ -1,4 +1,5 @@
-import Image from "next/image"
+import { CourseThumbnail } from "@/components/courses/course-thumbnail"
+import { accessLabel, plural } from "@/lib/course-format"
 import Link from "next/link"
 import { notFound, redirect } from "next/navigation"
 import { prisma } from "@/lib/prisma"
@@ -35,8 +36,10 @@ async function getCourse(slug: string) {
           select: { id: true, name: true, image: true },
         },
         sections: {
+          orderBy: { position: "asc" },
           include: {
             lectures: {
+              orderBy: { position: "asc" },
               select: { id: true, videoDuration: true },
             },
           },
@@ -82,6 +85,8 @@ export default async function EnrollPage({ params, searchParams }: EnrollPagePro
   const minutes = Math.floor((totalDuration % 3600) / 60)
   const durationText = hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`
 
+  const firstLectureId = course.sections[0]?.lectures[0]?.id ?? null
+
   // Check enrollment status
   let enrollment = null
   try {
@@ -111,8 +116,14 @@ export default async function EnrollPage({ params, searchParams }: EnrollPagePro
                 </p>
               </div>
               <Button size="lg" asChild>
-                <Link href={`/my-courses/${course.id}`}>
-                  Start Learning
+                <Link
+                  href={
+                    firstLectureId
+                      ? `/my-courses/${course.id}/lectures/${firstLectureId}`
+                      : `/my-courses/${course.id}`
+                  }
+                >
+                  Start learning
                 </Link>
               </Button>
             </CardContent>
@@ -142,12 +153,7 @@ export default async function EnrollPage({ params, searchParams }: EnrollPagePro
               <h2 className="font-semibold mb-4">Order summary</h2>
               <div className="flex gap-4">
                 <div className="relative w-44 aspect-video flex-shrink-0 rounded overflow-hidden">
-                  <Image
-                    src={course.thumbnail || "/images/placeholder-course.jpg"}
-                    alt={course.title}
-                    fill
-                    className="object-cover"
-                  />
+                  <CourseThumbnail src={course.thumbnail} title={course.title} sizes="176px" />
                 </div>
                 <div className="flex-1 min-w-0">
                   <h3 className="font-semibold line-clamp-2">{course.title}</h3>
@@ -167,11 +173,11 @@ export default async function EnrollPage({ params, searchParams }: EnrollPagePro
                     </span>
                     <span className="flex items-center gap-1">
                       <FileText className="h-3 w-3" />
-                      {totalLectures} lectures
+                      {plural(totalLectures, "lecture")}
                     </span>
                     <span className="flex items-center gap-1">
                       <Users className="h-3 w-3" />
-                      {course._count.enrollments.toLocaleString()} students
+                      {plural(course._count.enrollments, "learner")}
                     </span>
                   </div>
                 </div>
@@ -200,7 +206,7 @@ export default async function EnrollPage({ params, searchParams }: EnrollPagePro
               <div className="space-y-3">
                 <div className="flex items-center gap-3 text-sm">
                   <CheckCircle className="h-4 w-4 text-green-500 flex-shrink-0" />
-                  <span>Full lifetime access</span>
+                  <span>{accessLabel(course.accessDurationDays)}</span>
                 </div>
                 <div className="flex items-center gap-3 text-sm">
                   <Smartphone className="h-4 w-4 text-green-500 flex-shrink-0" />
@@ -213,7 +219,7 @@ export default async function EnrollPage({ params, searchParams }: EnrollPagePro
                 {!course.isFree && (
                   <div className="flex items-center gap-3 text-sm">
                     <ShieldCheck className="h-4 w-4 text-green-500 flex-shrink-0" />
-                    <span>30-day money-back guarantee</span>
+                    <span>Secure payment by Stripe · invoice emailed after payment</span>
                   </div>
                 )}
               </div>

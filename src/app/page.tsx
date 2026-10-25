@@ -12,9 +12,12 @@ import {
   User,
   ArrowRight,
   CheckCircle,
-  Users,
-  BookOpen,
   Award,
+  Search,
+  PlayCircle,
+  Clock,
+  Smartphone,
+  BadgeCheck,
 } from "lucide-react"
 import { prisma } from "@/lib/prisma"
 import { auth } from "@/lib/auth"
@@ -37,10 +40,12 @@ const iconMap: Record<string, React.ElementType> = {
 
 async function getFeaturedCourses() {
   try {
+    // Featured courses first; when none are flagged, fall back to the most
+    // enrolled and newest published courses so the home page always
+    // showcases real content.
     const courses = await prisma.course.findMany({
       where: {
         status: "PUBLISHED",
-        isFeatured: true,
       },
       include: {
         instructor: {
@@ -53,9 +58,12 @@ async function getFeaturedCourses() {
         },
         category: true,
       },
-      orderBy: {
-        featuredOrder: "asc",
-      },
+      orderBy: [
+        { isFeatured: "desc" },
+        { featuredOrder: "asc" },
+        { totalStudents: "desc" },
+        { createdAt: "desc" },
+      ],
       take: 8,
     })
     // Serialize to convert Prisma Decimal/Date to plain JSON types
@@ -86,24 +94,23 @@ async function getCategories() {
   }
 }
 
-async function getStats() {
-  try {
-    const [totalCourses, totalStudents, totalInstructors] = await Promise.all([
-      prisma.course.count({ where: { status: "PUBLISHED" } }),
-      prisma.user.count({ where: { role: "STUDENT" } }),
-      prisma.user.count({ where: { role: "INSTRUCTOR" } }),
-    ])
-    return { totalCourses, totalStudents, totalInstructors }
-  } catch {
-    return { totalCourses: 0, totalStudents: 0, totalInstructors: 0 }
-  }
-}
+const valueProps = [
+  { icon: Clock, title: "Learn at your own pace", body: "Self-paced lessons you can start, pause and resume on your schedule." },
+  { icon: BadgeCheck, title: "CPD-accredited", body: "Earn CPD points that count towards your professional development." },
+  { icon: Award, title: "Verifiable certificates", body: "Every certificate carries a QR code employers can verify online." },
+  { icon: Smartphone, title: "Any device", body: "Pick up where you left off on your phone, tablet or laptop." },
+]
+
+const steps = [
+  { icon: Search, title: "Choose a course", body: "Browse by category or search for the skill you need." },
+  { icon: PlayCircle, title: "Learn by watching and doing", body: "Short video lectures with quizzes to check your understanding." },
+  { icon: Award, title: "Earn your certificate", body: "Complete the course and assessment to receive your certificate." },
+]
 
 export default async function HomePage() {
-  const [featuredCourses, categories, stats, session, t] = await Promise.all([
+  const [featuredCourses, categories, session, t] = await Promise.all([
     getFeaturedCourses(),
     getCategories(),
-    getStats(),
     auth(),
     getT(),
   ])
@@ -131,7 +138,7 @@ export default async function HomePage() {
               <Badge variant="secondary" className="px-4 py-1">
                 {t("home.hero.badge")}
               </Badge>
-              <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight">
+              <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold tracking-tight leading-[1.1]">
                 {t("home.hero.title")}{" "}
                 <span className="text-primary">{t("home.hero.titleAccent")}</span>
               </h1>
@@ -167,13 +174,14 @@ export default async function HomePage() {
                 </div>
               </div>
             </div>
-            <div className="relative order-first lg:order-last">
-              <div className="relative w-full h-[250px] sm:h-[300px] md:h-[400px] lg:h-[500px]">
+            <div className="relative">
+              <div className="relative w-full aspect-[16/10] lg:aspect-auto lg:h-[460px]">
                 <Image
-                  src="https://images.unsplash.com/photo-1581094794329-c8112a89af12?w=800&q=80"
-                  alt="Professional learning online on a laptop"
+                  src="https://images.unsplash.com/photo-1522202176988-66273c2fd55f?w=1200&q=80"
+                  alt="Professionals learning together on laptops"
                   fill
-                  className="object-cover rounded-2xl shadow-2xl"
+                  className="object-cover rounded-2xl shadow-xl"
+                  sizes="(max-width: 1024px) 100vw, 50vw"
                   priority
                 />
               </div>
@@ -182,57 +190,74 @@ export default async function HomePage() {
         </div>
       </section>
 
+      {/* Value propositions */}
+      <section className="border-y">
+        <div className="container py-6 md:py-8">
+          <ul className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
+            {valueProps.map((v) => (
+              <li key={v.title} className="flex gap-3">
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border">
+                  <v.icon className="h-5 w-5" aria-hidden="true" />
+                </span>
+                <div>
+                  <p className="font-semibold leading-tight">{v.title}</p>
+                  <p className="mt-1 text-sm text-muted-foreground">{v.body}</p>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </section>
+
+      {/* Popular courses */}
+      {featuredCourses.length > 0 && (
+        <section className="py-8 md:py-10">
+          <div className="container">
+            <div className="mb-6 flex items-end justify-between gap-4">
+              <div>
+                <h2 className="text-2xl md:text-3xl font-bold">Popular courses</h2>
+                <p className="mt-1 text-muted-foreground">Start learning today — enrol and press play.</p>
+              </div>
+              <Button variant="outline" asChild className="hidden sm:inline-flex">
+                <Link href="/courses">
+                  View all courses <ArrowRight className="ml-2 h-4 w-4" />
+                </Link>
+              </Button>
+            </div>
+            <CourseGrid courses={featuredCourses} favouritedCourseIds={favouritedCourseIds} cartCourseIds={cartCourseIds} enrolledCourseMap={enrolledCourseMap} />
+            <Button variant="outline" asChild className="mt-6 w-full sm:hidden">
+              <Link href="/courses">
+                View all courses <ArrowRight className="ml-2 h-4 w-4" />
+              </Link>
+            </Button>
+          </div>
+        </section>
+      )}
+
+      {/* How it works */}
+      <section className="border-t py-8 md:py-10">
+        <div className="container">
+          <h2 className="text-2xl md:text-3xl font-bold mb-6">How it works</h2>
+          <ol className="grid gap-4 md:grid-cols-3">
+            {steps.map((step, i) => (
+              <li key={step.title} className="rounded-lg border p-6">
+                <div className="flex items-center gap-3">
+                  <span className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-sm font-bold text-primary-foreground">
+                    {i + 1}
+                  </span>
+                  <step.icon className="h-5 w-5 text-muted-foreground" aria-hidden="true" />
+                </div>
+                <p className="mt-4 font-semibold">{step.title}</p>
+                <p className="mt-1 text-sm text-muted-foreground">{step.body}</p>
+              </li>
+            ))}
+          </ol>
+        </div>
+      </section>
+
       {/* Phase 2: Advertising Banner Carousel (spec §4.1) */}
       <section className="container py-4">
         <AdvertisingCarousel />
-      </section>
-
-      {/* Stats Section */}
-      <section className="py-8 border-y bg-white">
-        <div className="container">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
-            <div className="text-center">
-              <div className="flex justify-center mb-2">
-                <BookOpen className="h-8 w-8 text-primary" />
-              </div>
-              <div className="text-3xl font-bold">
-                {stats.totalCourses > 0
-                  ? `${stats.totalCourses.toLocaleString()}+`
-                  : "1000+"}
-              </div>
-              <div className="text-muted-foreground">{t("home.stats.courses")}</div>
-            </div>
-            <div className="text-center">
-              <div className="flex justify-center mb-2">
-                <Users className="h-8 w-8 text-primary" />
-              </div>
-              <div className="text-3xl font-bold">
-                {stats.totalStudents > 0
-                  ? `${stats.totalStudents.toLocaleString()}+`
-                  : "50K+"}
-              </div>
-              <div className="text-muted-foreground">{t("home.stats.students")}</div>
-            </div>
-            <div className="text-center">
-              <div className="flex justify-center mb-2">
-                <Award className="h-8 w-8 text-primary" />
-              </div>
-              <div className="text-3xl font-bold">
-                {stats.totalInstructors > 0
-                  ? `${stats.totalInstructors.toLocaleString()}+`
-                  : "200+"}
-              </div>
-              <div className="text-muted-foreground">{t("home.stats.experts")}</div>
-            </div>
-            <div className="text-center">
-              <div className="flex justify-center mb-2">
-                <CheckCircle className="h-8 w-8 text-primary" />
-              </div>
-              <div className="text-3xl font-bold">95%</div>
-              <div className="text-muted-foreground">{t("home.stats.satisfaction")}</div>
-            </div>
-          </div>
-        </div>
       </section>
 
       {/* Compliance & Localization Strip */}
@@ -277,26 +302,6 @@ export default async function HomePage() {
                 )
               })}
             </div>
-          </div>
-        </section>
-      )}
-
-      {/* Featured Courses Section */}
-      {featuredCourses.length > 0 && (
-        <section className="pt-4 md:pt-6 pb-8 md:pb-10">
-          <div className="container">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
-              <div className="text-center sm:text-left">
-                <h2 className="text-2xl md:text-3xl font-bold mb-2">Featured Courses</h2>
-                <p className="text-muted-foreground">
-                  Hand-picked courses by our team
-                </p>
-              </div>
-              <Button variant="outline" asChild className="w-full sm:w-auto">
-                <Link href="/courses">View All</Link>
-              </Button>
-            </div>
-            <CourseGrid courses={featuredCourses} favouritedCourseIds={favouritedCourseIds} cartCourseIds={cartCourseIds} enrolledCourseMap={enrolledCourseMap} />
           </div>
         </section>
       )}
