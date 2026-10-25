@@ -17,7 +17,7 @@ const DEFAULT_FAQ: FaqItem[] = [
   },
   {
     q: "Are there live classes or scheduled sessions?",
-    a: "No. IES Digital Academy is <strong>self-paced and asynchronous only</strong>. You learn whenever and wherever you choose, within your access window.",
+    a: "No. Learnify is <strong>self-paced and asynchronous only</strong>. You learn whenever and wherever you choose, within your access window.",
   },
   {
     q: "How do I earn a certificate?",
@@ -63,7 +63,7 @@ async function getFaq() {
       ? (academy?.faqJson as FaqItem[])
       : DEFAULT_FAQ
   return {
-    academyName: academy?.name ?? "IES Digital Academy",
+    academyName: academy?.name ?? "Learnify",
     items,
   }
 }

@@ -7,13 +7,15 @@
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15+-4169E1?logo=postgresql&logoColor=white)](https://postgresql.org/)
 [![Prisma](https://img.shields.io/badge/Prisma-5.22-2D3748?logo=prisma)](https://prisma.io/)
 [![Stripe](https://img.shields.io/badge/Stripe-Payments-635BFF?logo=stripe&logoColor=white)](https://stripe.com/)
-[![Anthropic](https://img.shields.io/badge/Anthropic-Claude_AI-D4A574?logo=anthropic&logoColor=white)](https://anthropic.com/)
+[![OpenAI](https://img.shields.io/badge/OpenAI-gpt--6.1--sol-412991?logo=openai&logoColor=white)](https://openai.com/)
+[![DeepSeek](https://img.shields.io/badge/DeepSeek-V4.1_Flash_fallback-4D6BFE)](https://www.deepseek.com/)
+[![Docker](https://img.shields.io/badge/Docker-Coolify-2496ED?logo=docker&logoColor=white)](https://coolify.io/)
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-4-06B6D4?logo=tailwindcss&logoColor=white)](https://tailwindcss.com/)
 [![License](https://img.shields.io/badge/License-Proprietary-red)](#license)
 
 **An international, scalable, self-learning LMS built for academies, course developers, and learners.**
 
-[Report Bug](https://github.com/alfredang/learnify-iesa-lms/issues) · [Request Feature](https://github.com/alfredang/learnify-iesa-lms/issues)
+[Live Site](https://learnify.tertiaryinfotech.com) · [Report Bug](https://github.com/alfredang/ai-learnify/issues) · [Request Feature](https://github.com/alfredang/ai-learnify/issues)
 
 </div>
 
@@ -35,7 +37,8 @@ IESA LMS is a multi-tenant, self-paced Learning Management System built on Next.
 - **Catalogue Governance** — Academy Admins approve or reject Course Developer submissions with author-visible rejection reasons; full audit trail on every state transition
 - **Immutable Double-Entry Ledger** — Every money movement writes append-only ledger entries; refunds are reversal entries; nightly invariant cron asserts every transaction sums to zero
 - **Auto-Issued Certificates** — Gated by >=50% content + >=80% assessment + survey + before expiry; PDF with QR verification
-- **Gen-AI Authoring** — Per-tenant toggle, author-approval-gated drafts via Anthropic Claude (outlines, objectives, quizzes, voice-over text, metadata)
+- **Gen-AI Authoring** — Per-tenant toggle, author-approval-gated drafts via OpenAI `gpt-6.1-sol` with automatic DeepSeek V4.1 Flash fallback (outlines, objectives, quizzes, voice-over text, metadata)
+- **SCORM Studio** — Upload a lecture video, add a brief, and an agent harness designs, renders, validates (SCORM 1.2 conformance) and publishes a ready-to-attach SCORM package
 - **GDPR/PDPA Compliance** — JSON data export, soft-deactivation, audit trail with 7-year retention
 
 ## Tech Stack
@@ -44,11 +47,11 @@ IESA LMS is a multi-tenant, self-paced Learning Management System built on Next.
 |----------|-----------|
 | **Framework** | Next.js 16 (App Router, Server Components, Server Actions, Turbopack) |
 | **Language** | TypeScript (strict mode) |
-| **Database** | PostgreSQL 15+ via Prisma 5 ORM |
+| **Database** | PostgreSQL 17 (Coolify-managed container) via Prisma 5 ORM |
 | **Auth** | NextAuth.js v5 (JWT, email+password for learners, OAuth for staff) |
 | **Payments** | Stripe (Checkout Sessions, Connect, Webhooks) |
-| **Media** | Cloudinary (signed uploads, video transcoding, CDN) |
-| **AI** | Anthropic Claude SDK (prompt caching, capability-based) |
+| **Media** | Cloudinary (signed uploads, video transcoding, CDN) or local disk under `STORAGE_DIR`, served by `/uploads/[...path]` |
+| **AI** | OpenAI `gpt-6.1-sol` (primary) with DeepSeek V4.1 Flash automatic fallback — plain `fetch` adapters in `src/lib/ai/providers.ts`, no vendor SDK |
 | **Email** | Resend (invoices, access reminders) |
 | **UI** | Tailwind CSS 4 + shadcn/ui (Radix primitives) |
 | **Forms** | React Hook Form + Zod validation |
@@ -58,7 +61,7 @@ IESA LMS is a multi-tenant, self-paced Learning Management System built on Next.
 | **Drag & Drop** | dnd-kit |
 | **Charts** | Recharts |
 | **Icons** | Lucide React |
-| **Deploy** | Netlify (plugin-nextjs) |
+| **Deploy** | Docker (Next.js standalone, Node 22) on a Hostinger VPS managed by Coolify; Traefik + Let's Encrypt TLS |
 
 ## Architecture
 
@@ -90,13 +93,14 @@ src/
 │   ├── (auth)/                 # Login, register, password reset
 │   ├── (browse)/               # Public catalogue, course detail, search
 │   ├── (learner)/              # Learner dashboard & pages
-│   ├── (instructor)/           # Course Developer editor & dashboard
+│   ├── (instructor)/           # Course Developer editor, dashboard, SCORM Studio
 │   ├── (academy)/              # Academy Admin tenant area
 │   ├── (marketer)/             # Marketer dashboard
 │   ├── (platform)/             # Platform Owner / Support dashboards
-│   ├── api/                    # 50+ REST endpoints, cron, webhooks, AI, xAPI
+│   ├── api/                    # 50+ REST endpoints, cron, webhooks, AI, xAPI, SCORM jobs
 │   ├── actions/                # Server Actions
 │   ├── checkout/               # Stripe checkout pages
+│   ├── uploads/[...path]/      # Serves STORAGE_DIR files (HTTP Range support)
 │   └── verify/                 # Public certificate verification
 ├── components/                 # UI components
 │   ├── auth/                   # Login/register forms
@@ -105,7 +109,11 @@ src/
 │   ├── shared/                 # AI assist, audit logs, reusable
 │   └── ui/                     # 22 shadcn/ui components
 ├── lib/                        # Domain logic (33 modules)
-│   ├── ai/                     # Anthropic Claude integration
+│   ├── ai/                     # AI Assist orchestration (OpenAI → DeepSeek)
+│   │   ├── providers.ts        # Plain fetch adapters: OpenAI Responses API, DeepSeek
+│   │   └── harness/            # Traced agent runner + SCORM video agent
+│   ├── scorm/                  # SCORM 1.2 manifest, SCO template, validator, ZIP
+│   ├── storage.ts              # Local file storage (STORAGE_DIR) when Cloudinary is absent
 │   ├── validations/            # Zod schemas
 │   ├── ledger.ts               # Double-entry ledger (spec §16)
 │   ├── certification.ts        # Cert eligibility engine (spec §12-13)
@@ -121,21 +129,23 @@ prisma/
 └── migrations/                 # Database migrations
 docs/                           # 20 markdown docs (MkDocs)
 scripts/                        # 20 migration/verification utilities
+Dockerfile                      # Node 22 standalone image (Coolify Dockerfile build pack)
+docker-entrypoint.sh            # Runs `prisma migrate deploy`, then starts server.js
 ```
 
 ## Getting Started
 
 ### Prerequisites
 
-- **Node.js** 20+
-- **PostgreSQL** 15+ (or [Neon](https://neon.tech) for cloud)
+- **Node.js** 20+ (the production image uses Node 22)
+- **PostgreSQL** 15+ locally (production runs PostgreSQL 17 as a Coolify-managed container)
 
 ### Installation
 
 ```bash
 # 1. Clone the repository
-git clone https://github.com/alfredang/learnify-iesa-lms.git
-cd learnify-iesa-lms
+git clone https://github.com/alfredang/ai-learnify.git
+cd ai-learnify
 
 # 2. Install dependencies (postinstall runs prisma generate)
 npm install
@@ -174,10 +184,23 @@ Every integration degrades gracefully when env vars are absent:
 |-------------|----------|---------|
 | Stripe | `STRIPE_SECRET_KEY`, `STRIPE_PUBLISHABLE_KEY`, `STRIPE_WEBHOOK_SECRET` | Paid checkout |
 | Cloudinary | `CLOUDINARY_*`, `NEXT_PUBLIC_CLOUDINARY_*` | File/video uploads |
-| Anthropic | `ANTHROPIC_API_KEY` | AI Assist drafting |
+| OpenAI | `OPENAI_API_KEY` — or ChatGPT OAuth via `OPENAI_OAUTH_ACCESS_TOKEN` (+ optional `OPENAI_OAUTH_REFRESH_TOKEN`, `OPENAI_ACCOUNT_ID`); `OPENAI_MODEL` overrides `gpt-6.1-sol` | AI Assist + SCORM Studio (primary provider) |
+| DeepSeek | `DEEPSEEK_API_KEY` (+ optional `DEEPSEEK_BASE_URL`, `DEEPSEEK_MODEL`, default `deepseek-flash`) | Automatic fallback when OpenAI fails or is unset |
+| Credential vault | `CREDENTIAL_ENCRYPTION_KEY` | AES-256-GCM encryption of per-academy AI credentials |
+| Local storage | `STORAGE_DIR` (default `./storage`; `/app/storage` volume in Docker) | Uploads + SCORM packages when Cloudinary is not configured |
 | Resend | `RESEND_API_KEY`, `EMAIL_FROM` | Invoice + reminder emails |
 | OAuth | `AUTH_GOOGLE_*`, `AUTH_GITHUB_*` | Staff OAuth (learners are email-only) |
 | Cron | `CRON_SECRET` | Protects `/api/cron/*` endpoints |
+
+## SCORM Studio
+
+Course Developers can turn a single lecture video into a conformant SCORM 1.2 package at `/instructor/scorm-studio`:
+
+1. Upload the video (MP4/H.264 recommended, up to 500 MB) and add a brief or transcript.
+2. An agent harness (`src/lib/ai/harness/runner.ts` + `scorm-video-agent.ts`) runs traced steps: probe video → AI learning design (OpenAI → DeepSeek, self-repair, template fallback) → review → render SCO (`index.html` + `scripts/scorm_api.js`) → write `imsmanifest.xml` → SCORM 1.2 conformance validation → publish.
+3. The unpacked package and ZIP land under `/uploads/scorm/<jobId>/`; optionally attach the result as a SCORM lecture in one click.
+
+Jobs persist in the `ScormBuildJob` model. API: `POST /api/scorm/jobs` (multipart), `GET /api/scorm/jobs`, `GET /api/scorm/jobs/[id]`, `POST /api/scorm/jobs/[id]/attach`. Modelled on [workplacesafety-scorm](https://github.com/alfredang/workplacesafety-scorm).
 
 ## Scripts
 
@@ -204,21 +227,24 @@ See `docs/runbook.md` for backup/restore procedures and incident playbooks.
 
 ## Deployment
 
-### Netlify (Default)
+### Coolify on a Hostinger VPS (Production)
 
-The project includes a `netlify.toml` for one-click deploy:
+Production runs at [learnify.tertiaryinfotech.com](https://learnify.tertiaryinfotech.com) as a Docker container managed by [Coolify](https://coolify.tertiarytraining.com):
 
-```bash
-npm run build
-# Deploys .next/ with @netlify/plugin-nextjs
-```
+- Built from the repo's `Dockerfile` (Next.js standalone, Node 22); `docker-entrypoint.sh` runs `prisma migrate deploy` on every boot
+- PostgreSQL 17 runs as a Coolify-managed container on the same server
+- Persistent volume mounted at `/app/storage` (`STORAGE_DIR`) for uploads and SCORM packages
+- TLS via Traefik + Let's Encrypt (TLS-ALPN challenge)
+- CI/CD: a GitHub webhook on push to `main` triggers a Coolify rebuild; GitHub Actions (`.github/workflows/ci.yml`) only lints, typechecks and test-builds the image
+
+Full guide: `docs/deployment/coolify.md`.
 
 ### Other Platforms
 
 See the deployment guides in `docs/deployment/`:
-- `docs/deployment/vercel.md`
-- `docs/deployment/railway.md`
+- `docs/deployment/coolify.md`
 - `docs/deployment/docker.md`
+- `docs/deployment/railway.md`
 
 ## Contributing
 
@@ -235,7 +261,9 @@ This is a closed-source project. External pull requests are not accepted at this
 - [shadcn/ui](https://ui.shadcn.com/) — UI component library
 - [Stripe](https://stripe.com/) — Payment processing
 - [Cloudinary](https://cloudinary.com/) — Media management
-- [Anthropic Claude](https://anthropic.com/) — AI-assisted authoring
+- [OpenAI](https://openai.com/) — AI-assisted authoring (primary)
+- [DeepSeek](https://www.deepseek.com/) — AI-assisted authoring (fallback)
+- [Coolify](https://coolify.io/) — Self-hosted deployment
 - [Resend](https://resend.com/) — Transactional email
 
 ---

@@ -5,8 +5,8 @@ Get Learnify running in under 5 minutes with this quick start guide.
 ## TL;DR
 
 ```bash
-git clone https://github.com/alfredang/Learnify.git
-cd Learnify
+git clone https://github.com/alfredang/ai-learnify.git
+cd ai-learnify
 npm install
 cp .env.example .env
 # Edit .env with your DATABASE_URL
@@ -67,4 +67,4 @@ After seeding, you can log in with:
 
 - [Configure environment variables](configuration.md) for full functionality
 - [Learn about features](../features/overview.md)
-- [Deploy to production](../deployment/vercel.md)
+- [Deploy to production with Coolify](../deployment/coolify.md)

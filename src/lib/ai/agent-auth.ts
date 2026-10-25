@@ -1,115 +1,154 @@
 import { prisma } from "@/lib/prisma"
 import { decryptString } from "@/lib/encryption"
+import {
+  accountIdFromAccessToken,
+  type AiCredential,
+  type OpenAiApiKeyCredential,
+  type OpenAiOAuthCredential,
+} from "@/lib/ai/providers"
 
 /**
- * Phase 7 — Claude credentials & subprocess env builder.
+ * Phase 7 — AI credential resolution.
  *
- * The Claude Agent SDK launches `claude-code` as a child process. This
- * module owns the auth boundary between our tenant store and that
- * subprocess: it decrypts the per-tenant token and shapes it into the
- * env vars the CLI looks for.
+ * Builds the ordered list of credentials `runAgentQuery()` will try:
  *
- * Patterned on `lib/anthropic-auth.ts` from alfredang/AI-LMS-TMS, which
- * established the rule: `sk-ant-oat…` → `CLAUDE_CODE_OAUTH_TOKEN`,
- * everything else → `ANTHROPIC_API_KEY`. We strip the other auth env
- * vars before injecting our chosen one so a leaked-in `ANTHROPIC_API_KEY`
- * (e.g. from the deploy host) can't shadow the tenant token.
+ *   1. The academy's own OpenAI credential (encrypted on the Academy row,
+ *      set by an Academy Admin in Settings → Integrations).
+ *   2. The platform-wide OpenAI credential from env — either
+ *      `OPENAI_API_KEY`, or a ChatGPT OAuth login via
+ *      `OPENAI_OAUTH_ACCESS_TOKEN` (+ optional `OPENAI_OAUTH_REFRESH_TOKEN`
+ *      and `OPENAI_ACCOUNT_ID`).
+ *   3. DeepSeek (`DEEPSEEK_API_KEY`) as the fallback model.
  *
- * Spec §8.3 governance: tokens are never logged, never sent to audit
- * metadata, and never returned from API routes. Reads only happen
- * server-side immediately before the SDK call.
+ * Spec §8.3 governance: tokens are never logged, never written to audit
+ * metadata, and never returned from API routes. Decryption happens
+ * server-side immediately before the provider call.
  */
 
-export type ResolvedClaudeToken = {
-  token: string
-  /** Origin of the token — useful for diagnostics, never user-visible. */
+export type ResolvedCredential = {
+  credential: AiCredential
+  /** Origin — useful for diagnostics, never user-visible. */
   source: "academy" | "env"
 }
 
 /**
- * Resolve the Claude token to use for an academy. Order:
- *   1. Encrypted token on the Academy row (set by Academy Admin via UI)
- *   2. ANTHROPIC_API_KEY env var (global fallback)
- *
- * Throws when neither is configured so callers can return a clean 409
- * to the UI instead of a cryptic CLI error.
+ * Parse a pasted OpenAI credential string into a typed credential.
+ * Accepts:
+ *   - `sk-…` API keys
+ *   - a raw ChatGPT OAuth access token (JWT, `eyJ…`)
+ *   - a JSON object `{ access_token, refresh_token?, account_id? }` — the
+ *     `tokens` block from the Codex CLI's auth.json
  */
-export async function loadAcademyClaudeToken(
-  academyId: string
-): Promise<ResolvedClaudeToken> {
-  const academy = await prisma.academy.findUnique({
-    where: { id: academyId },
-    select: {
-      aiClaudeTokenCipher: true,
-      aiClaudeTokenIv: true,
-      aiClaudeTokenTag: true,
-    },
-  })
-
-  if (
-    academy?.aiClaudeTokenCipher &&
-    academy.aiClaudeTokenIv &&
-    academy.aiClaudeTokenTag
-  ) {
+export function parseOpenAiCredential(
+  raw: string
+): OpenAiApiKeyCredential | OpenAiOAuthCredential | null {
+  const trimmed = raw.trim()
+  if (!trimmed) return null
+  if (trimmed.startsWith("sk-")) {
+    return { provider: "openai", kind: "api_key", token: trimmed }
+  }
+  if (trimmed.startsWith("{")) {
     try {
-      const token = decryptString({
-        cipher: academy.aiClaudeTokenCipher,
-        iv: academy.aiClaudeTokenIv,
-        tag: academy.aiClaudeTokenTag,
-      })
-      return { token, source: "academy" }
-    } catch (e) {
-      // GCM auth-tag mismatch usually means CREDENTIAL_ENCRYPTION_KEY was
-      // rotated after the token was stored. Log without exposing cipher
-      // bytes and fall through to env fallback. If env is also missing,
-      // surface a clear remediation instead of the raw crypto error.
-      console.error("[agent-auth] academy token decrypt failed", {
-        academyId,
-        reason: e instanceof Error ? e.message : "unknown",
-      })
-      const envFallback = process.env.ANTHROPIC_API_KEY
-      if (envFallback && envFallback.trim().length > 0) {
-        return { token: envFallback, source: "env" }
+      const obj = JSON.parse(trimmed) as {
+        access_token?: string
+        refresh_token?: string
+        account_id?: string
       }
-      throw new Error(
-        "Academy's stored Claude credential can't be decrypted (likely a CREDENTIAL_ENCRYPTION_KEY change). Academy Admin: open Settings → Credentials → Claude AI → Replace, and re-paste the API key."
-      )
+      if (obj.access_token) {
+        const accountId = obj.account_id ?? accountIdFromAccessToken(obj.access_token)
+        if (!accountId) return null
+        return {
+          provider: "openai",
+          kind: "oauth",
+          accessToken: obj.access_token,
+          refreshToken: obj.refresh_token,
+          accountId,
+        }
+      }
+    } catch {
+      return null
+    }
+    return null
+  }
+  if (trimmed.startsWith("eyJ")) {
+    const accountId = accountIdFromAccessToken(trimmed)
+    if (!accountId) return null
+    return { provider: "openai", kind: "oauth", accessToken: trimmed, accountId }
+  }
+  return null
+}
+
+function envOpenAi(): OpenAiApiKeyCredential | OpenAiOAuthCredential | null {
+  const key = process.env.OPENAI_API_KEY?.trim()
+  if (key) return { provider: "openai", kind: "api_key", token: key }
+  const access = process.env.OPENAI_OAUTH_ACCESS_TOKEN?.trim()
+  if (access) {
+    const accountId =
+      process.env.OPENAI_ACCOUNT_ID?.trim() || accountIdFromAccessToken(access)
+    if (accountId) {
+      return {
+        provider: "openai",
+        kind: "oauth",
+        accessToken: access,
+        refreshToken: process.env.OPENAI_OAUTH_REFRESH_TOKEN?.trim() || undefined,
+        accountId,
+      }
     }
   }
+  return null
+}
 
-  const fallback = process.env.ANTHROPIC_API_KEY
-  if (fallback && fallback.trim().length > 0) {
-    return { token: fallback, source: "env" }
-  }
-
-  throw new Error(
-    "AI is not configured for this academy. An Academy Admin can paste a Claude token in Settings, or the Platform Owner can set ANTHROPIC_API_KEY."
-  )
+function envDeepSeek(): AiCredential | null {
+  const key = process.env.DEEPSEEK_API_KEY?.trim()
+  if (!key) return null
+  return { provider: "deepseek", token: key, baseUrl: process.env.DEEPSEEK_BASE_URL }
 }
 
 /**
- * Build the env record for the Claude Agent SDK subprocess.
- *
- *   - `sk-ant-oat…` (Claude.ai subscription OAuth) → CLAUDE_CODE_OAUTH_TOKEN
- *   - anything else (Console API key)             → ANTHROPIC_API_KEY
- *
- * We always strip the other two auth vars from the inherited environment
- * so a stale value can't shadow the token we picked.
+ * Resolve the credential chain for an academy. Throws when nothing is
+ * configured so callers can return a clean 409 to the UI.
  */
-export function buildClaudeEnv(
-  token: string
-): Record<string, string | undefined> {
-  const trimmed = token.trim()
-  const env: Record<string, string | undefined> = { ...process.env }
-  delete env.ANTHROPIC_API_KEY
-  delete env.ANTHROPIC_AUTH_TOKEN
-  delete env.CLAUDE_CODE_OAUTH_TOKEN
-  if (trimmed.startsWith("sk-ant-oat")) {
-    env.CLAUDE_CODE_OAUTH_TOKEN = trimmed
-  } else {
-    env.ANTHROPIC_API_KEY = trimmed
+export async function resolveAiCredentials(academyId: string): Promise<ResolvedCredential[]> {
+  const chain: ResolvedCredential[] = []
+
+  const academy = await prisma.academy.findUnique({
+    where: { id: academyId },
+    select: {
+      aiProviderTokenCipher: true,
+      aiProviderTokenIv: true,
+      aiProviderTokenTag: true,
+    },
+  })
+
+  if (academy?.aiProviderTokenCipher && academy.aiProviderTokenIv && academy.aiProviderTokenTag) {
+    try {
+      const plain = decryptString({
+        cipher: academy.aiProviderTokenCipher,
+        iv: academy.aiProviderTokenIv,
+        tag: academy.aiProviderTokenTag,
+      })
+      const cred = parseOpenAiCredential(plain)
+      if (cred) chain.push({ credential: cred, source: "academy" })
+    } catch (e) {
+      // GCM auth-tag mismatch usually means CREDENTIAL_ENCRYPTION_KEY was
+      // rotated after the token was stored. Log without exposing cipher
+      // bytes and fall through to the env chain.
+      console.error("[agent-auth] academy credential decrypt failed", {
+        academyId,
+        reason: e instanceof Error ? e.message : "unknown",
+      })
+    }
   }
-  // Identify ourselves in the User-Agent for support diagnostics.
-  env.CLAUDE_AGENT_SDK_CLIENT_APP = "iesa-lms-authoring/1.0"
-  return env
+
+  const openai = envOpenAi()
+  if (openai) chain.push({ credential: openai, source: "env" })
+  const deepseek = envDeepSeek()
+  if (deepseek) chain.push({ credential: deepseek, source: "env" })
+
+  if (chain.length === 0) {
+    throw new Error(
+      "AI is not configured for this academy. An Academy Admin can paste an OpenAI credential in Settings → Integrations, or the Platform Owner can set OPENAI_API_KEY / DEEPSEEK_API_KEY."
+    )
+  }
+  return chain
 }

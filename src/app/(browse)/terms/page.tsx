@@ -12,7 +12,7 @@ const DEFAULT_TERMS = `
 <h2>Terms of Service</h2>
 
 <h3>1. Acceptance of Terms</h3>
-<p>By accessing or using IES Digital Academy, you agree to be bound by these Terms of Service. If you do not agree, do not use the platform.</p>
+<p>By accessing or using Learnify, you agree to be bound by these Terms of Service. If you do not agree, do not use the platform.</p>
 
 <h3>2. Account Registration</h3>
 <ul>
@@ -70,7 +70,7 @@ async function getTerms() {
     select: { name: true, termsHtml: true },
   })
   return {
-    academyName: academy?.name ?? "IES Digital Academy",
+    academyName: academy?.name ?? "Learnify",
     html: academy?.termsHtml || DEFAULT_TERMS,
   }
 }

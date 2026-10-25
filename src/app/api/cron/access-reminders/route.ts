@@ -10,7 +10,7 @@ import { sendEmail } from "@/lib/email"
  *   - 2 weeks before expiry
  *
  * Runs daily. Protected by CRON_SECRET — set it in .env and configure
- * your host (Vercel Cron, etc.) to send `Authorization: Bearer $CRON_SECRET`.
+ * your scheduler (Coolify scheduled task, cron, etc.) to send `Authorization: Bearer $CRON_SECRET`.
  *
  * When RESEND_API_KEY + EMAIL_FROM are configured, email is sent per
  * grant; otherwise the attempt is logged via the audit helper in

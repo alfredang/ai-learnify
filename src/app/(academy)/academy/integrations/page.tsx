@@ -89,7 +89,7 @@ export default async function AcademyIntegrationsPage() {
       <Tabs defaultValue="ai">
         <div className="overflow-x-auto -mx-1 px-1 pb-1">
           <TabsList className="flex w-max">
-            <TabsTrigger value="ai">Claude AI</TabsTrigger>
+            <TabsTrigger value="ai">AI Provider</TabsTrigger>
             <TabsTrigger value="email">Email (Gmail / SMTP)</TabsTrigger>
           </TabsList>
         </div>

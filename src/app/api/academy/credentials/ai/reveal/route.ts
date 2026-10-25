@@ -7,10 +7,10 @@ import { decryptString } from "@/lib/encryption"
 export const runtime = "nodejs"
 
 /**
- * Phase 7 — one-shot reveal of the Claude credential plaintext for the
+ * Phase 7 — one-shot reveal of the AI credential plaintext for the
  * academy admin who set it. POST (not GET) so the URL never lands in
  * proxy logs or browser history. Every successful call writes an
- * `academy.credentials.claude.reveal` audit row with userId, IP and UA;
+ * `academy.credentials.ai.reveal` audit row with userId, IP and UA;
  * the UI is expected to auto-mask the value after ~10 seconds so the
  * plaintext doesn't linger in the DOM.
  */
@@ -64,17 +64,17 @@ export async function POST(request: Request) {
   const academy = await prisma.academy.findUnique({
     where: { id: academyId },
     select: {
-      aiClaudeTokenCipher: true,
-      aiClaudeTokenIv: true,
-      aiClaudeTokenTag: true,
-      aiClaudeTokenLast4: true,
+      aiProviderTokenCipher: true,
+      aiProviderTokenIv: true,
+      aiProviderTokenTag: true,
+      aiProviderTokenLast4: true,
     },
   })
 
   if (
-    !academy?.aiClaudeTokenCipher ||
-    !academy.aiClaudeTokenIv ||
-    !academy.aiClaudeTokenTag
+    !academy?.aiProviderTokenCipher ||
+    !academy.aiProviderTokenIv ||
+    !academy.aiProviderTokenTag
   ) {
     return NextResponse.json(
       { error: "No credential configured for this academy" },
@@ -85,9 +85,9 @@ export async function POST(request: Request) {
   let plaintext: string
   try {
     plaintext = decryptString({
-      cipher: academy.aiClaudeTokenCipher,
-      iv: academy.aiClaudeTokenIv,
-      tag: academy.aiClaudeTokenTag,
+      cipher: academy.aiProviderTokenCipher,
+      iv: academy.aiProviderTokenIv,
+      tag: academy.aiProviderTokenTag,
     })
   } catch {
     return NextResponse.json(
@@ -97,7 +97,7 @@ export async function POST(request: Request) {
   }
 
   await audit({
-    action: "academy.credentials.claude.reveal",
+    action: "academy.credentials.ai.reveal",
     resourceType: "academy",
     resourceId: academyId,
     userId: session.user.id,
@@ -105,14 +105,14 @@ export async function POST(request: Request) {
     ip: getRequestIp(request),
     userAgent: request.headers.get("user-agent"),
     metadata: {
-      last4: academy.aiClaudeTokenLast4 ?? null,
+      last4: academy.aiProviderTokenLast4 ?? null,
       reason: typeof body.reason === "string" ? body.reason.slice(0, 200) : null,
     },
   })
 
   return NextResponse.json({
     token: plaintext,
-    last4: academy.aiClaudeTokenLast4 ?? null,
+    last4: academy.aiProviderTokenLast4 ?? null,
     expiresInMs: 10_000,
   })
 }

@@ -118,7 +118,7 @@ export default async function HomePage() {
       getEnrolledCourseMap(session?.user?.id),
     ])
   } catch {
-    // Gracefully handle database errors (e.g., Neon cold start)
+    // Gracefully handle database errors (e.g., database restart)
   }
 
   return (

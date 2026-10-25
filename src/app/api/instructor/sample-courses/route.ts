@@ -60,7 +60,7 @@ const SAMPLES: SampleSpec[] = [
   },
   {
     title: "Generative AI for Engineers",
-    subtitle: "Practical Claude/LLM workflows for technical work",
+    subtitle: "Practical LLM workflows for technical work",
     description:
       "<h2>Generative AI for Engineers</h2><p>Move past chat hype: real LLM patterns for spec review, calculation checking, and document drafting in regulated workflows.</p>",
     thumbnail: "https://images.unsplash.com/photo-1677442136019-21780ecad995?w=800",

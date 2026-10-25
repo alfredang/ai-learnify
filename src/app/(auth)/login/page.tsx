@@ -12,14 +12,14 @@ export default function LoginPage() {
     <>
       <div className="flex flex-col space-y-2 text-center">
         <img
-          src="/images/ies-logo.svg"
-          alt="IES Digital Academy"
+          src="/images/learnify-logo.svg"
+          alt="Learnify"
           width={64}
           height={64}
           className="mx-auto"
         />
         <h1 className="text-2xl font-semibold tracking-tight">
-          Log in to your IES Digital account
+          Log in to your Learnify account
         </h1>
       </div>
       <Suspense fallback={<div className="h-[400px]" />}>

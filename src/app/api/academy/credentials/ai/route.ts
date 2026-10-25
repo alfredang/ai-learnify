@@ -4,11 +4,12 @@ import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { audit, getRequestIp } from "@/lib/audit"
 import { encryptString, tokenLast4 } from "@/lib/encryption"
+import { parseOpenAiCredential } from "@/lib/ai/agent-auth"
 
 export const runtime = "nodejs"
 
 /**
- * Phase 7 — Academy Admin Claude credential management.
+ * Phase 7 — Academy Admin AI (OpenAI) credential management.
  *
  *   GET    — returns { configured, last4, setAt, setBy } (never the
  *            plaintext token)
@@ -20,7 +21,7 @@ export const runtime = "nodejs"
  * Auth: ACADEMY_ADMIN on the academy or PLATFORM_OWNER. The endpoint is
  * always tenant-scoped — admins of academy A cannot affect academy B.
  *
- * Spec §8.3 governance: this endpoint is the only place a Claude token
+ * Spec §8.3 governance: this endpoint is the only place an AI token
  * crosses the tenant boundary. Tokens are NEVER returned in responses,
  * NEVER written to audit metadata, and NEVER logged. The encryption key
  * is held server-side only (CREDENTIAL_ENCRYPTION_KEY env var).
@@ -29,8 +30,8 @@ export const runtime = "nodejs"
 const setSchema = z.object({
   token: z
     .string()
-    .min(20, "Token looks too short — paste the full sk-ant-… token")
-    .max(500),
+    .min(20, "Token looks too short — paste the full OpenAI key or OAuth token")
+    .max(16_000),
 })
 
 async function resolveAcademyId(
@@ -78,10 +79,10 @@ export async function GET(request: Request) {
   const academy = await prisma.academy.findUnique({
     where: { id: academyId },
     select: {
-      aiClaudeTokenCipher: true,
-      aiClaudeTokenLast4: true,
-      aiClaudeTokenSetAt: true,
-      aiClaudeTokenSetBy: true,
+      aiProviderTokenCipher: true,
+      aiProviderTokenLast4: true,
+      aiProviderTokenSetAt: true,
+      aiProviderTokenSetBy: true,
       aiEnabled: true,
     },
   })
@@ -90,12 +91,12 @@ export async function GET(request: Request) {
   }
   return NextResponse.json({
     academyId,
-    configured: Boolean(academy.aiClaudeTokenCipher),
-    last4: academy.aiClaudeTokenLast4 ?? null,
-    setAt: academy.aiClaudeTokenSetAt
-      ? academy.aiClaudeTokenSetAt.toISOString()
+    configured: Boolean(academy.aiProviderTokenCipher),
+    last4: academy.aiProviderTokenLast4 ?? null,
+    setAt: academy.aiProviderTokenSetAt
+      ? academy.aiProviderTokenSetAt.toISOString()
       : null,
-    setBy: academy.aiClaudeTokenSetBy ?? null,
+    setBy: academy.aiProviderTokenSetBy ?? null,
     aiEnabled: academy.aiEnabled,
   })
 }
@@ -128,15 +129,11 @@ export async function POST(request: Request) {
     )
   }
   const trimmed = parsed.data.token.trim()
-  if (
-    !trimmed.startsWith("sk-ant-") &&
-    !trimmed.startsWith("sk-ant-oat") &&
-    !trimmed.startsWith("sk-ant-api")
-  ) {
+  if (!parseOpenAiCredential(trimmed)) {
     return NextResponse.json(
       {
         error:
-          "Token must start with sk-ant-… (Console API key) or sk-ant-oat… (Claude.ai OAuth).",
+          "Credential must be an OpenAI API key (sk-…), a ChatGPT OAuth access token, or the JSON tokens block from the Codex CLI login.",
       },
       { status: 400 }
     )
@@ -160,17 +157,17 @@ export async function POST(request: Request) {
   await prisma.academy.update({
     where: { id: academyId },
     data: {
-      aiClaudeTokenCipher: enc.cipher,
-      aiClaudeTokenIv: enc.iv,
-      aiClaudeTokenTag: enc.tag,
-      aiClaudeTokenLast4: tokenLast4(trimmed),
-      aiClaudeTokenSetAt: new Date(),
-      aiClaudeTokenSetBy: session.user.id,
+      aiProviderTokenCipher: enc.cipher,
+      aiProviderTokenIv: enc.iv,
+      aiProviderTokenTag: enc.tag,
+      aiProviderTokenLast4: tokenLast4(trimmed),
+      aiProviderTokenSetAt: new Date(),
+      aiProviderTokenSetBy: session.user.id,
     },
   })
 
   await audit({
-    action: "academy.credentials.claude.set",
+    action: "academy.credentials.ai.set",
     resourceType: "academy",
     resourceId: academyId,
     userId: session.user.id,
@@ -202,16 +199,16 @@ export async function DELETE(request: Request) {
   await prisma.academy.update({
     where: { id: academyId },
     data: {
-      aiClaudeTokenCipher: null,
-      aiClaudeTokenIv: null,
-      aiClaudeTokenTag: null,
-      aiClaudeTokenLast4: null,
-      aiClaudeTokenSetAt: null,
-      aiClaudeTokenSetBy: null,
+      aiProviderTokenCipher: null,
+      aiProviderTokenIv: null,
+      aiProviderTokenTag: null,
+      aiProviderTokenLast4: null,
+      aiProviderTokenSetAt: null,
+      aiProviderTokenSetBy: null,
     },
   })
   await audit({
-    action: "academy.credentials.claude.clear",
+    action: "academy.credentials.ai.clear",
     resourceType: "academy",
     resourceId: academyId,
     userId: session.user.id,

@@ -839,7 +839,7 @@ async function main() {
         "Build full-stack applications with React and Next.js",
         "Master server components and the app router",
         "Implement authentication and authorization",
-        "Deploy production apps to Vercel",
+        "Deploy production apps with Docker",
       ],
       requirements: [
         "Basic JavaScript knowledge",
@@ -1245,7 +1245,7 @@ async function main() {
     { title: "API Routes & Server Actions", type: "VIDEO", position: 1, videoUrl: V(), videoDuration: 600, sectionId: sec16c.id },
     { title: "Authentication with NextAuth", type: "VIDEO", position: 2, videoUrl: V(), videoDuration: 720, sectionId: sec16c.id },
     { title: "Database Integration with Prisma", type: "VIDEO", position: 3, videoUrl: V(), videoDuration: 660, sectionId: sec16c.id },
-    { title: "Deploying to Vercel", type: "VIDEO", position: 4, videoUrl: V(), videoDuration: 480, sectionId: sec16c.id },
+    { title: "Deploying to Production", type: "VIDEO", position: 4, videoUrl: V(), videoDuration: 480, sectionId: sec16c.id },
   ]})
 
   // --- Course 17: Product Management (Sarah) ---

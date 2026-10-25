@@ -16,8 +16,8 @@ export default function ForgotPasswordPage() {
       <div className="flex flex-col space-y-2 text-center">
         <Link href="/" className="mx-auto">
           <img
-            src="/images/ies-logo.svg"
-            alt="IES Digital Academy"
+            src="/images/learnify-logo.svg"
+            alt="Learnify"
             width={64}
             height={64}
           />

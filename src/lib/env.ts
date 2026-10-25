@@ -40,10 +40,18 @@ const schema = z.object({
   AUTH_GITHUB_ID: z.string().optional(),
   AUTH_GITHUB_SECRET: z.string().optional(),
 
-  // --- Phase 7 (AI Assist) ---
-  ANTHROPIC_API_KEY: z.string().optional(),
-  // AES-256-GCM key used to encrypt per-tenant Claude credentials at
-  // rest. Required as soon as any Academy stores its own token via the
+  // --- Phase 7 (AI Assist) — OpenAI primary, DeepSeek fallback ---
+  OPENAI_API_KEY: z.string().optional(),
+  // ChatGPT OAuth alternative to an API key (Codex login tokens).
+  OPENAI_OAUTH_ACCESS_TOKEN: z.string().optional(),
+  OPENAI_OAUTH_REFRESH_TOKEN: z.string().optional(),
+  OPENAI_ACCOUNT_ID: z.string().optional(),
+  OPENAI_MODEL: z.string().optional(),
+  DEEPSEEK_API_KEY: z.string().optional(),
+  DEEPSEEK_BASE_URL: z.string().optional(),
+  DEEPSEEK_MODEL: z.string().optional(),
+  // AES-256-GCM key used to encrypt per-tenant AI credentials at rest.
+  // Required as soon as any Academy stores its own token via the
   // Academy Admin Settings UI. Generate with `openssl rand -base64 32`.
   CREDENTIAL_ENCRYPTION_KEY: z.string().optional(),
 
@@ -57,7 +65,10 @@ const schema = z.object({
   EMAIL_FROM: z.string().optional(),
 
   // --- Cron auth ---
-  VERCEL_CRON_SECRET: z.string().optional(),
+  CRON_SECRET: z.string().optional(),
+
+  // --- Runtime file storage (uploads, SCORM packages) ---
+  STORAGE_DIR: z.string().optional(),
 
   // --- Phase 10 hardening: audit IP hashing salt. Random default is
   // fine — all it does is uncorrelate hashes across deploys. ---
@@ -86,11 +97,19 @@ function parse(): Env {
     AUTH_GOOGLE_SECRET: process.env.AUTH_GOOGLE_SECRET,
     AUTH_GITHUB_ID: process.env.AUTH_GITHUB_ID,
     AUTH_GITHUB_SECRET: process.env.AUTH_GITHUB_SECRET,
-    ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY,
+    OPENAI_API_KEY: process.env.OPENAI_API_KEY,
+    OPENAI_OAUTH_ACCESS_TOKEN: process.env.OPENAI_OAUTH_ACCESS_TOKEN,
+    OPENAI_OAUTH_REFRESH_TOKEN: process.env.OPENAI_OAUTH_REFRESH_TOKEN,
+    OPENAI_ACCOUNT_ID: process.env.OPENAI_ACCOUNT_ID,
+    OPENAI_MODEL: process.env.OPENAI_MODEL,
+    DEEPSEEK_API_KEY: process.env.DEEPSEEK_API_KEY,
+    DEEPSEEK_BASE_URL: process.env.DEEPSEEK_BASE_URL,
+    DEEPSEEK_MODEL: process.env.DEEPSEEK_MODEL,
     CREDENTIAL_ENCRYPTION_KEY: process.env.CREDENTIAL_ENCRYPTION_KEY,
     RESEND_API_KEY: process.env.RESEND_API_KEY,
     EMAIL_FROM: process.env.EMAIL_FROM,
-    VERCEL_CRON_SECRET: process.env.VERCEL_CRON_SECRET,
+    CRON_SECRET: process.env.CRON_SECRET,
+    STORAGE_DIR: process.env.STORAGE_DIR,
     AUDIT_IP_SALT: process.env.AUDIT_IP_SALT,
     NODE_ENV: process.env.NODE_ENV,
   }
@@ -126,9 +145,10 @@ export function integrationStatus() {
     ),
     oauth_google: Boolean(env.AUTH_GOOGLE_ID && env.AUTH_GOOGLE_SECRET),
     oauth_github: Boolean(env.AUTH_GITHUB_ID && env.AUTH_GITHUB_SECRET),
-    anthropic: Boolean(env.ANTHROPIC_API_KEY),
+    openai: Boolean(env.OPENAI_API_KEY || env.OPENAI_OAUTH_ACCESS_TOKEN),
+    deepseek: Boolean(env.DEEPSEEK_API_KEY),
     credential_encryption: Boolean(env.CREDENTIAL_ENCRYPTION_KEY),
     email: Boolean(env.RESEND_API_KEY && env.EMAIL_FROM),
-    cron_auth: Boolean(env.VERCEL_CRON_SECRET),
+    cron_auth: Boolean(env.CRON_SECRET),
   }
 }

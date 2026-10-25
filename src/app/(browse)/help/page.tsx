@@ -12,7 +12,7 @@ export const metadata: Metadata = {
 const DEFAULT_HELP = `
 <h2>How can we help?</h2>
 
-<p>This Help Center covers the most common questions about using IES Digital Academy. If you can't find what you need, contact your Academy Admin via the <a href="/contact">Contact page</a>.</p>
+<p>This Help Center covers the most common questions about using Learnify. If you can't find what you need, contact your Academy Admin via the <a href="/contact">Contact page</a>.</p>
 
 <h3>Account & Login</h3>
 <ul>
@@ -52,7 +52,7 @@ async function getContent() {
     select: { name: true, helpCenterHtml: true },
   })
   return {
-    academyName: academy?.name ?? "IES Digital Academy",
+    academyName: academy?.name ?? "Learnify",
     html: academy?.helpCenterHtml || DEFAULT_HELP,
   }
 }

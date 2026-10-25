@@ -35,8 +35,6 @@ yarn-error.log*
 .env*
 !.env.example
 
-# vercel
-.vercel
 
 # typescript
 *.tsbuildinfo
@@ -53,18 +51,24 @@ next-env.d.ts
 
 # Temp screenshots
 localhost-*.png
-vercel-*.png
 homepage-*.png
 
 # Per-developer IDE / agent tooling — each contributor has their own
 .agents/
-.trae/
+
 .windsurf/
 .claude/scheduled_tasks.lock
 .claude/skills/marketplace
 .claude/skills/pdf/
 skills-lock.json
 
-# Local-disk upload fallback (dev only — Cloudinary handles prod)
+# Runtime upload storage (STORAGE_DIR) — persisted via a Docker volume in prod
 /public/uploads/
+/storage/
 .env*.local
+
+# Distribution archives (rebuildable — never pushed to GitHub)
+*.zip
+
+# Source material the project was derived from — not ours to republish.
+**/reference/

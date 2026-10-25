@@ -14,17 +14,14 @@ type State =
 export function VerifyEmailChangeClient() {
   const params = useSearchParams()
   const token = params.get("token")
-  const [state, setState] = useState<State>({ status: "verifying" })
+  const [state, setState] = useState<State>(() =>
+    token ? { status: "verifying" } : { status: "error", error: "Missing verification token." }
+  )
   const sentRef = useRef(false)
 
   useEffect(() => {
-    if (sentRef.current) return
+    if (sentRef.current || !token) return
     sentRef.current = true
-
-    if (!token) {
-      setState({ status: "error", error: "Missing verification token." })
-      return
-    }
 
     fetch("/api/profile/email-change/confirm", {
       method: "POST",

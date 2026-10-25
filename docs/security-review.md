@@ -47,7 +47,7 @@ Review this file before every production release. Re-date the header when you do
 - **Password storage** — [src/app/api/auth/register/route.ts](../src/app/api/auth/register/route.ts) uses `bcrypt.hash(password, 12)`. Verification via `bcrypt.compare` in NextAuth `authorize`.
 - **Session strategy** — JWT (not database sessions). `AUTH_SECRET` enforced to ≥32 chars by [src/lib/env.ts](../src/lib/env.ts).
 - **Audit IP hashing** — [src/lib/audit.ts](../src/lib/audit.ts) hashes IP addresses with SHA-256 + per-deploy salt, then truncates to 32 chars. Raw IPs never hit the database.
-- **TLS** — enforced at the edge (Vercel / Netlify). `Strict-Transport-Security: max-age=31536000; includeSubDomains; preload` set in [next.config.ts](../next.config.ts).
+- **TLS** — terminated by Traefik on the Coolify host with Let's Encrypt certificates (TLS-ALPN challenge). `Strict-Transport-Security: max-age=31536000; includeSubDomains; preload` set in [next.config.ts](../next.config.ts).
 - **Not yet** — payment card data (correctly) never touches our servers; handed off to Stripe Checkout.
 
 ### A03 — Injection
@@ -88,7 +88,7 @@ Review this file before every production release. Re-date the header when you do
 ### A08 — Software and Data Integrity
 
 - **Stripe webhook signature** verified in [src/app/api/webhooks/stripe/route.ts](../src/app/api/webhooks/stripe/route.ts) using `stripe.webhooks.constructEvent(rawBody, signature, secret)`. Replay protection via the Stripe library's timestamp check.
-- **Cron authentication** — `/api/cron/*` routes should check a `VERCEL_CRON_SECRET` header before running. Wire this up if not already present before production.
+- **Cron authentication** — `/api/cron/*` routes require `Authorization: Bearer $CRON_SECRET` and refuse to run when `CRON_SECRET` is unset. The scheduler (Coolify scheduled task or system cron) must send that header.
 - **SCORM upload pipeline** is Phase 6 deferred — authors pre-extract and host externally. When server-side unzip lands in Phase 10b, it must include ClamAV or equivalent scanning before the iframe is ever served.
 - **File uploads via Cloudinary signed URLs** — the signature is server-generated and short-lived, so clients can't upload outside their allowed scope.
 
@@ -102,7 +102,7 @@ Review this file before every production release. Re-date the header when you do
 ### A10 — Server-Side Request Forgery
 
 - No endpoint accepts a URL from the user and fetches it server-side.
-- AI Assist calls Anthropic at a hardcoded endpoint via the official SDK.
+- AI Assist calls OpenAI (`https://api.openai.com/v1/responses`) and DeepSeek at fixed endpoints via plain `fetch` adapters in [src/lib/ai/providers.ts](../src/lib/ai/providers.ts). `DEEPSEEK_BASE_URL` is operator-configured env, never user input.
 - `/api/xapi/statements` is **inbound only** — we accept statements, we don't follow any URLs they contain.
 - Stripe webhooks are signature-verified before any side effects.
 - Cloudinary URLs are whitelisted in [next.config.ts](../next.config.ts) `images.remotePatterns`.
@@ -118,9 +118,9 @@ Review this file before every production release. Re-date the header when you do
 | Right to deletion (soft) | §17, §18 | Done — [/api/profile/deactivate](../src/app/api/profile/deactivate/route.ts) — hard deletion intentionally not offered because audit + financial records must survive |
 | Data retention | §17 | Indefinite for learner records; 7y for audit log |
 | Encryption in transit | §18 | TLS at edge; HSTS preload |
-| Encryption at rest | §18 | Depends on provider (Neon: AES-256) |
+| Encryption at rest | §18 | Self-hosted PostgreSQL 17 on the Coolify VPS — enable disk encryption on the Hostinger volume; per-academy AI credentials are AES-256-GCM encrypted with `CREDENTIAL_ENCRYPTION_KEY` |
 | Breach notification | §18 | No runbook entry yet — Phase 10b |
-| Sub-processor list (Stripe, Cloudinary, Anthropic, Neon) | §18 | Maintain in the privacy policy |
+| Sub-processor list (Stripe, Cloudinary, OpenAI, DeepSeek, Hostinger) | §18 | Maintain in the privacy policy |
 
 ---
 

@@ -37,10 +37,10 @@ type StatusResponse = {
 }
 
 /**
- * Phase 7 — Academy Admin Claude Credential form.
+ * Phase 7 — Academy Admin AI (OpenAI) credential form.
  *
  * Pasted token never round-trips back from the server. After save the
- * UI shows a masked indicator (sk-ant-oat••••XXXX) plus when/who set it.
+ * UI shows a masked indicator (openai••••XXXX) plus when/who set it.
  * Replace = paste a new token (overwrites cipher columns). Clear =
  * DELETE on the credentials route.
  */
@@ -80,7 +80,7 @@ export function AiCredentialsForm() {
   }, [])
 
   useEffect(() => {
-    fetch("/api/academy/credentials/claude")
+    fetch("/api/academy/credentials/ai")
       .then(async (r) => {
         if (!r.ok) throw new Error(`Status ${r.status}`)
         return (await r.json()) as StatusResponse
@@ -99,23 +99,23 @@ export function AiCredentialsForm() {
   async function handleSave() {
     const trimmed = token.trim()
     if (!trimmed) {
-      toast.error("Paste a Claude token first.")
+      toast.error("Paste an OpenAI credential first.")
       return
     }
     setSaving(true)
     try {
-      const res = await fetch("/api/academy/credentials/claude", {
+      const res = await fetch("/api/academy/credentials/ai", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ token: trimmed }),
       })
       const body = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(body.error ?? "Save failed")
-      toast.success("Claude credential saved")
+      toast.success("OpenAI credential saved")
       setToken("")
       setShowInput(false)
       // Refresh status from the server — also picks up the masked last4.
-      const s = await fetch("/api/academy/credentials/claude").then((r) =>
+      const s = await fetch("/api/academy/credentials/ai").then((r) =>
         r.ok ? r.json() : null
       )
       if (s) setStatus(s as StatusResponse)
@@ -130,7 +130,7 @@ export function AiCredentialsForm() {
   async function handleReveal() {
     setRevealing(true)
     try {
-      const res = await fetch("/api/academy/credentials/claude/reveal", {
+      const res = await fetch("/api/academy/credentials/ai/reveal", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({}),
@@ -173,19 +173,19 @@ export function AiCredentialsForm() {
   async function handleClear() {
     if (
       !window.confirm(
-        "Remove the saved Claude credential? AI features will fall back to the platform-wide ANTHROPIC_API_KEY (if one is configured)."
+        "Remove the saved OpenAI credential? AI features will fall back to the platform-wide OpenAI credential, then DeepSeek (if configured)."
       )
     )
       return
     setSaving(true)
     try {
-      const res = await fetch("/api/academy/credentials/claude", {
+      const res = await fetch("/api/academy/credentials/ai", {
         method: "DELETE",
       })
       const body = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(body.error ?? "Clear failed")
       toast.success("Credential cleared")
-      const s = await fetch("/api/academy/credentials/claude").then((r) =>
+      const s = await fetch("/api/academy/credentials/ai").then((r) =>
         r.ok ? r.json() : null
       )
       if (s) setStatus(s as StatusResponse)
@@ -205,15 +205,18 @@ export function AiCredentialsForm() {
             <Sparkles className="h-4 w-4 text-primary" />
           </div>
           <div className="flex-1 space-y-1">
-            <h2 className="text-base font-bold">Claude credential</h2>
+            <h2 className="text-base font-bold">OpenAI credential</h2>
             <p className="text-xs text-muted-foreground leading-relaxed">
-              Powers AI authoring (drafts, course scoping, media curation)
-              for this academy via the Claude Agent SDK. Accepts a Console
-              API key (<code className="text-[11px]">sk-ant-…</code>) or a
-              Claude.ai subscription OAuth token (
-              <code className="text-[11px]">sk-ant-oat…</code>). Stored
-              encrypted at rest. Drafts are never used to train external
-              models — see Anthropic&rsquo;s commercial terms.
+              Powers AI authoring (drafts, course scoping, media curation,
+              SCORM Studio) for this academy with OpenAI{" "}
+              <code className="text-[11px]">gpt-6.1-sol</code>. Accepts an
+              API key (<code className="text-[11px]">sk-…</code>) or a
+              ChatGPT OAuth login (paste the access token, or the{" "}
+              <code className="text-[11px]">tokens</code> JSON block from
+              the Codex CLI). Stored encrypted at rest. When this credential
+              is missing or fails, requests fall back to the platform
+              OpenAI credential and then to DeepSeek V4.1 Flash. Drafts are
+              never used to train external models.
             </p>
           </div>
         </div>
@@ -226,7 +229,7 @@ export function AiCredentialsForm() {
                 <p className="text-sm font-mono truncate">
                   {revealedToken
                     ? revealedToken
-                    : `sk-ant-${status.last4 ? "••••" + status.last4 : "••••"}`}
+                    : `openai-${status.last4 ? "••••" + status.last4 : "••••"}`}
                 </p>
                 {revealedToken ? (
                   <p className="text-xs text-amber-700 dark:text-amber-400">
@@ -298,33 +301,34 @@ export function AiCredentialsForm() {
         ) : (
           <div className="space-y-3">
             <div className="space-y-1.5">
-              <Label htmlFor="claude-token" className="text-xs">
-                Paste Claude token
+              <Label htmlFor="openai-token" className="text-xs">
+                Paste OpenAI credential
               </Label>
               <Input
-                id="claude-token"
+                id="openai-token"
                 type="password"
                 autoComplete="off"
                 spellCheck={false}
-                placeholder="sk-ant-… or sk-ant-oat-…"
+                placeholder='sk-… API key, OAuth access token, or {"access_token": …} JSON'
                 value={token}
                 onChange={(e) => setToken(e.target.value)}
                 disabled={saving}
                 className="font-mono text-xs"
               />
               <p className="text-[11px] text-muted-foreground">
-                Generate a Console key at{" "}
+                Create an API key at{" "}
                 <a
                   className="underline"
                   target="_blank"
                   rel="noreferrer"
-                  href="https://console.anthropic.com/settings/keys"
+                  href="https://platform.openai.com/api-keys"
                 >
-                  console.anthropic.com
+                  platform.openai.com
                 </a>
-                , or run{" "}
-                <code className="text-[11px]">claude setup-token</code> in
-                your terminal to mint a Claude.ai subscription OAuth token.
+                , or run <code className="text-[11px]">codex login</code> and
+                paste the <code className="text-[11px]">tokens</code> block
+                from <code className="text-[11px]">~/.codex/auth.json</code>{" "}
+                to use your ChatGPT subscription via OAuth.
               </p>
             </div>
             <div className="flex items-center gap-2 justify-end">
@@ -371,7 +375,7 @@ export function AiCredentialsForm() {
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Eye className="h-4 w-4" /> Reveal Claude credential
+              <Eye className="h-4 w-4" /> Reveal OpenAI credential
             </DialogTitle>
             <DialogDescription>
               The full token will be visible in this browser for 10 seconds.

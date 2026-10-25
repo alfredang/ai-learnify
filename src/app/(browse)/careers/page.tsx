@@ -7,13 +7,13 @@ import { Briefcase, ArrowRight } from "lucide-react"
 
 export const metadata: Metadata = {
   title: "Careers",
-  description: "Join the team building IES Digital Academy",
+  description: "Join the team building Learnify",
 }
 
 const DEFAULT_CAREERS = `
 <h2>Build the future of self-paced learning</h2>
 
-<p>IES Digital Academy is a small, focused team building an international, multi-tenant learning platform. We care about <strong>learner outcomes</strong>, transparent revenue sharing, and shipping quality software in small, well-tested increments.</p>
+<p>Learnify is a small, focused team building an international, multi-tenant learning platform. We care about <strong>learner outcomes</strong>, transparent revenue sharing, and shipping quality software in small, well-tested increments.</p>
 
 <h3>How we work</h3>
 <ul>
@@ -43,7 +43,7 @@ async function getCareers() {
     select: { name: true, careersHtml: true, contactEmail: true },
   })
   return {
-    academyName: academy?.name ?? "IES Digital Academy",
+    academyName: academy?.name ?? "Learnify",
     html: academy?.careersHtml || DEFAULT_CAREERS,
     email: academy?.contactEmail || "support@iesdigitalacademy.com",
   }

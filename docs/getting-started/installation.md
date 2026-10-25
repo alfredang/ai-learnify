@@ -12,15 +12,15 @@ Before you begin, ensure you have the following installed:
 
 You'll also need accounts for:
 
-- **PostgreSQL Database** - [Neon](https://neon.tech) (recommended) or local PostgreSQL
+- **PostgreSQL Database** - local PostgreSQL 15+ (production runs PostgreSQL 17 on Coolify)
 - **Stripe** - For payment processing
 - **Cloudinary** - For media storage
 
 ## Step 1: Clone the Repository
 
 ```bash
-git clone https://github.com/alfredang/Learnify.git
-cd Learnify
+git clone https://github.com/alfredang/ai-learnify.git
+cd ai-learnify
 ```
 
 ## Step 2: Install Dependencies

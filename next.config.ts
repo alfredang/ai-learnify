@@ -35,8 +35,8 @@ const securityHeaders = [
     ].join(", "),
   },
 
-  // 1 year HSTS with preload — Vercel / Netlify already terminate TLS so
-  // the header is safe to ship. If you run behind a plain-HTTP local
+  // 1 year HSTS with preload — Traefik (Coolify) terminates TLS so the
+  // header is safe to ship. If you run behind a plain-HTTP local
   // proxy for dev, strip this in NODE_ENV=development (Next.js does not
   // serve headers from this config in dev unless you configure it to).
   {
@@ -46,6 +46,9 @@ const securityHeaders = [
 ]
 
 const nextConfig: NextConfig = {
+  // Standalone output — the Dockerfile copies `.next/standalone` into a
+  // slim runtime image and starts `node server.js`.
+  output: "standalone",
   images: {
     // Single source of truth — see src/lib/image-hosts.ts. Adding a host
     // there automatically extends both Next's image optimisation AND the
@@ -55,11 +58,11 @@ const nextConfig: NextConfig = {
       hostname: h.hostname,
     })),
   },
-  // Bump the middleware body limit so /api/upload/local can accept video
-  // files up to 100MB (matches the route's own size cap). Default is 10MB
-  // which truncates any reasonable video upload.
+  // Bump the middleware body limit so /api/upload/local and the SCORM
+  // Studio can accept video files up to 500MB (matches the routes' own
+  // size caps). Default is 10MB which truncates any reasonable video.
   experimental: {
-    proxyClientMaxBodySize: "100mb",
+    proxyClientMaxBodySize: "500mb",
   },
   async headers() {
     return [

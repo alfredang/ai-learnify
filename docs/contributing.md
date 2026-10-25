@@ -15,7 +15,7 @@ Click the "Fork" button on GitHub to create your own copy.
 ### 2. Clone Your Fork
 
 ```bash
-git clone https://github.com/YOUR-USERNAME/Learnify.git
+git clone https://github.com/YOUR-USERNAME/ai-learnify.git
 cd Learnify
 ```
 

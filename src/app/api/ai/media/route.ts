@@ -11,21 +11,20 @@ export const runtime = "nodejs"
 export const maxDuration = 60
 
 /**
- * Phase 7 / Spec §8.2 — licence-free media curation, Claude Agent SDK
- * edition.
+ * Phase 7 / Spec §8.2 — licence-free media curation.
  *
  * Pipeline:
  *   1. Gather candidates from licence-aware sources (Openverse +
- *      Wikimedia) using server-side fetch — works on any Claude
- *      credential because we don't rely on a WebSearch entitlement.
- *   2. Hand the candidate set to the Agent SDK with the MEDIA_CURATION
+ *      Wikimedia) using server-side fetch — works on any
+ *      provider because we don't rely on a model-side web search tool.
+ *   2. Hand the candidate set to the model with the MEDIA_CURATION
  *      prompt; the model ranks, deduplicates, drops anything without a
  *      clear licence, and shapes the output to match the Resource model.
  *   3. Audit log the search (no PII; counts only).
  *
  * Auth: same gate as /api/ai/assist — Course Developer / Academy Admin /
  * Platform Owner on the academy, with `aiEnabled` true. Returns 409 if
- * the academy hasn't enabled AI or has no Claude credential configured.
+ * the academy hasn't enabled AI or has no AI credential configured.
  */
 
 const schema = z.object({
@@ -111,7 +110,7 @@ export async function POST(request: Request) {
   }
 
   // 1) Source-side gather. Fail-soft: if both sources return zero, we
-  //    skip the Agent SDK entirely and tell the caller.
+  //    skip the model entirely and tell the caller.
   const candidates = await gatherMediaCandidates({
     query: input.query,
     kind: input.kind,
@@ -142,7 +141,7 @@ export async function POST(request: Request) {
     })
   }
 
-  // 2) Curate via Agent SDK. The user prompt is a JSON envelope —
+  // 2) Curate via the model. The user prompt is a JSON envelope —
   //    cheap to cache for repeat queries thanks to the system prompt
   //    prefix being identical per capability.
   const userPrompt = `Query: ${input.query}\nKind: ${input.kind}\nLicence filter: ${input.license}\n\nCandidates (JSON):\n${JSON.stringify(

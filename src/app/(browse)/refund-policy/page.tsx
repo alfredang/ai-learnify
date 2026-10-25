@@ -12,7 +12,7 @@ const DEFAULT_POLICY = `
 <h2>Refund & Cancellation Policy</h2>
 
 <h3>1. Non-Refundable by Default</h3>
-<p>All purchases on IES Digital Academy — including E-Courses and Programmes — are <strong>non-refundable</strong> once payment is completed and access has been granted. By completing a purchase, you acknowledge and agree to this policy.</p>
+<p>All purchases on Learnify — including E-Courses and Programmes — are <strong>non-refundable</strong> once payment is completed and access has been granted. By completing a purchase, you acknowledge and agree to this policy.</p>
 
 <h3>2. Why We Are Non-Refundable</h3>
 <p>Our digital learning products grant immediate access to course content upon purchase. Because the content is consumed digitally and cannot be "returned," we are unable to offer routine refunds.</p>
@@ -49,7 +49,7 @@ async function getRefundPolicy() {
     select: { name: true, refundPolicyHtml: true },
   })
   return {
-    academyName: academy?.name ?? "IES Digital Academy",
+    academyName: academy?.name ?? "Learnify",
     html: academy?.refundPolicyHtml || DEFAULT_POLICY,
   }
 }

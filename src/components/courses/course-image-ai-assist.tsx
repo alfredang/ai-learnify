@@ -142,7 +142,7 @@ export function CourseImageAiAssist({
           </DialogTitle>
           <DialogDescription>
             Search licence-free imagery from Openverse and Wikimedia Commons,
-            ranked for relevance by Claude. Every result lists its licence
+            ranked for relevance by the AI model. Every result lists its licence
             and creator so you can attribute it correctly.
           </DialogDescription>
         </DialogHeader>

@@ -1,10 +1,10 @@
 site_name: Learnify Documentation
 site_description: Documentation for Learnify - Modern Online Learning Platform
 site_author: Alfred Ang
-site_url: https://alfredang.github.io/Learnify/
+site_url: https://alfredang.github.io/ai-learnify/
 
-repo_name: alfredang/Learnify
-repo_url: https://github.com/alfredang/Learnify
+repo_name: alfredang/ai-learnify
+repo_url: https://github.com/alfredang/ai-learnify
 
 theme:
   name: material
@@ -82,7 +82,7 @@ nav:
     - Database Schema: architecture/database.md
     - API Reference: architecture/api.md
   - Deployment:
-    - Vercel: deployment/vercel.md
+    - Coolify (Hostinger VPS): deployment/coolify.md
     - Docker: deployment/docker.md
     - Railway: deployment/railway.md
   - Contributing: contributing.md

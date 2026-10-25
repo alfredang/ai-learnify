@@ -12,7 +12,7 @@ export async function GET() {
 
   return NextResponse.json({
     data: {
-      academyName: academy?.name ?? "IES Digital Academy",
+      academyName: academy?.name ?? "Learnify",
       refundPolicyHtml: academy?.refundPolicyHtml ?? null,
     },
   })

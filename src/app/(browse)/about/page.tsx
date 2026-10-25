@@ -17,14 +17,14 @@ import {
 export const metadata: Metadata = {
   title: "About Us",
   description:
-    "Learn about IES Digital Academy — our mission, values, and the people behind the platform",
+    "Learn about Learnify — our mission, values, and the people behind the platform",
 }
 
 type TeamMember = { name: string; role: string; imageUrl: string }
 
 const DEFAULT_ABOUT_HTML = `
 <h2>Our story</h2>
-<p>IES Digital Academy was founded to make professional, certificate-bearing education accessible to learners anywhere in the world. We started with a simple belief: <strong>learning should fit your life</strong>, not the other way around.</p>
+<p>Learnify was founded to make professional, certificate-bearing education accessible to learners anywhere in the world. We started with a simple belief: <strong>learning should fit your life</strong>, not the other way around.</p>
 <p>The platform you see today is a self-paced, asynchronous LMS designed for international scale. Every feature — from 90-day access windows to QR-verified certificates and four-way revenue sharing — exists to serve a specific learner or partner outcome documented in our product specification.</p>
 <p>We work with Course Developers, Marketers, and Academy Admins from multiple jurisdictions, with full multi-currency, multi-language, and tax-compliant invoicing built in.</p>
 `
@@ -106,7 +106,7 @@ async function getAbout() {
       ? (academy?.aboutTeamJson as TeamMember[])
       : DEFAULT_TEAM
   return {
-    academyName: academy?.name ?? "IES Digital Academy",
+    academyName: academy?.name ?? "Learnify",
     html: academy?.aboutHtml || DEFAULT_ABOUT_HTML,
     heroImage: academy?.aboutHeroImageUrl || DEFAULT_HERO_IMAGE,
     storyImage: academy?.aboutStoryImageUrl || DEFAULT_STORY_IMAGE,

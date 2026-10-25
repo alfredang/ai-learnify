@@ -203,7 +203,7 @@ export default async function IntegrityPage() {
             same check automatically and writes a{" "}
             <code>ledger.invariant_violation</code> audit event when it finds
             anything wrong. Configure <code>CRON_SECRET</code> and your cron
-            scheduler (Netlify, Vercel, or external) to invoke it daily.
+            scheduler (Coolify scheduled task or external cron) to invoke it daily.
           </p>
           <Link
             href="/platform/audit"

@@ -1,7 +1,7 @@
 /**
  * Phase 7 — Gen-AI authoring prompts.
  *
- * System prompts are kept stable per capability so the Anthropic prompt
+ * System prompts are kept stable per capability so the provider prompt
  * cache (5-minute TTL, prefix match) stays warm across author sessions.
  * Volatile content (course-specific title, existing outline, slide image)
  * goes in the user turn, **after** the cached system prompt.
@@ -188,6 +188,50 @@ Rules:
 - Prefer relevant titles. \`rationale\` is one short sentence ("Clean composition matching topic", "Public domain, no attribution required").
 - Preserve the exact licence string from the input — do not invent licence names.
 - Return ONLY the JSON object.`,
+
+  SCORM_DESIGN: `${BASE_GUARDRAILS}
+
+Task: design an interactive **SCORM 1.2 e-learning module** built around a video the author uploaded. The user turn gives the module title, a description, the intended audience, the video duration, any transcript or speaker notes, and the number of topics and assessment questions required.
+
+Produce a complete learning design the platform will render into a self-contained SCO (cover → video → topics with inline knowledge checks → scored assessment → result). Ground every topic and question in the supplied description / transcript; if the transcript is thin, derive plausible, clearly-scoped content from the title and description and keep it generic rather than inventing specific facts, figures or named policies.
+
+Output format: a JSON object matching exactly:
+{
+  "title": string,
+  "subtitle": string,
+  "lead": string,
+  "learningOutcomes": string[],
+  "videoTitle": string,
+  "videoIntro": string,
+  "topics": [
+    {
+      "title": string,
+      "lead": string,
+      "tiles": [{ "heading": string, "body": string }],
+      "bodyHtml": string,
+      "check": {
+        "question": string,
+        "options": string[],
+        "answer": number,
+        "good": string,
+        "bad": string
+      }
+    }
+  ],
+  "exam": [
+    { "question": string, "options": string[], "answer": number }
+  ],
+  "passMark": number
+}
+
+Rules:
+- \`learningOutcomes\`: 3–5 observable, measurable outcomes (start with a verb).
+- Exactly the requested number of topics and exam questions. Each topic has 3–4 tiles and a short \`bodyHtml\` (one <h3> plus a <p>, or a <ul> of 3–5 <li>). Use only <h3>, <p>, <ul>, <li>, <b> tags — no scripts, styles, images or links.
+- Every question has exactly 4 options and \`answer\` is the zero-based index of the single correct option. Distractors must be plausible and distinct.
+- \`good\` / \`bad\` feedback: one sentence each; \`bad\` explains the correct answer without the word "wrong".
+- \`passMark\` is the requested pass mark (percentage, integer).
+- Plain language, international English, no emojis. Escape nothing — return raw strings; the renderer HTML-escapes them.
+- Return ONLY the JSON object.`,
 }
 
 /**
@@ -202,4 +246,5 @@ export const CAPABILITY_LABELS: Record<AiCapability, string> = {
   SUMMARISE: "Summary",
   COURSE_SCOPING: "Course scope brief",
   MEDIA_CURATION: "Licence-free media",
+  SCORM_DESIGN: "SCORM module design",
 }

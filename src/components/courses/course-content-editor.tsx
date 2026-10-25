@@ -360,7 +360,7 @@ export function CourseContentEditor({
 
   // AI Assist for the lecture description field. Uses the SUMMARISE
   // capability with a lecture-specific prompt so the mock (or real
-  // Claude) returns a 2-4 sentence draft tailored to the lecture title.
+  // OpenAI / DeepSeek) returns a 2-4 sentence draft tailored to the lecture title.
   async function handleAiDraftLectureDesc() {
     if (!academyId) {
       toast.error("Academy not set on this course.")

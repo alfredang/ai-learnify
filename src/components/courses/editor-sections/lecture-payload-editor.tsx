@@ -1,7 +1,8 @@
 "use client"
 
 import { useMemo, useState } from "react"
-import { Plus, Trash2, FileUp, Eye } from "lucide-react"
+import { Plus, Trash2, FileUp, Eye, Sparkles } from "lucide-react"
+import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -54,7 +55,14 @@ export function LecturePayloadEditor({
     case "PDF":
       return <PdfPayloadEditor value={value} onChange={onChange} disabled={disabled} />
     case "SCORM":
-      return <ScormPayloadEditor value={value} onChange={onChange} disabled={disabled} />
+      return (
+        <ScormPayloadEditor
+          value={value}
+          onChange={onChange}
+          disabled={disabled}
+          courseId={courseId}
+        />
+      )
     case "XAPI":
       return <XapiPayloadEditor value={value} onChange={onChange} disabled={disabled} />
     case "VOICE_OVER_SLIDES":
@@ -140,10 +148,12 @@ function ScormPayloadEditor({
   value,
   onChange,
   disabled,
+  courseId,
 }: {
   value: LecturePayload
   onChange: (v: LecturePayload) => void
   disabled?: boolean
+  courseId?: string
 }) {
   const packageUrl = (value?.packageUrl as string | undefined) ?? ""
   const entryPoint = (value?.entryPoint as string | undefined) ?? ""
@@ -156,6 +166,16 @@ function ScormPayloadEditor({
         title="SCORM package"
         description="Host an unpacked SCORM 1.2 / 2004 package. The package URL is the folder root that contains imsmanifest.xml."
       />
+      <div className="rounded-md border border-dashed p-3 flex items-center justify-between gap-3 flex-wrap">
+        <p className="text-xs text-muted-foreground">
+          Have a video but no SCORM package yet? SCORM Studio builds a validated SCORM 1.2 module around it with AI.
+        </p>
+        <Button asChild size="sm" variant="outline">
+          <Link href={courseId ? `/instructor/scorm-studio?courseId=${courseId}` : "/instructor/scorm-studio"}>
+            <Sparkles className="h-4 w-4 mr-1" /> Open SCORM Studio
+          </Link>
+        </Button>
+      </div>
       <div className="space-y-2">
         <Label htmlFor="scorm-version">SCORM version</Label>
         <Select

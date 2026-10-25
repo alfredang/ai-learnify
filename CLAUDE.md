@@ -13,7 +13,7 @@ IESA LMS is an **international, scalable, self-learning LMS** built as a multi-t
 3. Automate **certification** with strict, configurable rules
 4. Enforce **transparent revenue sharing** (4-way split: Academy, Developer, Marketer, Platform Support)
 5. **Retain learner records permanently** (soft-delete only, no data destruction)
-6. Support **Gen-AI-assisted content authoring** (Anthropic Claude)
+6. Support **Gen-AI-assisted content authoring**
 
 ### Learning Model (LOCKED — do not change)
 
@@ -42,7 +42,7 @@ IESA LMS is an **international, scalable, self-learning LMS** built as a multi-t
 | Framework | Next.js (App Router, Turbopack) | 16 |
 | Language | TypeScript (strict mode) | 5.x |
 | React | React + React DOM | 19 |
-| Database | PostgreSQL (Neon recommended) | 15+ |
+| Database | PostgreSQL (Coolify-managed container in production; 15+ for local dev) | 17 |
 | ORM | Prisma | 5.22.0 |
 | Auth | NextAuth.js v5 (JWT strategy) | 5.0.0-beta.30 |
 | UI | Tailwind CSS 4 + shadcn/ui (Radix) | - |
@@ -50,15 +50,15 @@ IESA LMS is an **international, scalable, self-learning LMS** built as a multi-t
 | Data Fetching | TanStack React Query | 5.x |
 | Client State | Zustand | 5.x |
 | Payments | Stripe (Checkout + Connect + Webhooks) | 2026-01-28 API |
-| Media | Cloudinary (signed uploads) | 2.9.0 |
+| Media | Cloudinary (signed uploads) or local disk via `src/lib/storage.ts` | 2.9.0 |
 | Rich Text | TipTap | 3.x |
 | Drag-and-Drop | dnd-kit | 6.3/10.0 |
 | Charts | Recharts | 3.x |
-| AI | Anthropic SDK (Claude) | 0.88.0 |
+| AI | OpenAI `gpt-6.1-sol` primary + DeepSeek V4.1 Flash fallback — plain `fetch` adapters in `src/lib/ai/providers.ts` (no vendor SDK) | - |
 | Email | Resend | - |
 | Icons | Lucide React | 0.563.0 |
 | Toasts | Sonner | 2.x |
-| Deploy | Netlify (plugin-nextjs) | - |
+| Deploy | Docker (Next.js standalone, Node 22) on Hostinger VPS via Coolify; Traefik + Let's Encrypt | - |
 
 ---
 
@@ -85,15 +85,16 @@ src/
     (auth)/              # Login, register, forgot-password
     (browse)/            # Public catalogue, course detail, search
     (learner)/           # Learner dashboard (spec-aligned)
-    (instructor)/        # Course Developer editor & dashboard
+    (instructor)/        # Course Developer editor, dashboard, SCORM Studio (/instructor/scorm-studio)
     (academy)/           # Academy Admin tenant dashboard
     (marketer)/          # Marketer dashboard
     (platform)/          # Platform Owner + Support dashboards
     (student)/           # Legacy learner pages
     (admin)/             # Legacy admin routes
-    api/                 # 50+ REST route.ts files
+    api/                 # 50+ REST route.ts files (incl. /api/scorm/jobs, /api/academy/credentials/ai)
     actions/             # Server Actions
     checkout/            # Stripe checkout pages
+    uploads/[...path]/   # Serves STORAGE_DIR files with HTTP Range support
     verify/              # Public certificate verification
   components/
     admin/               # Admin-only components
@@ -105,7 +106,11 @@ src/
     ui/                  # 22 shadcn/ui components
   hooks/                 # Custom React hooks
   lib/                   # Domain logic (33 modules)
-    ai/                  # Anthropic Claude integration
+    ai/                  # AI Assist orchestration (OpenAI → DeepSeek)
+      providers.ts       # Plain fetch adapters: OpenAI Responses API + DeepSeek
+      harness/           # Traced agent runner (runner.ts) + scorm-video-agent.ts
+    scorm/               # SCORM 1.2 manifest, SCO template, validator, ZIP, mp4 probe
+    storage.ts           # Local file storage (STORAGE_DIR) when Cloudinary is absent
     validations/         # Zod schemas (auth, course, user)
   providers/             # Context providers (auth, react-query)
   i18n/                  # Internationalization (en, zh, ms)
@@ -117,6 +122,8 @@ prisma/
   migrations/            # Prisma migrations
 docs/                    # 20 markdown files (MkDocs)
 scripts/                 # 20 migration/verification utilities
+Dockerfile               # Node 22 standalone image (Coolify Dockerfile build pack)
+docker-entrypoint.sh     # Runs `prisma migrate deploy`, then starts server.js
 ```
 
 ---
@@ -172,7 +179,11 @@ scripts/                 # 20 migration/verification utilities
 | Payouts | `src/lib/payouts.ts` | Payout batch generation |
 | Checkout | `src/lib/checkout-finalize.ts` | Post-purchase ledger settlement |
 | Tax | `src/lib/tax.ts` | Jurisdiction-aware tax calculation |
-| AI Assist | `src/lib/ai/assist.ts` | Anthropic Claude integration |
+| AI Assist | `src/lib/ai/assist.ts` | AI Assist orchestration: OpenAI primary → DeepSeek fallback, per-academy credentials, `AiInteraction` logging |
+| AI Providers | `src/lib/ai/providers.ts` | Plain `fetch` adapters for OpenAI (`gpt-6.1-sol`, API key or ChatGPT OAuth) and DeepSeek (`deepseek-flash`) |
+| Agent Harness | `src/lib/ai/harness/` | Traced step runner (`runner.ts`) + SCORM video agent (`scorm-video-agent.ts`) |
+| SCORM | `src/lib/scorm/` | SCORM 1.2 manifest writer, SCO template, conformance validator, ZIP packer, MP4 probe |
+| Storage | `src/lib/storage.ts` | Local file storage under `STORAGE_DIR`, served by `/uploads/[...path]` |
 | Audit | `src/lib/audit.ts` | Append-only audit logging |
 | Feature Flags | `src/lib/feature-flags.ts` | Per-academy feature gating |
 | Rate Limit | `src/lib/rate-limit.ts` | In-memory rate limiter |
@@ -212,13 +223,17 @@ scripts/                 # 20 migration/verification utilities
 **Required:**
 - `DATABASE_URL` — PostgreSQL connection string
 - `AUTH_SECRET` — 32+ char secret (`openssl rand -base64 32`)
-- `NEXT_PUBLIC_APP_URL` — Full app URL
+- `NEXT_PUBLIC_APP_URL` — Full app URL (also a Docker build arg)
+- `AUTH_URL` + `AUTH_TRUST_HOST=true` — required behind the Traefik reverse proxy in production
 
 **Optional (graceful degradation):**
 - `STRIPE_*` — Payment processing
 - `CLOUDINARY_*` — Media uploads
 - `AUTH_GOOGLE_*`, `AUTH_GITHUB_*` — Staff OAuth
-- `ANTHROPIC_API_KEY` — AI assist (Phase 7)
+- `OPENAI_API_KEY` — AI assist primary (or ChatGPT OAuth: `OPENAI_OAUTH_ACCESS_TOKEN` + optional `OPENAI_OAUTH_REFRESH_TOKEN`, `OPENAI_ACCOUNT_ID`); `OPENAI_MODEL` overrides `gpt-6.1-sol`
+- `DEEPSEEK_API_KEY` — automatic fallback provider (`DEEPSEEK_BASE_URL` default `https://api.deepseek.com`, `DEEPSEEK_MODEL` default `deepseek-flash`)
+- `CREDENTIAL_ENCRYPTION_KEY` — AES-256-GCM key for per-academy AI credentials (Academy Settings → Integrations → AI Provider)
+- `STORAGE_DIR` — local upload/SCORM storage root (default `./storage`; `/app/storage` persistent volume in Docker)
 - `RESEND_API_KEY`, `EMAIL_FROM` — Transactional email
 - `CRON_SECRET` — Cron job auth
 
@@ -252,7 +267,7 @@ The project follows a 10-phase roadmap (see `docs/lms-implementation-plan.md`). 
 | 4 — Payments & Ledger | Done | Stripe checkout → webhook → finalize, immutable `LedgerEntry`, promo codes, invoices (post-payment only), refund reversal, payout batches, nightly invariant cron |
 | 5 — Certification & Survey | Done | Auto-issued certs gated on ≥50%/≥80%/survey/before-expiry, configurable per academy via `CertificateRule`, public `/verify/[id]` with QR |
 | 6 — Advanced Authoring | Done | All 8 lecture types (VIDEO/TEXT/QUIZ/PDF/SCORM/XAPI/VOICE_OVER_SLIDES/DOWNLOADABLE + HTML), drag-and-drop course & programme builders, `CourseVersion` snapshots |
-| 7 — Gen-AI | Done | Anthropic Claude assist (drafts only, `approved=false` until author signs off), licence-free media curation (Openverse + Wikimedia), per-tenant `aiEnabled` toggle, `AiInteraction` audit log |
+| 7 — Gen-AI | Done | AI Assist via OpenAI `gpt-6.1-sol` with automatic DeepSeek V4.1 Flash fallback (drafts only, `approved=false` until author signs off), licence-free media curation (Openverse + Wikimedia), per-tenant `aiEnabled` toggle + encrypted per-academy credentials, `AiInteraction` audit log, SCORM Studio agent harness |
 | 8 — Role Dashboards | Done | All 6 role dashboards functional: Learner, Course Developer, Academy Admin, Marketer, Platform Owner, Platform Support |
 | 9 — i18n / Tax / Compliance | Partial | Tax (`TaxRate`, jurisdiction-aware invoices) + multi-currency (SGD default) done; i18n is client-side bundles only — no server-side locale routing yet |
 | 10 — Hardening | Partial | Security headers, rate limiting, audit, GDPR data export done; locked-rules guard for Platform Owner missing; load testing pending |
@@ -290,7 +305,16 @@ The project follows a 10-phase roadmap (see `docs/lms-implementation-plan.md`). 
 - Mandatory completion-based survey (does not affect score; required for cert)
 - `CourseVersion` snapshots on every publish
 
-### Gen-AI Authoring (Anthropic Claude)
+#### SCORM Studio (`/instructor/scorm-studio`)
+- Course Developer uploads a lecture video (MP4/H.264 recommended, up to 500MB) plus a brief/transcript
+- Agent harness (`src/lib/ai/harness/runner.ts` + `scorm-video-agent.ts`) runs traced steps: probe video → AI learning design (OpenAI → DeepSeek, self-repair, template fallback) → review → render SCO (`index.html` + `scripts/scorm_api.js`) → write `imsmanifest.xml` → SCORM 1.2 conformance validation (manifest schema/version/namespaces, resource & file integrity, run-time API usage, browser-safe video, size) → publish
+- Output: unpacked package + ZIP under `/uploads/scorm/<jobId>/`; optional one-click attach as a SCORM lecture
+- Jobs stored in `ScormBuildJob`; API: `POST /api/scorm/jobs` (multipart), `GET /api/scorm/jobs`, `GET /api/scorm/jobs/[id]`, `POST /api/scorm/jobs/[id]/attach`
+- Modelled on https://github.com/alfredang/workplacesafety-scorm
+
+### Gen-AI Authoring (OpenAI + DeepSeek)
+- Providers: OpenAI `gpt-6.1-sol` primary, DeepSeek V4.1 Flash (`deepseek-flash`) automatic fallback — plain `fetch` adapters in `src/lib/ai/providers.ts`, no vendor SDK
+- Credentials: global env (`OPENAI_API_KEY` or ChatGPT OAuth vars, `DEEPSEEK_API_KEY`) or per-academy via Academy Settings → Integrations → AI Provider (`/api/academy/credentials/ai`), stored encrypted with `CREDENTIAL_ENCRYPTION_KEY`; accepts an OpenAI API key, a ChatGPT OAuth access token, or the `tokens` JSON block from `~/.codex/auth.json`
 - AI assists drafts only: outlines, learning objectives, voice-over text, quizzes, metadata, summaries
 - All AI calls write `AiInteraction` rows with `approved=false` until author explicit approval
 - Licence-free media curation (Openverse + Wikimedia); `Resource.license/licenseUrl/attribution/sourceProvider` stored

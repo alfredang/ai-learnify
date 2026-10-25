@@ -46,7 +46,7 @@ async function getContact() {
     },
   })
   return {
-    academyName: academy?.name ?? "IES Digital Academy",
+    academyName: academy?.name ?? "Learnify",
     html: academy?.contactHtml || DEFAULT_CONTACT,
     email: academy?.contactEmail || DEFAULT_EMAIL,
     phone: academy?.contactPhone || DEFAULT_PHONE,

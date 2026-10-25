@@ -6,12 +6,12 @@ import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { runAiAssist } from "@/lib/ai/assist"
 
-// The Agent SDK spawns the bundled Claude Code binary as a subprocess —
-// must run on the Node.js runtime, never the Edge runtime.
+// Provider calls use Node fetch with a 120s timeout — keep this on the
+// Node.js runtime, never the Edge runtime.
 export const runtime = "nodejs"
-// Authoring drafts can take longer than the default 10s when prompt
-// caches miss. 60s gives generous headroom on Netlify Functions.
-export const maxDuration = 60
+// Authoring drafts can take longer than the default when the primary
+// provider fails over to DeepSeek. 120s gives generous headroom.
+export const maxDuration = 120
 
 /**
  * Phase 7 — Spec §8.1 AI Assist endpoint.

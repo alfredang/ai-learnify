@@ -36,8 +36,8 @@ npm --version
 
 Pick one:
 
-- **Neon (recommended)** — sign up at https://neon.tech, create a project, copy the connection string (append `?sslmode=require`).
-- **Local Postgres** — install Postgres 15+, create DB `learnify`, use `postgresql://postgres:password@localhost:5432/learnify`.
+- **Local Postgres (recommended for dev)** — install Postgres 15+ (production runs 17), create DB `learnify`, use `postgresql://postgres:password@localhost:5432/learnify`.
+- **Docker** — `docker run -d --name learnify-pg -e POSTGRES_PASSWORD=password -e POSTGRES_DB=learnify -p 5432:5432 postgres:17`.
 
 ## 3. Create `.env`
 
@@ -52,7 +52,7 @@ Fill in at minimum:
 - `AUTH_URL="http://localhost:3000"`
 - `NEXT_PUBLIC_APP_URL="http://localhost:3000"`
 
-Everything else can stay blank for Phase 0 — Stripe / Cloudinary / Anthropic / Resend are not exercised until later phases.
+Everything else can stay blank for Phase 0 — Stripe / Cloudinary / OpenAI / DeepSeek / Resend are not exercised until later phases.
 
 ## 4. Install dependencies and push schema
 

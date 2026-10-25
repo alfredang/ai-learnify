@@ -8,6 +8,7 @@ import {
   BarChart3,
   Wrench,
   HelpCircle,
+  Sparkles,
 } from "lucide-react"
 import {
   Tooltip,
@@ -19,6 +20,7 @@ import { cn } from "@/lib/utils"
 
 const sidebarItems = [
   { href: "/instructor", icon: MonitorPlay, label: "Courses" },
+  { href: "/instructor/scorm-studio", icon: Sparkles, label: "SCORM Studio" },
   { href: "/instructor/performance", icon: BarChart3, label: "Performance" },
   { href: "/instructor/tools", icon: Wrench, label: "Tools" },
   { href: "/instructor/resources", icon: HelpCircle, label: "Resources" },

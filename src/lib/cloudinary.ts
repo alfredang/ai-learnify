@@ -7,23 +7,21 @@
  * via signed URLs, then references the resulting public IDs from the
  * database (Course.thumbnail, Lecture.videoUrl, Lecture.videoPublicId).
  *
- * When NOT configured, the upload components fall through to:
- *   1. Vercel Blob (if BLOB_READ_WRITE_TOKEN is set) — production-ready
- *      but no auto-generated video thumbnails or transformations.
- *   2. Local disk under /public/uploads — dev only; Vercel's serverless
- *      filesystem is read-only outside /tmp.
+ * When NOT configured, the upload components fall through to the
+ * disk-backed store under STORAGE_DIR (persistent Docker volume in
+ * production, served by /uploads/[...path]).
  *
  * Setup: see .env.example for the full step-by-step. tl;dr — sign up at
  * cloudinary.com, copy the four dashboard credentials, create one
  * upload preset, paste the five values into env vars.
  *
- * Why Cloudinary over Vercel Blob:
+ * Why Cloudinary over the local store:
  *   + Auto-thumbnails for video lectures (frame extraction at upload
  *     time) — Blob has no equivalent.
  *   + On-the-fly image resizing/optimisation via URL transformations
  *     — useful for course thumbnails that render at multiple sizes.
  *   + Adaptive video streaming for low-bandwidth viewers.
- *   - Requires an external account vs Blob's one-click Vercel setup.
+ *   - Requires an external account.
  */
 
 import { v2 as cloudinary } from "cloudinary"
@@ -39,8 +37,8 @@ export { cloudinary }
 /**
  * Thrown when an upload-side helper is called before the env vars are
  * set. Caught by `/api/upload/signature` and turned into a clean 503,
- * which the upload components then use as the signal to try Vercel Blob
- * or local disk instead.
+ * which the upload components then use as the signal to use the local
+ * store instead.
  */
 export class CloudinaryNotConfiguredError extends Error {
   code = "CLOUDINARY_NOT_CONFIGURED" as const

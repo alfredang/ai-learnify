@@ -1,13 +1,13 @@
 import { NextResponse } from "next/server"
-import { randomBytes } from "crypto"
-import { mkdir, writeFile } from "fs/promises"
-import path from "path"
-import { put } from "@vercel/blob"
 import { auth } from "@/lib/auth"
+import { randomId, saveFile } from "@/lib/storage"
 
-// Demo upload route used when Cloudinary isn't configured. Writes to:
-//   - Vercel Blob if BLOB_READ_WRITE_TOKEN is set (production-friendly)
-//   - /public/uploads on disk otherwise (dev / non-Vercel)
+export const runtime = "nodejs"
+
+// Upload route used when Cloudinary isn't configured. Writes to the
+// disk-backed store under STORAGE_DIR (a persistent Docker volume in
+// production) and returns a same-origin `/uploads/...` URL served by
+// the `/uploads/[...path]` route with Range support.
 const ALLOWED_IMAGE_TYPES = new Set([
   "image/jpeg",
   "image/jpg",
@@ -21,7 +21,7 @@ const ALLOWED_VIDEO_TYPES = new Set([
   "video/quicktime",
 ])
 const MAX_IMAGE_BYTES = 8 * 1024 * 1024 // 8MB
-const MAX_VIDEO_BYTES = 100 * 1024 * 1024 // 100MB
+const MAX_VIDEO_BYTES = 500 * 1024 * 1024 // 500MB (matches proxyClientMaxBodySize)
 
 export async function POST(request: Request) {
   const session = await auth()
@@ -35,10 +35,10 @@ export async function POST(request: Request) {
   const legacyAllowed =
     session.user.role === "INSTRUCTOR" || session.user.role === "ADMIN"
   const isPlatformOwner = session.user.platformRole === "PLATFORM_OWNER"
-  const isAcademyAdmin = (session.user.memberships ?? []).some(
-    (m) => m.role === "ACADEMY_ADMIN"
+  const isStaff = (session.user.memberships ?? []).some(
+    (m) => m.role === "ACADEMY_ADMIN" || m.role === "COURSE_DEVELOPER"
   )
-  if (!legacyAllowed && !isPlatformOwner && !isAcademyAdmin) {
+  if (!legacyAllowed && !isPlatformOwner && !isStaff) {
     return NextResponse.json(
       { error: "You do not have permission to upload files", code: "ROLE_FORBIDDEN" },
       { status: 403 }
@@ -82,53 +82,15 @@ export async function POST(request: Request) {
     : isImage
       ? "jpg"
       : "mp4"
-  const publicId = randomBytes(8).toString("hex")
+  const publicId = randomId()
   const fileName = `${publicId}.${ext}`
 
-  // Vercel Blob path — used whenever the token is set (production on
-  // Vercel, or any env that enabled Blob via vercel link). Survives
-  // redeploys, no filesystem writes needed.
-  if (process.env.BLOB_READ_WRITE_TOKEN) {
-    const blob = await put(`uploads/${kind}/${fileName}`, file, {
-      access: "public",
-      addRandomSuffix: false,
-    })
-    return NextResponse.json({
-      secure_url: blob.url,
-      url: blob.url,
-      public_id: publicId,
-    })
-  }
-
-  // Local disk path — dev only. A deployed Vercel function without Blob
-  // configured falls through to here and the writeFile fails with EROFS,
-  // which we surface with a clear message instead of a stack trace.
-  // VERCEL_ENV is "production"/"preview" on deployed builds and
-  // "development" under `vercel dev`, so the dev path still gets to write
-  // to /public/uploads on disk.
-  if (
-    process.env.VERCEL_ENV === "production" ||
-    process.env.VERCEL_ENV === "preview"
-  ) {
-    return NextResponse.json(
-      {
-        error:
-          "Uploads aren't configured on this Vercel deployment. Connect Vercel Blob in the dashboard (Storage → Create → Blob) or set CLOUDINARY_* env vars.",
-        code: "BLOB_NOT_CONFIGURED",
-      },
-      { status: 503 }
-    )
-  }
-
-  const dir = path.join(process.cwd(), "public", "uploads", kind)
-  await mkdir(dir, { recursive: true })
   const buffer = Buffer.from(await file.arrayBuffer())
-  await writeFile(path.join(dir, fileName), buffer)
+  const saved = await saveFile(kind, fileName, buffer)
 
-  const url = `/uploads/${kind}/${fileName}`
   return NextResponse.json({
-    secure_url: url,
-    url,
+    secure_url: saved.url,
+    url: saved.url,
     public_id: publicId,
   })
 }

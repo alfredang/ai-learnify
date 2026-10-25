@@ -55,7 +55,7 @@ The plan assumes the existing Learnify codebase is the starting point and extend
 3. **Access windows**: Replace lifetime enrolment with `AccessGrant` records that carry `startsAt` / `expiresAt`. Programme purchase creates one shared grant covering every included course.
 4. **Ledger as source of truth**: All money moves through append-only `LedgerEntry` rows. Reports/payouts are derived views; refunds are reversal entries, never updates.
 5. **Content variants**: Add a polymorphic `ContentItem` layer under `Lecture` so VIDEO / PDF / SCORM / xAPI / VOICE_OVER_SLIDES / DOWNLOADABLE share enrolment/progress plumbing but render differently.
-6. **AI provider**: Use Anthropic Claude via the existing Claude API patterns (see `claude-api` skill). Wrap calls in a feature-flagged `AiAssistService` with per-tenant on/off and audit logging.
+6. **AI provider**: OpenAI `gpt-6.1-sol` as primary with DeepSeek V4.1 Flash as automatic fallback, through plain `fetch` adapters in `src/lib/ai/providers.ts` (no vendor SDK). Wrap calls in a feature-flagged `AiAssistService` with per-tenant on/off, encrypted per-academy credentials and audit logging.
 7. **File storage**: Cloudinary for video/image stays. Add S3-compatible storage (or Cloudinary raw) for SCORM `.zip` packages and PPT/PDF uploads; extract client-side for voice-over-slides.
 
 ---
@@ -138,7 +138,7 @@ Each phase is independently shippable and built on top of the previous. Testing 
 
 ### Phase 0 — Foundation & Environment (Week 0–1)
 
-- Install Node.js LTS, seed local Postgres (or Neon), set `.env` per [docs/getting-started/configuration.md](./getting-started/configuration.md).
+- Install Node.js LTS, seed local Postgres (PostgreSQL 17 in production via Coolify), set `.env` per [docs/getting-started/configuration.md](./getting-started/configuration.md).
 - Add CI workflow in `.github/workflows/` for typecheck + lint + Prisma validate.
 - Introduce feature flags table `FeatureFlag(key, academyId?, enabled)` and a server helper `isEnabled(flag, ctx)`.
 - Add an `audit(action, resource, meta)` helper in `src/lib/audit.ts` that writes to `AuditLog`; call it from all write paths from Phase 1 onward.
@@ -221,7 +221,7 @@ Spec §10, §14, §15, §16. This is where money mechanics diverge most from the
   - Click-tracking for marketers (`/m/:code` redirect route sets a cookie for attribution on checkout).
 - **Refund flow**
   - Admin UI at `/academy/finance/refunds` — creates **reversal** `LedgerEntry` rows; never updates originals. Triggers Stripe refund.
-- **Reminder emails** — cron via Vercel Cron or a `/api/cron/access-reminders` route + `VERCEL_CRON` header check. Send at End M1, End M2, T-14d.
+- **Reminder emails** — a Coolify scheduled task (or system cron) calls `/api/cron/access-reminders` with `Authorization: Bearer $CRON_SECRET`. Send at End M1, End M2, T-14d.
 - **Academy Admin payout UI** at `/academy/finance/payouts`:
   - Grouped view: Academy / Developers (grouped by partner) / Marketer / Platform Support.
   - Period picker; generate `PayoutBatch`; customisable payment form; status tracking.
@@ -269,7 +269,7 @@ Spec §7.
 
 Spec §8.
 
-- New service `src/lib/ai/assist.ts` using Anthropic Claude (see `claude-api` skill for prompt-caching / SDK patterns). Default model: `claude-sonnet-4-6` with prompt caching on system prompts.
+- New service `src/lib/ai/assist.ts` using OpenAI (default model `gpt-6.1-sol`, API key or ChatGPT OAuth) with automatic DeepSeek V4.1 Flash fallback via `src/lib/ai/providers.ts`. Per-academy credentials stored encrypted (`CREDENTIAL_ENCRYPTION_KEY`).
 - Capabilities exposed via `/api/ai/*` endpoints, each gated by `academy.aiEnabled`:
   - `POST /api/ai/outline` — given a topic, draft course scoping & outline.
   - `POST /api/ai/objectives` — draft learning objectives.
@@ -315,7 +315,7 @@ Spec §18.
 ### Phase 10 — Hardening & Launch (Week 22–24)
 
 - Load-test checkout + progress APIs.
-- Add monitoring (Sentry, Vercel Analytics, Grafana dashboards) with clear SLOs.
+- Add monitoring (Sentry, Coolify container metrics, Grafana dashboards) with clear SLOs.
 - Backup/restore runbook for Postgres and Cloudinary/S3.
 - Security review: OWASP top 10, JWT expiry / rotation, webhook signature validation audit, file-upload scanning for SCORM.
 - Finalise legal: terms, privacy, DPA templates per jurisdiction.

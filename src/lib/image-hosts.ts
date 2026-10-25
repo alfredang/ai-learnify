@@ -34,9 +34,6 @@ export const ALLOWED_IMAGE_HOSTS: AllowedImageHost[] = [
   { hostname: "placehold.co" },
   { hostname: "via.placeholder.com" },
   { hostname: "loremflickr.com" },
-  // Vercel Blob storage — used by /api/upload/local in production.
-  // Each project gets a unique <store-id> subdomain, so wildcard.
-  { hostname: "*.public.blob.vercel-storage.com" },
   // Licence-free media sources used by AI Assist (Openverse + Wikimedia
   // curation pipeline). All images served are CC-licensed; the licence
   // and attribution are stored alongside the URL on the Course row.
@@ -60,7 +57,7 @@ export function validateImageUrl(input: string | null | undefined): ImageUrlVali
   if (!input || input.trim() === "") return { ok: true, url: "" }
   const trimmed = input.trim()
 
-  // Local uploads served from /public — see /api/upload/local.
+  // Local uploads served from STORAGE_DIR — see /api/upload/local and /uploads/[...path].
   if (trimmed.startsWith("/uploads/")) {
     return { ok: true, url: trimmed }
   }

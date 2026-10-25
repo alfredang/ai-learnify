@@ -148,8 +148,8 @@ export default async function PlatformOpsPage() {
           />
           <StatusRow
             icon={Sparkles}
-            service="Anthropic (AI Assist)"
-            ok={integrations.anthropic}
+            service="OpenAI (AI Assist)"
+            ok={integrations.openai}
             detail="optional"
           />
           <StatusRow
@@ -237,9 +237,9 @@ export default async function PlatformOpsPage() {
         <CardContent className="text-sm text-muted-foreground space-y-2">
           <p>
             <strong className="text-foreground">Database backups:</strong>{" "}
-            Postgres is hosted on Neon, which provides automatic point-in-time
-            recovery and daily snapshots. Verify retention in the Neon
-            console.
+            Postgres runs as a Coolify-managed container on the Hostinger VPS.
+            Enable scheduled backups (Coolify → Database → Backups) and
+            verify the retention and off-site destination there.
           </p>
           <p>
             <strong className="text-foreground">Media backups:</strong>{" "}
@@ -248,9 +248,10 @@ export default async function PlatformOpsPage() {
           </p>
           <p>
             <strong className="text-foreground">Scaling:</strong>{" "}
-            Next.js app runs serverless. Postgres connection pooling is via
-            Neon&apos;s built-in pooler. No manual scaling needed for typical
-            load; for high-traffic events provision a Neon read replica.
+            Next.js runs as a single Docker container behind Traefik. Prisma
+            manages its own connection pool. For high-traffic events raise
+            the container&apos;s CPU/memory limits in Coolify or add a
+            second replica behind the same domain.
           </p>
         </CardContent>
       </Card>

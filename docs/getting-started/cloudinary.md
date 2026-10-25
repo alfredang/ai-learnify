@@ -4,12 +4,12 @@ Cloudinary is the LMS's primary media CDN — it hosts course thumbnails and
 lecture videos. When configured, it auto-generates video thumbnails, supports
 on-the-fly image resizing, and serves adaptive video streams.
 
-When **not** configured, the app falls through to:
+When **not** configured, the app stores files on **local disk** under
+`STORAGE_DIR` (default `./storage`; `/app/storage` persistent volume in the
+Docker image) via `src/lib/storage.ts`, and serves them from the
+`/uploads/[...path]` route with HTTP Range support.
 
-1. **Vercel Blob** if `BLOB_READ_WRITE_TOKEN` is set (production-friendly)
-2. **Local disk** under `public/uploads/` (dev only)
-
-These fallbacks work, but you lose auto-thumbnails for videos and on-the-fly
+This fallback works, but you lose auto-thumbnails for videos and on-the-fly
 image transforms. For a production-grade learner experience, configure
 Cloudinary.
 
@@ -62,13 +62,15 @@ NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME="your-cloud-name"
 NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET="iesa-uploads"
 ```
 
-For Vercel deployments, set them in **Project Settings → Environment
-Variables** (Production + Preview + Development).
+For production, set them on the Coolify application under **Environment
+Variables**. The two `NEXT_PUBLIC_*` values are inlined at build time, so
+mark them as build-time variables as well (see
+[Coolify deployment guide](../deployment/coolify.md)).
 
 ### 5. Restart and test
 
 - **Local**: `npm run dev` → restart server so env loads
-- **Vercel**: `vercel --prod --yes` → fresh deploy picks up the new env
+- **Coolify**: click **Redeploy** on the application → fresh image picks up the new env
 
 Open a draft course, click **+ Add Lecture → Video**, and upload a small
 test video. The upload should:
@@ -93,7 +95,7 @@ If anything fails, the toast message will tell you which env var is missing.
 | [`src/lib/image-hosts.ts`](../../src/lib/image-hosts.ts) | Allowlist for `next/image`; includes `res.cloudinary.com` |
 
 The upload flow tries Cloudinary first; on failure (missing creds, network),
-it falls through to Vercel Blob, then local disk. This keeps the feature
+it falls through to local disk under `STORAGE_DIR`. This keeps the feature
 optional without removing the code path.
 
 ---

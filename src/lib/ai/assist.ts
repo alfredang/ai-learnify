@@ -8,12 +8,11 @@ import { runAgentQuery, tryParseJson } from "@/lib/ai/agent"
 /**
  * Phase 7 — central AI assist service (spec §8).
  *
- *   - All capabilities run through `runAgentQuery()` from
- *     `@anthropic-ai/claude-agent-sdk` so the same per-tenant Claude
- *     credential, audit trail, and chokepoint applies to every draft.
+ *   - All capabilities run through `runAgentQuery()` so the same
+ *     per-tenant credential chain (OpenAI → DeepSeek), audit trail, and
+ *     chokepoint applies to every draft.
  *   - The single shared system prompt per capability stays stable across
- *     calls so the model's prompt cache (5-min TTL prefix match) keeps
- *     warm. Volatile content (course title, existing copy) is sent in the
+ *     calls so provider-side prompt caching keeps warm. Volatile content (course title, existing copy) is sent in the
  *     user turn after the cached prefix.
  *   - Every call writes an `AiInteraction` row + audit log entry.
  *   - Tenant gate: refuses if `academy.aiEnabled` is false.
@@ -29,7 +28,7 @@ export type AiAssistInput = {
   userPrompt: string
   /** Extra context recorded on the audit row — e.g. { courseId, lectureId }. */
   context?: Record<string, unknown>
-  /** Override model (default claude-opus-4-7). */
+  /** Override model (default OPENAI_MODEL / gpt-6.1-sol). */
   model?: string
   /** Override max conversation turns. Default 1 (single round-trip). */
   maxTurns?: number
@@ -108,15 +107,15 @@ function pickOne<T>(arr: T[], rng?: () => number): T {
 }
 
 /**
- * Local-dev mock for when ANTHROPIC_API_KEY is missing. Generates a
+ * Local-dev mock for when no AI credential is configured. Generates a
  * plausible templated response based on the course topic extracted from
  * the user prompt. Allows the editor flow to be exercised without a
- * real Anthropic key. Production always uses the real model.
+ * real credential. Production always uses the real model.
  */
 function buildMockResponse(
   capability: AiCapability,
   userPrompt: string
-): { rawText: string; usage: { inputTokens: number; outputTokens: number; cachedTokens: number; model: string; costUsd: number } } {
+): { rawText: string; usage: { inputTokens: number; outputTokens: number; cachedTokens: number; model: string; costUsd: number; provider: "mock" } } {
   // Topic extraction: try the structured "Course title: X" line first
   // (intended-learners flow), fall back to the first sentence of the
   // user's free-text prompt (AiAssistButton flow), capped to 80 chars.
@@ -660,6 +659,7 @@ function buildMockResponse(
       cachedTokens: 0,
       model: "mock-local-dev",
       costUsd: 0,
+      provider: "mock",
     },
   }
 }
@@ -734,7 +734,7 @@ export async function runAiAssist(
     }
   }
 
-  // Try the real Claude path first. If no credential is available
+  // Try the real provider chain first. If no credential is available
   // (env var missing AND academy token undecryptable / unset), fall
   // back to the templated mock so AI Assist still produces topic-aware
   // output for the author. The mock is clearly tagged in usage.model so
@@ -756,7 +756,7 @@ export async function runAiAssist(
       msg.includes("AI is not configured") ||
       msg.includes("can't be decrypted") ||
       msg.includes("AI Assist is disabled") ||
-      msg.toLowerCase().includes("anthropic_api_key")
+      msg.toLowerCase().includes("openai_api_key")
     if (!isCredentialIssue) throw e
     console.warn("[ai.assist] credential unavailable — falling back to template", {
       capability: input.capability,
@@ -784,7 +784,7 @@ export async function runAiAssist(
       inputTokens: usage.inputTokens,
       outputTokens: usage.outputTokens,
       cachedTokens: usage.cachedTokens,
-      model: usage.model,
+      model: `${usage.provider}:${usage.model}`,
       contextJson:
         (input.context as Prisma.InputJsonValue | undefined) ?? undefined,
     },

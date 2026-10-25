@@ -4,7 +4,7 @@ import { env } from "@/lib/env"
 /**
  * AES-256-GCM helper for tenant-scoped credentials (Phase 7 — Spec §8.3).
  *
- * Used by the Academy Admin AI credential setting to keep a Claude OAuth
+ * Used by the Academy Admin AI credential setting to keep an OpenAI
  * token at rest in Postgres without exposing it as plaintext to anyone
  * with read access to the database. The encryption key is loaded once
  * from CREDENTIAL_ENCRYPTION_KEY and never logged.

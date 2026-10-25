@@ -10,7 +10,7 @@ import { integrationStatus } from "@/lib/env"
  *   - Liveness: the handler returning 200 means the process is up.
  *   - Readiness: we run a trivial Prisma query so the response only goes
  *     green when the database is reachable too. Without this, a rolling
- *     deploy can start serving 5xxs the moment Neon throttles.
+ *     deploy can start serving 5xxs the moment Postgres throttles.
  *
  * No auth — uptime monitors need to hit this without credentials. The
  * response deliberately exposes only boolean flags, never config values.

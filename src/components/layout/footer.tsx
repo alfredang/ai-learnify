@@ -40,8 +40,8 @@ export function Footer() {
           {/* Brand */}
           <div className="col-span-2 md:col-span-1">
             <Link href="/" className="flex items-center space-x-2">
-              <img src="/images/ies-logo.svg" alt="IES Logo" width={32} height={32} />
-              <span className="font-bold text-xl">IES Digital Academy</span>
+              <img src="/images/learnify-logo.svg" alt="Learnify logo" width={32} height={32} />
+              <span className="font-bold text-xl">Learnify</span>
             </Link>
             <p className="mt-4 text-sm text-muted-foreground">
               {t("footer.description")}
@@ -102,7 +102,18 @@ export function Footer() {
 
         <div className="mt-12 border-t pt-8 flex flex-col md:flex-row justify-between items-center">
           <p className="text-sm text-muted-foreground">
-            &copy; {new Date().getFullYear()} IES Digital Academy. {t("footer.allRightsReserved")}
+            &copy; {new Date().getFullYear()} Learnify. {t("footer.allRightsReserved")}
+          </p>
+          <p className="powered-by text-sm text-muted-foreground mt-2 md:mt-0">
+            Powered by{" "}
+            <a
+              href="https://www.tertiaryinfotech.com/"
+              target="_blank"
+              rel="noopener"
+              className="underline underline-offset-4 hover:text-foreground"
+            >
+              Tertiary Infotech Academy Pte Ltd
+            </a>
           </p>
         </div>
       </div>

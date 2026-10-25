@@ -30,7 +30,7 @@ const DEFAULT_POLICY = `
 <ul>
   <li><strong>Payment processor</strong> (Stripe) — for payment processing</li>
   <li><strong>Email provider</strong> (Resend) — for transactional emails</li>
-  <li><strong>Cloud infrastructure</strong> (Neon, Cloudinary) — for database hosting and media storage</li>
+  <li><strong>Cloud infrastructure</strong> (Hostinger VPS via Coolify, Cloudinary) — for application and database hosting and media storage</li>
 </ul>
 
 <h3>5. Your Rights</h3>
@@ -61,7 +61,7 @@ async function getPrivacyPolicy() {
     select: { name: true, privacyPolicyHtml: true },
   })
   return {
-    academyName: academy?.name ?? "IES Digital Academy",
+    academyName: academy?.name ?? "Learnify",
     html: academy?.privacyPolicyHtml || DEFAULT_POLICY,
   }
 }

@@ -14,12 +14,11 @@ DATABASE_URL="postgresql://user:password@host:5432/database"
 
 **Getting your DATABASE_URL:**
 
-=== "Neon (Recommended)"
+=== "Coolify (Production)"
 
-    1. Sign up at [neon.tech](https://neon.tech)
-    2. Create a new project
-    3. Copy the connection string from the dashboard
-    4. Add `?sslmode=require` to the end
+    1. In Coolify, create a **PostgreSQL 17** database resource on the same server as the app
+    2. Copy the **internal** connection string from the resource page
+    3. Paste it as `DATABASE_URL` in the application's environment variables
 
 === "Local PostgreSQL"
 
@@ -32,7 +31,10 @@ DATABASE_URL="postgresql://user:password@host:5432/database"
 ```env
 AUTH_SECRET="your-super-secret-key-change-in-production"
 AUTH_URL="http://localhost:3000"
+AUTH_TRUST_HOST=true
 ```
+
+`AUTH_TRUST_HOST=true` is required in production because the app sits behind Coolify's Traefik reverse proxy.
 
 !!! warning "Production Security"
     Generate a strong `AUTH_SECRET` for production:
@@ -103,23 +105,62 @@ NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET=""
    - Add upload preset
    - Set signing mode to "Unsigned"
 
+### Local Storage
+
+```env
+STORAGE_DIR="./storage"
+```
+
+When Cloudinary is not configured, uploads and generated SCORM packages are written here and served by `/uploads/[...path]` (with HTTP Range support). The Docker image sets this to `/app/storage`, which is mounted as a persistent volume.
+
+### Gen-AI (OpenAI + DeepSeek)
+
+```env
+# OpenAI — primary. Either an API key …
+OPENAI_API_KEY=""
+# … or ChatGPT OAuth
+OPENAI_OAUTH_ACCESS_TOKEN=""
+OPENAI_OAUTH_REFRESH_TOKEN=""
+OPENAI_ACCOUNT_ID=""
+OPENAI_MODEL=""            # default gpt-6.1-sol
+
+# DeepSeek V4.1 Flash — automatic fallback
+DEEPSEEK_API_KEY=""
+DEEPSEEK_BASE_URL=""       # default https://api.deepseek.com
+DEEPSEEK_MODEL=""          # default deepseek-flash
+
+# Encrypts per-academy AI credentials (openssl rand -base64 32)
+CREDENTIAL_ENCRYPTION_KEY=""
+```
+
+AI Assist tries OpenAI first and falls back to DeepSeek automatically. Academies can supply their own credentials under **Academy Settings → Integrations → AI Provider** (an OpenAI API key, a ChatGPT OAuth access token, or the `tokens` JSON block from `~/.codex/auth.json`); these are stored encrypted with `CREDENTIAL_ENCRYPTION_KEY`.
+
+### Cron
+
+```env
+CRON_SECRET=""
+```
+
+`/api/cron/*` routes require `Authorization: Bearer $CRON_SECRET`. Point a Coolify scheduled task or system cron at them.
+
 ### Application
 
 ```env
 NEXT_PUBLIC_APP_URL="http://localhost:3000"
 ```
 
-Change this to your production URL when deploying.
+Change this to your production URL when deploying. It is inlined at build time, so on Coolify it must also be available as a build-time variable.
 
 ## Complete Example
 
 ```env
-# Database (Neon)
-DATABASE_URL="postgresql://user:pass@host/db?sslmode=require"
+# Database (PostgreSQL 17 on Coolify, or local)
+DATABASE_URL="postgresql://user:pass@host:5432/db"
 
 # NextAuth
 AUTH_SECRET="generate-a-secure-random-string"
 AUTH_URL="http://localhost:3000"
+AUTH_TRUST_HOST=true
 
 # OAuth Providers
 AUTH_GOOGLE_ID="your-google-client-id"
@@ -138,6 +179,17 @@ CLOUDINARY_API_KEY="123456789"
 CLOUDINARY_API_SECRET="xxx"
 NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME="your-cloud"
 NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET="your-preset"
+
+# Local storage fallback
+STORAGE_DIR="./storage"
+
+# Gen-AI
+OPENAI_API_KEY="sk-..."
+DEEPSEEK_API_KEY="..."
+CREDENTIAL_ENCRYPTION_KEY="generate-a-secure-random-string"
+
+# Cron
+CRON_SECRET="generate-a-secure-random-string"
 
 # App
 NEXT_PUBLIC_APP_URL="http://localhost:3000"

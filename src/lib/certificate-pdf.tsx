@@ -40,7 +40,7 @@ export async function renderCertificatePdf(
   const borderWidth = borderStyle === "double" ? 6 : borderStyle === "none" ? 0 : 3
   // @react-pdf supports only "solid" | "dashed" | "dotted". Approximate
   // "double" via two stacked solid borders by raising the border width.
-  const borderEffectiveStyle: "solid" = "solid"
+  const borderEffectiveStyle = "solid" as const
 
   const displayName =
     data.certificateName ?? data.nameToBeCalled ?? "Learner"

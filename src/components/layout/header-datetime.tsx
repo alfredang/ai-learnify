@@ -6,9 +6,14 @@ export function HeaderDateTime() {
   const [now, setNow] = useState<Date | null>(null)
 
   useEffect(() => {
-    setNow(new Date())
+    // Defer the first tick to a macrotask so the effect doesn't set state
+    // synchronously (hydration-safe: server renders null, client fills in).
+    const first = setTimeout(() => setNow(new Date()), 0)
     const interval = setInterval(() => setNow(new Date()), 15_000)
-    return () => clearInterval(interval)
+    return () => {
+      clearTimeout(first)
+      clearInterval(interval)
+    }
   }, [])
 
   const { dateStr, timeStr } = useMemo(() => {

@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200" role="img" aria-label="Learnify">
+  <defs>
+    <linearGradient id="lf-bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#1D4ED8"/>
+      <stop offset="1" stop-color="#7C3AED"/>
+    </linearGradient>
+  </defs>
+  <!-- Rounded tile -->
+  <rect x="8" y="8" width="184" height="184" rx="44" fill="url(#lf-bg)"/>
+  <!-- Open book -->
+  <path d="M46 62c22-9 38-9 54 2 16-11 32-11 54-2v78c-22-9-38-9-54 2-16-11-32-11-54-2V62z" fill="#ffffff" opacity="0.96"/>
+  <path d="M100 64v78" stroke="#1D4ED8" stroke-width="5" stroke-linecap="round"/>
+  <!-- Page lines -->
+  <g stroke="#1D4ED8" stroke-width="4" stroke-linecap="round" opacity="0.55">
+    <path d="M60 82h26M60 96h26M60 110h26"/>
+    <path d="M114 82h26M114 96h26M114 110h26"/>
+  </g>
+  <!-- Spark / AI accent -->
+  <path d="M150 34l4.5 11.5L166 50l-11.5 4.5L150 66l-4.5-11.5L134 50l11.5-4.5z" fill="#FDE68A"/>
+</svg>

@@ -3,11 +3,11 @@
 <div align="center">
   <img src="https://images.unsplash.com/photo-1522202176988-66273c2fd55f?w=600" alt="Learnify Platform" style="border-radius: 10px; margin: 20px 0;" />
 
-  <p><strong>🚀 Live Demo:</strong> <a href="https://learnify-corporate-training-platform.netlify.app">https://learnify-corporate-training-platform.netlify.app</a></p>
+  <p><strong>🚀 Live Demo:</strong> <a href="https://learnify.tertiaryinfotech.com">https://learnify.tertiaryinfotech.com</a></p>
 
   <p>
-    <a href="https://github.com/alfredang/Learnify"><img src="https://img.shields.io/badge/GitHub-Repository-181717?logo=github" alt="GitHub"></a>
-    <a href="https://learnify-corporate-training-platform.netlify.app"><img src="https://img.shields.io/badge/Netlify-Deployed-00C7B7?logo=netlify" alt="Netlify"></a>
+    <a href="https://github.com/alfredang/ai-learnify"><img src="https://img.shields.io/badge/GitHub-Repository-181717?logo=github" alt="GitHub"></a>
+    <a href="https://learnify.tertiaryinfotech.com"><img src="https://img.shields.io/badge/Docker-Coolify-2496ED?logo=docker&logoColor=white" alt="Deployed with Coolify"></a>
   </p>
 </div>
 
@@ -17,14 +17,14 @@
 
 | Page | Description |
 |------|-------------|
-| [🏠 Homepage](https://learnify-corporate-training-platform.netlify.app/) | Landing page with featured courses |
-| [📚 All Courses](https://learnify-corporate-training-platform.netlify.app/courses) | Browse published courses |
-| [📂 Categories](https://learnify-corporate-training-platform.netlify.app/categories) | Browse course categories |
-| [🔍 Search](https://learnify-corporate-training-platform.netlify.app/search) | Search for courses |
-| [ℹ️ About](https://learnify-corporate-training-platform.netlify.app/about) | About the platform |
-| [👨‍🏫 Become Instructor](https://learnify-corporate-training-platform.netlify.app/become-instructor) | Instructor signup |
-| [🔐 Login](https://learnify-corporate-training-platform.netlify.app/login) | User login |
-| [📝 Register](https://learnify-corporate-training-platform.netlify.app/register) | New user signup |
+| [🏠 Homepage](https://learnify.tertiaryinfotech.com/) | Landing page with featured courses |
+| [📚 All Courses](https://learnify.tertiaryinfotech.com/courses) | Browse published courses |
+| [📂 Categories](https://learnify.tertiaryinfotech.com/categories) | Browse course categories |
+| [🔍 Search](https://learnify.tertiaryinfotech.com/search) | Search for courses |
+| [ℹ️ About](https://learnify.tertiaryinfotech.com/about) | About the platform |
+| [👨‍🏫 Become Instructor](https://learnify.tertiaryinfotech.com/become-instructor) | Instructor signup |
+| [🔐 Login](https://learnify.tertiaryinfotech.com/login) | User login |
+| [📝 Register](https://learnify.tertiaryinfotech.com/register) | New user signup |
 
 ## Key Features
 
@@ -79,10 +79,11 @@
 | **TypeScript** | Type-safe JavaScript |
 | **Tailwind CSS 4** | Utility-first CSS |
 | **Prisma** | Type-safe ORM |
-| **PostgreSQL (Neon)** | Relational database |
+| **PostgreSQL 17** | Relational database (Coolify-managed container) |
 | **NextAuth.js v5** | Authentication |
 | **Stripe** | Payment processing |
-| **Cloudinary** | Media storage |
+| **Cloudinary** | Media storage (local `STORAGE_DIR` fallback) |
+| **OpenAI + DeepSeek** | AI Assist and SCORM Studio (OpenAI primary, DeepSeek fallback) |
 | **shadcn/ui** | UI components |
 | **Recharts** | Charts for analytics |
 
@@ -171,8 +172,8 @@
 
 ```bash
 # Clone the repository
-git clone https://github.com/alfredang/Learnify.git
-cd Learnify
+git clone https://github.com/alfredang/ai-learnify.git
+cd ai-learnify
 
 # Install dependencies
 npm install
@@ -272,18 +273,21 @@ learnify/
 
 ## Deployment
 
-The application is deployed on **Netlify**:
+The application is deployed as a **Docker container on a Hostinger VPS managed by Coolify** (see [Coolify deployment guide](deployment/coolify.md)):
 
-- **Live URL:** [learnify-corporate-training-platform.netlify.app](https://learnify-corporate-training-platform.netlify.app)
-- **Database:** Neon PostgreSQL
-- **Media:** Cloudinary
+- **Live URL:** [learnify.tertiaryinfotech.com](https://learnify.tertiaryinfotech.com)
+- **Database:** PostgreSQL 17 (Coolify-managed container on the same server)
+- **Media:** Cloudinary, or local disk under `STORAGE_DIR` (persistent volume at `/app/storage`)
+- **AI:** OpenAI `gpt-6.1-sol` with DeepSeek V4.1 Flash fallback
 - **Payments:** Stripe
+- **TLS:** Traefik + Let's Encrypt
+- **CI/CD:** GitHub push webhook → Coolify rebuild; GitHub Actions lint/typecheck/test-build only
 
 ## Support
 
-- [Live Demo](https://learnify-corporate-training-platform.netlify.app) - Try the platform
-- [GitHub Repository](https://github.com/alfredang/Learnify) - Source code
-- [GitHub Issues](https://github.com/alfredang/Learnify/issues) - Report bugs
+- [Live Demo](https://learnify.tertiaryinfotech.com) - Try the platform
+- [GitHub Repository](https://github.com/alfredang/ai-learnify) - Source code
+- [GitHub Issues](https://github.com/alfredang/ai-learnify/issues) - Report bugs
 
 ---
 

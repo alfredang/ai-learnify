@@ -2,12 +2,10 @@
  * Node-side licence-free media search for the AI Media Curator
  * (Phase 7 — Spec §8.2).
  *
- * The Agent SDK ships a built-in WebSearch tool, but it requires the
- * Claude token to have web search entitlement — most basic API keys
- * and all OAuth subscription tokens lack this. To stay token-agnostic,
- * we run the searches ourselves against open licence catalogues and
- * pass the candidates into the Agent SDK as plain text in the user
- * turn. The model then ranks/dedupes/normalises into the shape the
+ * Rather than relying on a model-side web search tool (which differs
+ * between OpenAI and DeepSeek), we run the searches ourselves against
+ * open licence catalogues and pass the candidates to the model as plain
+ * text in the user turn. The model then ranks/dedupes/normalises into the shape the
  * Resource model expects.
  *
  * Sources used:

@@ -6,8 +6,7 @@ import {
 } from "@/lib/cloudinary"
 
 // Cloudinary's signing helpers use Node crypto; force the Node runtime so
-// `vercel dev` doesn't try to bundle this as an Edge function (which fails
-// at module load with FUNCTION_INVOCATION_FAILED).
+// this is never bundled as an Edge function.
 export const runtime = "nodejs"
 
 export async function GET() {

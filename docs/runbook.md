@@ -30,9 +30,9 @@ Phase 10 — Spec §18 operational playbook. Covers routine ops, backup / restor
 
 ## 2. Backup and restore
 
-### Postgres (Neon)
+### Postgres (PostgreSQL 17 on Coolify)
 
-Neon provisions point-in-time-recovery (PITR) automatically on paid tiers. For self-managed Postgres, configure WAL archiving separately.
+Production Postgres is a Coolify-managed container on the Hostinger VPS. Enable **Scheduled Backups** on the database resource in Coolify (Databases → learnify → Backups) with an S3-compatible target; there is no managed PITR, so the scheduled dump plus the manual procedure below is the recovery path. Configure WAL archiving separately if PITR is required.
 
 **Manual backup (any Postgres):**
 
@@ -111,8 +111,8 @@ Stripe stores its own copy of every `Charge`, `PaymentIntent`, and `Transfer`. `
 
 **Symptoms:** `/api/health` returns 503 with `db.ok: false`; Postgres connection errors in logs.
 
-1. Check the Neon dashboard for autoscale throttling or branch compute suspension.
-2. If on free tier, the compute may suspend after inactivity. First request after suspension incurs ~1s latency — acceptable.
+1. Open Coolify → Databases → the PostgreSQL 17 resource. Check the container is running and read its logs; restart it from Coolify if it has crashed.
+2. Check VPS disk and memory (`df -h`, `free -m`) — a full disk is the most common cause of Postgres refusing connections on a single-server deployment.
 3. If the DB is genuinely down, enable a maintenance banner via a `FeatureFlag` (set `maintenance_mode` = true). The banner markup is up to the deploy.
 
 ### P2 — Stripe webhook signature verification failing
@@ -120,7 +120,7 @@ Stripe stores its own copy of every `Charge`, `PaymentIntent`, and `Transfer`. `
 **Symptoms:** Stripe dashboard shows repeated 4xx to `/api/webhooks/stripe`.
 
 1. Confirm `STRIPE_WEBHOOK_SECRET` matches the active webhook endpoint in Stripe's dashboard. Test and Live mode have different secrets.
-2. Verify the raw body is not being transformed by a proxy (Vercel / Netlify preserve it by default; self-hosted edge deploys may not).
+2. Verify the raw body is not being transformed by a proxy (Traefik on Coolify passes it through unchanged; check for any extra middleware or compression you may have added).
 3. If the secret was rotated, ledger-finalize for missed events via the Stripe dashboard replay.
 
 ---
@@ -136,7 +136,7 @@ Stripe stores its own copy of every `Charge`, `PaymentIntent`, and `Transfer`. `
 
 ### Deploy
 
-Vercel preview branches run against the same Neon production DB by default — this is **wrong** for anything that mutates. Use a Neon preview branch per PR.
+Pushing to `main` triggers the GitHub webhook → Coolify rebuilds the `Dockerfile` and restarts the container; `docker-entrypoint.sh` runs `prisma migrate deploy` on boot. Never point a preview/staging deployment at the production `DATABASE_URL` — create a separate Coolify PostgreSQL resource for staging. See `docs/deployment/coolify.md`.
 
 ### Post-deploy
 
@@ -150,7 +150,8 @@ Vercel preview branches run against the same Neon production DB by default — t
 
 | Asset | Backup method | Frequency | Retention |
 |---|---|---|---|
-| Postgres | Neon PITR + weekly pg_dump to S3 | Continuous + weekly | 30d PITR, 7y cold |
+| Postgres | Coolify scheduled backup to S3 + weekly pg_dump | Daily + weekly | 30d daily, 7y cold |
+| `/app/storage` volume (local uploads, SCORM packages) | Coolify volume backup or rsync of the Docker volume to S3 | Daily | 30d |
 | Cloudinary | Webhook mirror to S3 (not yet configured) | Real-time (planned) | Indefinite |
 | Stripe | Native — no action needed | Continuous | Stripe's retention |
 | AuditLog | Included in Postgres backup | As above | 7y per spec §18 |

@@ -2,14 +2,14 @@
 
 End-to-end acceptance test script. Run against staging before every production cut; run against production as a smoke after deploy.
 
-Pre-reqs: a clean test academy (created via seed or admin flow), one test learner account, one test Academy Admin, one Course Developer, one Marketer, Stripe test keys, Anthropic API key if AI flows are enabled.
+Pre-reqs: a clean test academy (created via seed or admin flow), one test learner account, one test Academy Admin, one Course Developer, one Marketer, Stripe test keys, an OpenAI API key (or ChatGPT OAuth token) and optionally a DeepSeek API key if AI flows are enabled.
 
 ---
 
 ## Phase 0 — environment check
 
 - [ ] `GET /api/health` returns 200 with `db.ok: true`
-- [ ] `integrations` shows `stripe: true`, `cloudinary: true` (and `anthropic: true` if AI is enabled)
+- [ ] `integrations` shows `stripe: true`, `cloudinary: true` (and `openai: true` / `deepseek: true` if AI is enabled)
 - [ ] `npm run build` succeeds locally
 - [ ] `AUTH_SECRET` length ≥ 32; `NEXT_PUBLIC_APP_URL` points at the deployed origin
 
