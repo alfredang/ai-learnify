@@ -10,7 +10,9 @@ fi
 
 if [ "${SKIP_MIGRATIONS:-0}" != "1" ]; then
   echo "[entrypoint] applying Prisma migrations…"
-  ./node_modules/.bin/prisma migrate deploy --schema ./prisma/schema.prisma
+  # Call the CLI entry directly (not the .bin symlink) so Prisma can find its
+  # bundled WASM next to build/index.js.
+  node ./node_modules/prisma/build/index.js migrate deploy --schema ./prisma/schema.prisma
 fi
 
 mkdir -p "${STORAGE_DIR:-/app/storage}"
