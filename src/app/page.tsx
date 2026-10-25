@@ -171,7 +171,7 @@ export default async function HomePage() {
               <div className="relative w-full h-[250px] sm:h-[300px] md:h-[400px] lg:h-[500px]">
                 <Image
                   src="https://images.unsplash.com/photo-1581094794329-c8112a89af12?w=800&q=80"
-                  alt="Engineer reviewing digital blueprints on laptop"
+                  alt="Professional learning online on a laptop"
                   fill
                   className="object-cover rounded-2xl shadow-2xl"
                   priority
@@ -307,11 +307,11 @@ export default async function HomePage() {
           <div className="relative overflow-hidden rounded-3xl bg-primary px-8 py-12 md:px-16 md:py-16">
             <div className="relative z-10 max-w-2xl">
               <h2 className="text-3xl md:text-4xl font-bold text-primary-foreground mb-4">
-                Share Your Engineering Expertise
+                Share Your Expertise
               </h2>
               <p className="text-lg text-primary-foreground/80 mb-8">
-                Become a course developer and help engineers upskill. Create
-                CPD-accredited courses in civil engineering, sustainability, and GenAI.
+                Become a course developer and help professionals upskill. Create
+                CPD-accredited courses in your field of expertise.
               </p>
               <button className="inline-flex items-center justify-center gap-3 rounded-xl bg-white text-primary font-extrabold text-lg md:text-xl px-10 md:px-14 py-5 md:py-6 shadow-lg shadow-white/10 transition-all duration-300 hover:scale-105 hover:shadow-xl hover:shadow-white/20 active:scale-100">
                 <Link href={isCourseDeveloper ? "/instructor" : "/become-instructor"} className="flex items-center gap-3">
