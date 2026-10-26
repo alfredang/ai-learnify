@@ -35,22 +35,22 @@ export function Footer() {
 
   return (
     <footer className="border-t bg-background">
-      <div className="container py-12 md:py-16">
-        <div className="grid grid-cols-2 gap-8 md:grid-cols-4">
+      <div className="container py-8 md:py-10">
+        <div className="grid grid-cols-2 gap-6 md:grid-cols-4">
           {/* Brand */}
           <div className="col-span-2 md:col-span-1">
             <Link href="/" className="flex items-center space-x-2">
               <img src="/images/learnify-logo.svg" alt="Learnify logo" width={32} height={32} />
               <span className="font-bold text-xl">Learnify</span>
             </Link>
-            <p className="mt-4 text-sm text-muted-foreground">
+            <p className="mt-3 max-w-xs text-sm text-muted-foreground">
               {t("footer.description")}
             </p>
           </div>
 
           {/* Platform */}
           <div>
-            <h4 className="font-semibold mb-4">{t("footer.platform")}</h4>
+            <h4 className="font-semibold mb-3">{t("footer.platform")}</h4>
             <ul className="space-y-2">
               {footerLinks.platform.map((link) => (
                 <li key={link.href}>
@@ -67,7 +67,7 @@ export function Footer() {
 
           {/* Company */}
           <div>
-            <h4 className="font-semibold mb-4">{t("footer.company")}</h4>
+            <h4 className="font-semibold mb-3">{t("footer.company")}</h4>
             <ul className="space-y-2">
               {footerLinks.company.map((link) => (
                 <li key={link.href}>
@@ -84,7 +84,7 @@ export function Footer() {
 
           {/* Support */}
           <div>
-            <h4 className="font-semibold mb-4">{t("footer.support")}</h4>
+            <h4 className="font-semibold mb-3">{t("footer.support")}</h4>
             <ul className="space-y-2">
               {footerLinks.support.map((link) => (
                 <li key={link.href}>
@@ -100,11 +100,11 @@ export function Footer() {
           </div>
         </div>
 
-        <div className="mt-12 border-t pt-8 flex flex-col md:flex-row justify-between items-center">
+        <div className="mt-8 border-t pt-5 flex flex-col md:flex-row justify-between items-center gap-2">
           <p className="text-sm text-muted-foreground">
             &copy; {new Date().getFullYear()} Learnify. {t("footer.allRightsReserved")}
           </p>
-          <p className="powered-by text-sm text-muted-foreground mt-2 md:mt-0">
+          <p className="powered-by text-sm text-muted-foreground">
             Powered by{" "}
             <a
               href="https://www.tertiaryinfotech.com/"

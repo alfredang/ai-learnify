@@ -1,7 +1,6 @@
 import Link from "next/link"
 import Image from "next/image"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import {
   Code,
@@ -94,6 +93,19 @@ async function getCategories() {
   }
 }
 
+const img = (id: string) => `https://images.unsplash.com/${id}?w=640&h=480&fit=crop&q=75`
+
+/** Photo per category slug; unknown categories use a general learning image. */
+const categoryImages: Record<string, string> = {
+  "it-software": img("photo-1517694712202-14dd9538aa97"),
+  marketing: img("photo-1460925895917-afdab827c52f"),
+  design: img("photo-1561070791-2526d30994b5"),
+  "personal-development": img("photo-1546410531-bb4caa6b424d"),
+  business: img("photo-1557804506-669a67965ba0"),
+  development: img("photo-1498050108023-c5249f4df085"),
+}
+const categoryImageFallback = img("photo-1588196749597-9ff075ee6b5b")
+
 const valueProps = [
   { icon: Clock, title: "Learn at your own pace", body: "Self-paced lessons you can start, pause and resume on your schedule." },
   { icon: BadgeCheck, title: "CPD-accredited", body: "Earn CPD points that count towards your professional development." },
@@ -131,10 +143,10 @@ export default async function HomePage() {
   return (
     <div className="flex flex-col">
       {/* Hero Section */}
-      <section className="relative py-6 md:py-8 bg-white overflow-hidden">
+      <section className="relative py-5 md:py-8 bg-white overflow-hidden">
         <div className="container">
-          <div className="grid lg:grid-cols-2 gap-8 lg:gap-12 items-center">
-            <div className="space-y-6 md:space-y-8 text-center lg:text-left">
+          <div className="grid lg:grid-cols-2 gap-6 lg:gap-10 items-center">
+            <div className="space-y-4 md:space-y-5 text-center lg:text-left">
               <Badge variant="secondary" className="px-4 py-1">
                 {t("home.hero.badge")}
               </Badge>
@@ -145,7 +157,7 @@ export default async function HomePage() {
               <p className="text-lg md:text-xl text-muted-foreground max-w-lg mx-auto lg:mx-0">
                 {t("home.hero.subtitle")}
               </p>
-              <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
+              <div className="flex flex-col sm:flex-row gap-3 justify-center lg:justify-start">
                 <Button size="lg" asChild>
                   <Link href="/courses">
                     {t("home.hero.exploreCta")}
@@ -159,7 +171,7 @@ export default async function HomePage() {
                   </Link>
                 </Button>
               </div>
-              <div className="flex flex-wrap items-center gap-4 md:gap-6 pt-4 justify-center lg:justify-start">
+              <div className="flex flex-wrap items-center gap-x-5 gap-y-2 pt-1 justify-center lg:justify-start">
                 <div className="flex items-center gap-2">
                   <CheckCircle className="h-5 w-5 text-green-500" />
                   <span className="text-sm">{t("home.hero.feature1")}</span>
@@ -175,10 +187,10 @@ export default async function HomePage() {
               </div>
             </div>
             <div className="relative">
-              <div className="relative w-full aspect-[16/10] lg:aspect-auto lg:h-[460px]">
+              <div className="relative w-full aspect-[16/10] lg:aspect-auto lg:h-[400px]">
                 <Image
-                  src="https://images.unsplash.com/photo-1522202176988-66273c2fd55f?w=1200&q=80"
-                  alt="Professionals learning together on laptops"
+                  src="https://images.unsplash.com/photo-1531545514256-b1400bc00f31?w=1200&h=800&fit=crop&q=80"
+                  alt="Smiling learners working through an online course together"
                   fill
                   className="object-cover rounded-2xl shadow-xl"
                   sizes="(max-width: 1024px) 100vw, 50vw"
@@ -192,8 +204,8 @@ export default async function HomePage() {
 
       {/* Value propositions */}
       <section className="border-y">
-        <div className="container py-6 md:py-8">
-          <ul className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="container py-4 md:py-5">
+          <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {valueProps.map((v) => (
               <li key={v.title} className="flex gap-3">
                 <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border">
@@ -211,9 +223,9 @@ export default async function HomePage() {
 
       {/* Popular courses */}
       {featuredCourses.length > 0 && (
-        <section className="py-8 md:py-10">
+        <section className="py-6 md:py-8">
           <div className="container">
-            <div className="mb-6 flex items-end justify-between gap-4">
+            <div className="mb-4 flex items-end justify-between gap-4">
               <div>
                 <h2 className="text-2xl md:text-3xl font-bold">Popular courses</h2>
                 <p className="mt-1 text-muted-foreground">Start learning today — enrol and press play.</p>
@@ -225,7 +237,7 @@ export default async function HomePage() {
               </Button>
             </div>
             <CourseGrid courses={featuredCourses} favouritedCourseIds={favouritedCourseIds} cartCourseIds={cartCourseIds} enrolledCourseMap={enrolledCourseMap} />
-            <Button variant="outline" asChild className="mt-6 w-full sm:hidden">
+            <Button variant="outline" asChild className="mt-4 w-full sm:hidden">
               <Link href="/courses">
                 View all courses <ArrowRight className="ml-2 h-4 w-4" />
               </Link>
@@ -235,19 +247,19 @@ export default async function HomePage() {
       )}
 
       {/* How it works */}
-      <section className="border-t py-8 md:py-10">
+      <section className="border-t py-6 md:py-8">
         <div className="container">
-          <h2 className="text-2xl md:text-3xl font-bold mb-6">How it works</h2>
+          <h2 className="text-2xl md:text-3xl font-bold mb-4">How it works</h2>
           <ol className="grid gap-4 md:grid-cols-3">
             {steps.map((step, i) => (
-              <li key={step.title} className="rounded-lg border p-6">
+              <li key={step.title} className="rounded-lg border p-4 md:p-5">
                 <div className="flex items-center gap-3">
                   <span className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-sm font-bold text-primary-foreground">
                     {i + 1}
                   </span>
                   <step.icon className="h-5 w-5 text-muted-foreground" aria-hidden="true" />
                 </div>
-                <p className="mt-4 font-semibold">{step.title}</p>
+                <p className="mt-3 font-semibold">{step.title}</p>
                 <p className="mt-1 text-sm text-muted-foreground">{step.body}</p>
               </li>
             ))}
@@ -256,7 +268,7 @@ export default async function HomePage() {
       </section>
 
       {/* Phase 2: Advertising Banner Carousel (spec §4.1) */}
-      <section className="container py-4">
+      <section className="container pb-6 md:pb-8">
         <AdvertisingCarousel />
       </section>
 
@@ -265,39 +277,46 @@ export default async function HomePage() {
 
       {/* Categories Section */}
       {categories.length > 0 && (
-        <section className="pt-8 md:pt-10 pb-4 md:pb-6">
+        <section className="border-t py-6 md:py-8">
           <div className="container">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
-              <div className="text-center sm:text-left">
-                <h2 className="text-2xl md:text-3xl font-bold mb-2">Browse Categories</h2>
-                <p className="text-muted-foreground">
-                  Explore our wide range of course categories
-                </p>
+            <div className="mb-4 flex items-end justify-between gap-4">
+              <div>
+                <h2 className="text-2xl md:text-3xl font-bold">Browse categories</h2>
+                <p className="mt-1 text-muted-foreground">Find the right course for your next step</p>
               </div>
-              <Button variant="outline" asChild className="w-full sm:w-auto">
-                <Link href="/categories">View All</Link>
+              <Button variant="outline" asChild className="hidden sm:inline-flex">
+                <Link href="/categories">
+                  View all <ArrowRight className="ml-2 h-4 w-4" />
+                </Link>
               </Button>
             </div>
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
               {categories.map((category) => {
                 const IconComponent = iconMap[category.icon || "Code"] || Code
+                const image = categoryImages[category.slug] ?? categoryImageFallback
                 return (
                   <Link
                     key={category.id}
                     href={`/categories/${category.slug}`}
-                    className="group"
+                    className="group relative block aspect-[4/3] overflow-hidden rounded-xl"
                   >
-                    <Card className="h-full transition-colors hover:bg-muted/50">
-                      <CardContent className="p-6 text-center">
-                        <div className="inline-flex items-center justify-center w-12 h-12 rounded-lg bg-primary/10 text-primary mb-4 group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
-                          <IconComponent className="h-6 w-6" />
-                        </div>
-                        <h3 className="font-semibold mb-1">{category.name}</h3>
-                        <p className="text-sm text-muted-foreground">
-                          {category._count.courses} courses
-                        </p>
-                      </CardContent>
-                    </Card>
+                    <Image
+                      src={image}
+                      alt=""
+                      fill
+                      sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 16vw"
+                      className="object-cover transition-transform duration-300 group-hover:scale-105"
+                    />
+                    <span className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
+                    <span className="absolute inset-x-0 bottom-0 p-3 text-white">
+                      <span className="mb-1 inline-flex h-7 w-7 items-center justify-center rounded-md bg-white/20 backdrop-blur-sm">
+                        <IconComponent className="h-4 w-4" aria-hidden="true" />
+                      </span>
+                      <span className="block text-sm font-semibold leading-tight">{category.name}</span>
+                      <span className="block text-xs text-white/80">
+                        {category._count.courses} {category._count.courses === 1 ? "course" : "courses"}
+                      </span>
+                    </span>
                   </Link>
                 )
               })}
@@ -307,23 +326,23 @@ export default async function HomePage() {
       )}
 
       {/* CTA Section */}
-      <section className="py-8 md:py-12">
+      <section className="pb-6 md:pb-8">
         <div className="container">
-          <div className="relative overflow-hidden rounded-3xl bg-primary px-8 py-12 md:px-16 md:py-16">
+          <div className="relative overflow-hidden rounded-2xl bg-primary px-6 py-8 md:px-12 md:py-10">
             <div className="relative z-10 max-w-2xl">
-              <h2 className="text-3xl md:text-4xl font-bold text-primary-foreground mb-4">
+              <h2 className="text-2xl md:text-3xl font-bold text-primary-foreground mb-2">
                 Share Your Expertise
               </h2>
-              <p className="text-lg text-primary-foreground/80 mb-8">
+              <p className="text-base md:text-lg text-primary-foreground/80 mb-5">
                 Become a course developer and help professionals upskill. Create
                 CPD-accredited courses in your field of expertise.
               </p>
-              <button className="inline-flex items-center justify-center gap-3 rounded-xl bg-white text-primary font-extrabold text-lg md:text-xl px-10 md:px-14 py-5 md:py-6 shadow-lg shadow-white/10 transition-all duration-300 hover:scale-105 hover:shadow-xl hover:shadow-white/20 active:scale-100">
-                <Link href={isCourseDeveloper ? "/instructor" : "/become-instructor"} className="flex items-center gap-3">
-                  {isCourseDeveloper ? "Go to Course Developer" : "Start Creating Courses"}
-                  <ArrowRight className="h-6 w-6" />
+              <Button size="lg" variant="secondary" asChild className="font-semibold">
+                <Link href={isCourseDeveloper ? "/instructor" : "/become-instructor"}>
+                  {isCourseDeveloper ? "Go to Course Developer" : "Start creating courses"}
+                  <ArrowRight className="ml-2 h-4 w-4" />
                 </Link>
-              </button>
+              </Button>
             </div>
             <div className="absolute right-0 top-0 -z-0 h-full w-1/2 opacity-10">
               <svg

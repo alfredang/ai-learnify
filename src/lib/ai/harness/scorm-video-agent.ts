@@ -1,4 +1,4 @@
-import { readFile } from "node:fs/promises"
+import { readFile, rm } from "node:fs/promises"
 import path from "node:path"
 import type { Prisma, ScormBuildJob } from "@prisma/client"
 import { prisma } from "@/lib/prisma"
@@ -13,6 +13,7 @@ import { validateScorm12Package } from "@/lib/scorm/validate"
 import { zipPackage } from "@/lib/scorm/zip"
 import { probeMp4 } from "@/lib/scorm/mp4"
 import { publicUrlFor, resolveStoragePath, saveFile } from "@/lib/storage"
+import { isR2Configured, r2PutObject } from "@/lib/object-storage"
 
 /**
  * SCORM Studio agent — turns an uploaded lecture video into a validated
@@ -352,22 +353,57 @@ function steps(): StepDef<Ctx>[] {
       label: "Publish package and ZIP",
       async run(ctx) {
         const dir = ctx.job.id
-        for (const f of ctx.files) {
-          if (f.path === `media/${ctx.videoFileName}`) continue // already on disk
+        const mediaPath = `media/${ctx.videoFileName}`
+        const zip = zipPackage(ctx.files) // self-contained: includes the video
+        const zipName = `${toIdentifier(ctx.job.title).toLowerCase()}-scorm12.zip`
+        const useR2 = isR2Configured()
+
+        // Hosted copy: with R2, the SCO page stays on this origin (it must
+        // reach window.API on the LMS frame) but streams the video from R2.
+        let hostedFiles = ctx.files
+        let r2VideoUrl: string | null = null
+        if (useR2) {
+          const videoUrl = await r2PutObject(`scorm/${dir}/${ctx.videoFileName}`, ctx.videoBuffer, ctx.videoMime)
+          const hostedHtml = renderSco({
+            design: ctx.design!,
+            videoFile: videoUrl,
+            videoMime: ctx.videoMime,
+            brand: "Learnify",
+          })
+          r2VideoUrl = videoUrl
+          hostedFiles = ctx.files
+            .filter((f) => f.path !== mediaPath)
+            .map((f) => (f.path === "index.html" ? { ...f, data: hostedHtml } : f))
+        }
+
+        for (const f of hostedFiles) {
+          if (f.path === mediaPath) continue // already on disk (local mode)
           const sub = path.posix.dirname(f.path)
           const name = path.posix.basename(f.path)
           await saveFile(SCORM_VIDEO_DIR, name, typeof f.data === "string" ? Buffer.from(f.data, "utf8") : f.data, sub === "." ? dir : `${dir}/${sub}`)
         }
-        const zip = zipPackage(ctx.files)
-        const zipName = `${toIdentifier(ctx.job.title).toLowerCase()}-scorm12.zip`
-        const saved = await saveFile(SCORM_VIDEO_DIR, zipName, zip, dir)
+
+        if (useR2) {
+          ctx.zipUrl = await r2PutObject(`scorm/${dir}/${zipName}`, zip, "application/zip")
+          // Video now lives in R2 — free the VPS disk.
+          await rm(resolveStoragePath(`${SCORM_VIDEO_DIR}/${dir}/media`), { recursive: true, force: true })
+          await prisma.scormBuildJob.update({
+            where: { id: ctx.job.id },
+            data: { videoUrl: r2VideoUrl },
+          })
+        } else {
+          ctx.zipUrl = (await saveFile(SCORM_VIDEO_DIR, zipName, zip, dir)).url
+        }
         ctx.packageUrl = publicUrlFor(`${SCORM_VIDEO_DIR}/${dir}/`)
-        ctx.zipUrl = saved.url
         await prisma.scormBuildJob.update({
           where: { id: ctx.job.id },
           data: { packageUrl: ctx.packageUrl, zipUrl: ctx.zipUrl, entryPoint: "index.html" },
         })
-        return { status: "done", detail: `${zipName} (${(zip.length / 1024 / 1024).toFixed(1)} MB)`, data: { packageUrl: ctx.packageUrl, zipUrl: ctx.zipUrl } }
+        return {
+          status: "done",
+          detail: `${zipName} (${(zip.length / 1024 / 1024).toFixed(1)} MB)${useR2 ? " · video + ZIP on Cloudflare R2" : ""}`,
+          data: { packageUrl: ctx.packageUrl, zipUrl: ctx.zipUrl, storage: useR2 ? "r2" : "local" },
+        }
       },
     },
     {

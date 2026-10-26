@@ -6,12 +6,51 @@ import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
 import { cn } from "@/lib/utils"
 
-// Upload cap — Cloudinary free tier allows 100MB per video; the local
-// store accepts up to 500MB.
-const MAX_FILE_SIZE_MB = 500
+// Upload cap — Cloudflare R2 (preferred) takes up to 2 GB per video;
+// the Cloudinary / local fallbacks are limited by their own caps.
+const MAX_FILE_SIZE_MB = 2048
 const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024
 
-// Fallback when Cloudinary isn't configured: POST to /api/upload/local,
+// Preferred path: direct browser → Cloudflare R2 upload via a presigned
+// PUT. The file never touches the VPS. Returns null when R2 isn't
+// configured so the caller can fall back to Cloudinary / local storage.
+async function uploadVideoR2(
+  file: File,
+  onProgress: (pct: number) => void,
+  attachXhr: (xhr: XMLHttpRequest) => void
+): Promise<{ url: string; publicId: string } | null> {
+  const contentType = file.type || "video/mp4"
+  const res = await fetch("/api/upload/r2", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ fileName: file.name, contentType, size: file.size }),
+  })
+  if (res.status === 503) return null
+  const signed = await res.json().catch(() => ({}))
+  if (!res.ok) throw new Error(signed.error || `Upload could not start (${res.status})`)
+
+  await new Promise<void>((resolve, reject) => {
+    const xhr = new XMLHttpRequest()
+    attachXhr(xhr)
+    xhr.upload.addEventListener("progress", (event) => {
+      if (event.lengthComputable) onProgress(Math.round((event.loaded / event.total) * 100))
+    })
+    xhr.addEventListener("load", () =>
+      xhr.status >= 200 && xhr.status < 300
+        ? resolve()
+        : reject(new Error(`Cloud upload failed (${xhr.status})`))
+    )
+    xhr.addEventListener("error", () => reject(new Error("Network error during upload")))
+    xhr.addEventListener("abort", () => reject(new Error("Upload cancelled")))
+    xhr.open("PUT", signed.uploadUrl)
+    xhr.setRequestHeader("Content-Type", contentType)
+    xhr.setRequestHeader("Cache-Control", "public, max-age=31536000, immutable")
+    xhr.send(file)
+  })
+  return { url: signed.publicUrl, publicId: signed.key }
+}
+
+// Fallback when R2 and Cloudinary aren't configured: POST to /api/upload/local,
 // which stores the file under STORAGE_DIR and serves it from /uploads.
 async function uploadVideoLocal(
   file: File,
@@ -161,7 +200,23 @@ export function VideoUpload({
     onUploadStart?.()
 
     try {
-      // Get signed upload params
+      // 1) Cloudflare R2 (direct upload, keeps videos off the VPS disk)
+      const r2Result = await uploadVideoR2(file, setProgress, (xhr) => {
+        xhrRef.current = xhr
+      })
+      if (r2Result) {
+        const duration = await readVideoDuration(file).catch(() => 0)
+        xhrRef.current = null
+        setUploadState("success")
+        onUploadComplete({
+          videoUrl: r2Result.url,
+          videoPublicId: r2Result.publicId,
+          videoDuration: Math.round(duration),
+        })
+        return
+      }
+
+      // 2) Cloudinary signed upload, else 3) local store
       const sigRes = await fetch("/api/upload/signature")
       if (!sigRes.ok) {
         const sigErr = await sigRes.json().catch(() => ({}))

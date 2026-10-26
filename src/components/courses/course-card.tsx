@@ -30,7 +30,7 @@ export function CourseCard({
   const rating = Number(course.averageRating)
 
   return (
-    <Card className="group relative h-full overflow-hidden transition-shadow hover:shadow-lg flex flex-col py-0">
+    <Card className="group relative h-full overflow-hidden transition-shadow hover:shadow-lg flex flex-col gap-0 py-0">
       <div className="relative aspect-video">
         <CourseThumbnail src={course.thumbnail} title={course.title} />
         {course.isFeatured && (
@@ -44,7 +44,7 @@ export function CourseCard({
           </div>
         )}
       </div>
-      <CardContent className="p-4 flex-1">
+      <CardContent className="p-4 pb-3 flex-1">
         <h3 className="font-semibold text-base leading-snug line-clamp-2 mb-1">
           <Link href={`/courses/${course.slug}`} className="after:absolute after:inset-0">
             {course.title}

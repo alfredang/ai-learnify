@@ -69,6 +69,12 @@ const schema = z.object({
 
   // --- Runtime file storage (uploads, SCORM packages) ---
   STORAGE_DIR: z.string().optional(),
+  // --- Cloudflare R2 (videos) ---
+  R2_ACCOUNT_ID: z.string().optional(),
+  R2_ACCESS_KEY_ID: z.string().optional(),
+  R2_SECRET_ACCESS_KEY: z.string().optional(),
+  R2_BUCKET: z.string().optional(),
+  R2_PUBLIC_BASE_URL: z.string().url().optional().or(z.literal("")),
 
   // --- Phase 10 hardening: audit IP hashing salt. Random default is
   // fine — all it does is uncorrelate hashes across deploys. ---
@@ -110,6 +116,11 @@ function parse(): Env {
     EMAIL_FROM: process.env.EMAIL_FROM,
     CRON_SECRET: process.env.CRON_SECRET,
     STORAGE_DIR: process.env.STORAGE_DIR,
+    R2_ACCOUNT_ID: process.env.R2_ACCOUNT_ID,
+    R2_ACCESS_KEY_ID: process.env.R2_ACCESS_KEY_ID,
+    R2_SECRET_ACCESS_KEY: process.env.R2_SECRET_ACCESS_KEY,
+    R2_BUCKET: process.env.R2_BUCKET,
+    R2_PUBLIC_BASE_URL: process.env.R2_PUBLIC_BASE_URL,
     AUDIT_IP_SALT: process.env.AUDIT_IP_SALT,
     NODE_ENV: process.env.NODE_ENV,
   }
@@ -150,5 +161,8 @@ export function integrationStatus() {
     credential_encryption: Boolean(env.CREDENTIAL_ENCRYPTION_KEY),
     email: Boolean(env.RESEND_API_KEY && env.EMAIL_FROM),
     cron_auth: Boolean(env.CRON_SECRET),
+    r2_video_storage: Boolean(
+      env.R2_ACCOUNT_ID && env.R2_ACCESS_KEY_ID && env.R2_SECRET_ACCESS_KEY && env.R2_BUCKET && env.R2_PUBLIC_BASE_URL
+    ),
   }
 }
